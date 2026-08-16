@@ -29,6 +29,20 @@ public final class TestFixtures {
     }
 
     public static TelemetrySubmission submission(PartnerContext context, int bytes) {
+        return submission(
+                context,
+                bytes,
+                SanitizationResult.omitted(PayloadStatus.NOT_REQUESTED),
+                PayloadCaptureMode.METADATA_ONLY,
+                PayloadStatus.NOT_REQUESTED);
+    }
+
+    public static TelemetrySubmission submission(
+            PartnerContext context,
+            int bytes,
+            SanitizationResult attributes,
+            PayloadCaptureMode captureMode,
+            PayloadStatus payloadStatus) {
         PartnerEvent body = new PartnerEvent(
                 "application_submitted",
                 "APPLICATION",
@@ -40,7 +54,7 @@ public final class TestFixtures {
                 Optional.empty(),
                 Optional.of("SKU-1"),
                 Optional.of("LOAN"),
-                SanitizationResult.omitted(PayloadStatus.NOT_REQUESTED),
+                attributes,
                 new TransactionIdentifiers(
                         Optional.of("APP-SHARED-1"),
                         Optional.empty(),
@@ -58,8 +72,8 @@ public final class TestFixtures {
                 UUID.randomUUID(),
                 1,
                 new CaptureDecision(
-                        PayloadCaptureMode.METADATA_ONLY, PayloadCaptureMode.METADATA_ONLY, "test-v1"),
-                PayloadStatus.NOT_REQUESTED,
+                        captureMode, captureMode, "test-v1"),
+                payloadStatus,
                 Severity.INFO,
                 body);
         return new TelemetrySubmission(envelope, bytes, TelemetryPriority.NORMAL, TelemetryChannel.EVENT);

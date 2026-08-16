@@ -3,6 +3,9 @@ package com.partner.observability.core.model;
 import com.partner.observability.core.context.PartnerContext;
 import com.partner.observability.core.context.TrustLevel;
 import com.partner.observability.core.payload.PayloadStatus;
+import com.partner.observability.core.payload.SanitizationDisposition;
+import com.partner.observability.core.payload.SanitizationResult;
+import com.partner.observability.core.policy.PayloadCaptureMode;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -45,5 +48,25 @@ public record TelemetryEnvelope<T extends TelemetryRecord>(
         Objects.requireNonNull(payloadStatus, "payloadStatus");
         Objects.requireNonNull(severity, "severity");
         Objects.requireNonNull(body, "body");
+        if (captureDecision.effectiveMode() == PayloadCaptureMode.NO_PAYLOAD) {
+            throw new IllegalArgumentException("no-payload capture cannot create a telemetry envelope");
+        }
+        if (captureDecision.effectiveMode() == PayloadCaptureMode.METADATA_ONLY && containsCapturedPayload(body)) {
+            throw new IllegalArgumentException("metadata-only capture cannot contain payload values");
+        }
+    }
+
+    private static boolean containsCapturedPayload(TelemetryRecord record) {
+        if (record instanceof PartnerApiRequest request) {
+            return captured(request.headers()) || captured(request.query()) || captured(request.payload());
+        }
+        if (record instanceof PartnerApiResponse response) {
+            return captured(response.headers()) || captured(response.payload());
+        }
+        return record instanceof PartnerEvent event && captured(event.attributes());
+    }
+
+    private static boolean captured(SanitizationResult result) {
+        return result.disposition() == SanitizationDisposition.CAPTURED;
     }
 }

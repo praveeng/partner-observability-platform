@@ -50,7 +50,7 @@ There is deliberately no `SafeBinary`, arbitrary object, throwable, stream, publ
 | `direction` | enum | label | `INBOUND_FROM_PARTNER`, `OUTBOUND_TO_PARTNER` |
 | `interactionId` | UUID | structured metadata | Joins request and response for one observed call |
 | `eventSequence` | integer 0-2^31-1 | line | Monotonic only inside one observation, not globally |
-| `captureMode` | enum | line | `FULL_SANITIZED`, `METADATA_ONLY`, `NONE` |
+| `captureMode` | enum | line | `FULL_SANITIZED`, `METADATA_ONLY`, `NO_PAYLOAD` |
 | `payloadStatus` | enum | line | `CAPTURED`, `NOT_REQUESTED`, or omission reason |
 | `severity` | bounded enum | label | `INFO`, `WARN`, `ERROR` |
 | identifiers | validated strings <=128 | structured metadata | Defined below; never Loki labels |
@@ -148,9 +148,9 @@ Meter creation is permitted only from a startup registry generated from the mark
 | --- | --- |
 | `FULL_SANITIZED` | Metadata plus complete safe projection of allowed textual/scalar payload fields within hard limits |
 | `METADATA_ONLY` | Method/API/status/duration/content type/size bucket/outcome/error code/allowed identifiers; no headers, query values, or body |
-| `NONE` | No request, response, or event record; only aggregate SDK health counters may change |
+| `NO_PAYLOAD` | No request, response, or event record; only aggregate SDK health counters may change |
 
-The effective mode is the minimum privilege of global, partner, API, direction, content-type, runtime kill switch, and interceptor capability. `NONE < METADATA_ONLY < FULL_SANITIZED`; no lower layer may increase it.
+The effective mode is the minimum privilege of global, partner, API, direction, content-type, runtime kill switch, and interceptor capability. `NO_PAYLOAD < METADATA_ONLY < FULL_SANITIZED`; no lower layer may increase it. Core model construction rejects a telemetry envelope whose effective mode is `NO_PAYLOAD` and rejects captured header/query/body values in `METADATA_ONLY`.
 
 ## Serialization and processing order
 

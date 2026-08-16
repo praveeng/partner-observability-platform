@@ -35,7 +35,7 @@ class KillSwitchTest {
         switches.disableAll();
 
         assertFalse(switches.snapshot().observabilityEnabled());
-        assertEquals(PayloadCaptureMode.NONE,
+        assertEquals(PayloadCaptureMode.NO_PAYLOAD,
                 switches.snapshot().effectiveCaptureMode(PayloadCaptureMode.FULL_SANITIZED));
     }
 }

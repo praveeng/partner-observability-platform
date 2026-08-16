@@ -21,7 +21,7 @@ All label values must come from startup configuration or bounded enums:
 | `direction` | `inbound`, `outbound` |
 | `outcome` | `success`, `business_rejected`, `technical_failure`, `cancelled`, `unknown` |
 | `status_class` | `1xx`, `2xx`, `3xx`, `4xx`, `5xx`, `io_error`, `cancelled`, `unknown` |
-| `capture_mode` | `full_sanitized`, `metadata_only`, `none` |
+| `capture_mode` | `full_sanitized`, `metadata_only`, `no_payload` |
 | `reason` | Contract enum; never raw text |
 | `queue` | `high`, `normal`, `retry` |
 | `record_type` | `api_request`, `api_response`, `partner_event` |

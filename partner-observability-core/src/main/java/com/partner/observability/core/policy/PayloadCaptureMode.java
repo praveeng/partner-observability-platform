@@ -1,7 +1,7 @@
 package com.partner.observability.core.policy;
 
 public enum PayloadCaptureMode {
-    NONE,
+    NO_PAYLOAD,
     METADATA_ONLY,
     FULL_SANITIZED;
 

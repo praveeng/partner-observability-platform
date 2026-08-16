@@ -11,10 +11,12 @@ import java.util.Optional;
 /** Reviewed allowlist of normalized scalar paths. Unknown paths are never captured. */
 public final class PayloadSchema {
 
-    private final Map<String, PayloadFieldPolicy> fields;
+    private final Map<String, FieldRule> fields;
+    private final Map<String, PayloadFieldPolicy> fieldNames;
 
-    private PayloadSchema(Map<String, PayloadFieldPolicy> fields) {
+    private PayloadSchema(Map<String, FieldRule> fields, Map<String, PayloadFieldPolicy> fieldNames) {
         this.fields = Collections.unmodifiableMap(new LinkedHashMap<>(fields));
+        this.fieldNames = Collections.unmodifiableMap(new LinkedHashMap<>(fieldNames));
     }
 
     public static Builder builder() {
@@ -22,7 +24,15 @@ public final class PayloadSchema {
     }
 
     Optional<PayloadFieldPolicy> policyFor(String normalizedPath) {
+        return ruleFor(normalizedPath).map(FieldRule::policy);
+    }
+
+    Optional<FieldRule> ruleFor(String normalizedPath) {
         return Optional.ofNullable(fields.get(normalizedPath));
+    }
+
+    Optional<PayloadFieldPolicy> policyForFieldName(String normalizedName) {
+        return Optional.ofNullable(fieldNames.get(normalizedName));
     }
 
     boolean hasDescendant(String normalizedPath) {
@@ -41,7 +51,7 @@ public final class PayloadSchema {
         return normalized.replaceAll("[_\\-.\\s]", "");
     }
 
-    private static String normalizePath(String path) {
+    static String normalizePath(String path) {
         Objects.requireNonNull(path, "path");
         if (path.isBlank() || path.length() > 512) {
             throw new IllegalArgumentException("payload path is invalid");
@@ -67,25 +77,59 @@ public final class PayloadSchema {
     }
 
     public static final class Builder {
-        private final Map<String, PayloadFieldPolicy> fields = new LinkedHashMap<>();
+        private final Map<String, FieldRule> fields = new LinkedHashMap<>();
+        private final Map<String, PayloadFieldPolicy> fieldNames = new LinkedHashMap<>();
 
         public Builder allow(String path) {
-            return field(path, PayloadFieldPolicy.ALLOW);
+            return allow(path, PayloadValueType.SAFE_SCALAR);
+        }
+
+        public Builder allow(String path, PayloadValueType expectedType) {
+            return field(path, PayloadFieldPolicy.ALLOW, expectedType);
         }
 
         public Builder field(String path, PayloadFieldPolicy policy) {
-            if (fields.size() >= PayloadLimits.HARD_MAX_TOTAL_NODES) {
+            return field(path, policy, PayloadValueType.SAFE_SCALAR);
+        }
+
+        public Builder field(String path, PayloadFieldPolicy policy, PayloadValueType expectedType) {
+            if (fields.size() + fieldNames.size() >= PayloadLimits.HARD_MAX_TOTAL_NODES) {
                 throw new IllegalArgumentException("payload schema exceeds the field cap");
             }
             String normalized = normalizePath(path);
-            if (fields.putIfAbsent(normalized, Objects.requireNonNull(policy, "policy")) != null) {
+            FieldRule rule = new FieldRule(
+                    Objects.requireNonNull(policy, "policy"),
+                    Objects.requireNonNull(expectedType, "expectedType"));
+            if (fields.putIfAbsent(normalized, rule) != null) {
                 throw new IllegalArgumentException("duplicate payload path");
             }
             return this;
         }
 
+        /** Adds a non-allowing name rule that applies at every registered nested path. */
+        public Builder fieldName(String fieldName, PayloadFieldPolicy policy) {
+            if (fields.size() + fieldNames.size() >= PayloadLimits.HARD_MAX_TOTAL_NODES) {
+                throw new IllegalArgumentException("payload schema exceeds the field cap");
+            }
+            PayloadFieldPolicy checked = Objects.requireNonNull(policy, "policy");
+            if (checked == PayloadFieldPolicy.ALLOW) {
+                throw new IllegalArgumentException("field-name rules cannot expand the path allowlist");
+            }
+            String raw = Objects.requireNonNull(fieldName, "fieldName");
+            if (raw.length() > 256) {
+                throw new IllegalArgumentException("payload field name is too long");
+            }
+            String normalized = normalizeKey(raw);
+            if (normalized.isEmpty() || fieldNames.putIfAbsent(normalized, checked) != null) {
+                throw new IllegalArgumentException("duplicate or empty payload field name");
+            }
+            return this;
+        }
+
         public PayloadSchema build() {
-            return new PayloadSchema(fields);
+            return new PayloadSchema(fields, fieldNames);
         }
     }
+
+    record FieldRule(PayloadFieldPolicy policy, PayloadValueType expectedType) {}
 }

@@ -13,11 +13,11 @@
     "currentState": "READY_FOR_REVIEW"
   },
   "milestone": "M2",
-  "summary": "M2 framework-neutral core is implemented and its 28 unit tests, scoped payload/partner security gate, full repository build, and repository test suite pass. Bounded queues, fail-closed sanitization, partner-pure dispatch, failure containment, retry, kill switches, and bounded shutdown are ready for review; no Spring-specific auto-configuration is included.",
+  "summary": "M2 first-stage payload safety is ready for review. All 41 core tests and 16 synthetic test-app tests pass with zero skips/failures; the clean build and scoped payload/trusted-context security gate pass. Evidence covers bounded Base64 detection including a 10 MB pre-queue candidate, configurable capture/structural/string/output limits, field/path/type policies, registered DTO extraction, safe optional hashing, PII handling, and queue byte accounting.",
   "blockers": [],
   "nextActions": [
-    "Review and accept the M2 public APIs, sanitizer policy, and dispatcher/drop semantics before beginning M3 Spring Boot integration.",
-    "Implement the downstream Alloy/Loki/Grafana security assertions in M4-M7 and the exact full-duration performance profiles in M9; whole-platform verify-all intentionally remains non-zero until those gates exist."
+    "Review the M2 public API refinements, including the NO_PAYLOAD name, registered DTO schema, expected types, and disabled-by-default binary digest policy.",
+    "Implement interceptor/plaintext-hook integration and downstream Alloy/Loki absence assertions in M3-M5; whole-platform verify-all remains intentionally non-zero until those and the M9 performance gates exist."
   ],
-  "lastUpdated": "2026-08-16T13:47:14Z"
+  "lastUpdated": "2026-08-16T15:06:36Z"
 }

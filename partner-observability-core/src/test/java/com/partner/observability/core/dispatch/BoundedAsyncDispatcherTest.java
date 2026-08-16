@@ -9,12 +9,20 @@ import com.partner.observability.core.context.PartnerContext;
 import com.partner.observability.core.health.HealthState;
 import com.partner.observability.core.health.TelemetryHealth;
 import com.partner.observability.core.health.TelemetryHealthSnapshot;
+import com.partner.observability.core.payload.BinaryKind;
+import com.partner.observability.core.payload.FailClosedPayloadSanitizer;
+import com.partner.observability.core.payload.PayloadInput;
+import com.partner.observability.core.payload.PayloadSchema;
+import com.partner.observability.core.payload.PayloadStatus;
+import com.partner.observability.core.payload.SanitizationResult;
 import com.partner.observability.core.policy.KillSwitchState;
 import com.partner.observability.core.policy.ObservabilityKillSwitches;
+import com.partner.observability.core.policy.PayloadCaptureMode;
 import com.partner.observability.core.publish.PublishBatch;
 import com.partner.observability.core.time.SystemTimeSource;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -129,6 +137,43 @@ class BoundedAsyncDispatcherTest {
         assertEquals(1, health.captureAttempts());
         assertEquals(0, health.enqueued());
         assertEquals(1, health.drops().get(DropReason.MALFORMED));
+        dispatcher.close();
+    }
+
+    @Test
+    void tenMegabyteBase64SourceIsAbsentBeforeQueueAdmissionAndDoesNotConsumeQueueBytes() throws Exception {
+        CountDownLatch publishing = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        BoundedAsyncDispatcher dispatcher = dispatcher(batch -> {
+            publishing.countDown();
+            release.await();
+        }, config(1024L * 1024, Duration.ofSeconds(1)));
+        dispatcher.start();
+        assertTrue(dispatcher.submit(TestFixtures.submission(partnerA, 256)));
+        assertTrue(publishing.await(1, TimeUnit.SECONDS));
+
+        String source = "A".repeat(10 * 1024 * 1024);
+        SanitizationResult sanitized = new FailClosedPayloadSanitizer().sanitize(
+                PayloadInput.of(Map.of("opaquePayload", source)),
+                PayloadSchema.builder().allow("opaquePayload").build(),
+                PayloadCaptureMode.FULL_SANITIZED);
+        TelemetrySubmission submission = TestFixtures.submission(
+                partnerA, 384, sanitized, PayloadCaptureMode.FULL_SANITIZED, sanitized.status());
+
+        assertEquals(PayloadStatus.BASE64, sanitized.status());
+        assertEquals(BinaryKind.UNKNOWN_ENCODED, sanitized.omittedBinary().orElseThrow().kind());
+        assertTrue(sanitized.payload().isEmpty());
+        assertTrue(sanitized.omittedBinary().orElseThrow().sha256().isEmpty());
+        assertTrue(dispatcher.submit(submission));
+
+        TelemetryHealthSnapshot queued = dispatcher.health().snapshot();
+        assertEquals(1, queued.normalQueueEvents());
+        assertEquals(384, queued.normalQueueBytes());
+        assertTrue(source.length() > queued.normalQueueBytes() * 20_000);
+        assertTrue(((com.partner.observability.core.model.PartnerEvent) submission.envelope().body())
+                .attributes().payload().isEmpty());
+
+        release.countDown();
         dispatcher.close();
     }
 

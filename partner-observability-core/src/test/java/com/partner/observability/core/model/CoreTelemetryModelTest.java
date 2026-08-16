@@ -5,12 +5,16 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.partner.observability.core.TestFixtures;
 import com.partner.observability.core.payload.PayloadStatus;
+import com.partner.observability.core.payload.FailClosedPayloadSanitizer;
+import com.partner.observability.core.payload.PayloadInput;
+import com.partner.observability.core.payload.PayloadSchema;
 import com.partner.observability.core.payload.SanitizationResult;
 import com.partner.observability.core.policy.PayloadCaptureMode;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -54,6 +58,26 @@ class CoreTelemetryModelTest {
                 PayloadCaptureMode.METADATA_ONLY, PayloadCaptureMode.FULL_SANITIZED, "bad"));
         assertThrows(IllegalArgumentException.class, () -> new TransactionIdentifiers(
                 Optional.of("secret=abc"), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty()));
+
+        TelemetryEnvelope<?> existing = fixture.envelope;
+        assertThrows(IllegalArgumentException.class, () -> new TelemetryEnvelope<>(
+                1, UUID.randomUUID(), Instant.now(), Instant.now(), existing.service(), existing.partnerContext(),
+                Direction.OUTBOUND_TO_PARTNER, UUID.randomUUID(), 0,
+                new CaptureDecision(PayloadCaptureMode.NO_PAYLOAD, PayloadCaptureMode.NO_PAYLOAD, "v1"),
+                PayloadStatus.NOT_REQUESTED, Severity.INFO, existing.body()));
+
+        SanitizationResult captured = new FailClosedPayloadSanitizer().sanitize(
+                PayloadInput.of(Map.of("status", "SAFE")),
+                PayloadSchema.builder().allow("status").build(),
+                PayloadCaptureMode.FULL_SANITIZED);
+        TelemetryEnvelope<?> full = TestFixtures.submission(
+                existing.partnerContext(), 200, captured, PayloadCaptureMode.FULL_SANITIZED, PayloadStatus.CAPTURED)
+                .envelope();
+        assertThrows(IllegalArgumentException.class, () -> new TelemetryEnvelope<>(
+                1, UUID.randomUUID(), Instant.now(), Instant.now(), full.service(), full.partnerContext(),
+                Direction.OUTBOUND_TO_PARTNER, UUID.randomUUID(), 0,
+                new CaptureDecision(PayloadCaptureMode.METADATA_ONLY, PayloadCaptureMode.METADATA_ONLY, "v1"),
+                PayloadStatus.NOT_REQUESTED, Severity.INFO, full.body()));
     }
 
     private TelemetrySubmissionView envelope() {
@@ -63,7 +87,8 @@ class CoreTelemetryModelTest {
         TelemetryEnvelope<PartnerEvent> envelope = new TelemetryEnvelope<>(
                 1, UUID.randomUUID(), Instant.now(), Instant.now(), new ServiceIdentity("service", "1.0"),
                 TestFixtures.context("partner-a", "uk-dev-partner-a", "p001"), Direction.OUTBOUND_TO_PARTNER,
-                UUID.randomUUID(), 0, new CaptureDecision(PayloadCaptureMode.NONE, PayloadCaptureMode.NONE, "v1"),
+                UUID.randomUUID(), 0,
+                new CaptureDecision(PayloadCaptureMode.METADATA_ONLY, PayloadCaptureMode.METADATA_ONLY, "v1"),
                 PayloadStatus.NOT_REQUESTED, Severity.INFO, event);
         return new TelemetrySubmissionView(envelope);
     }

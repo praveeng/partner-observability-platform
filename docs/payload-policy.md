@@ -6,7 +6,7 @@ Only a bounded, explicitly allowlisted projection may become partner-safe derive
 
 ## Capture policy
 
-Capture mode is configured per market/service/partner/API/direction and defaults to `METADATA_ONLY`. `FULL_SANITIZED` requires a reviewed field schema. `NONE` creates no partner record. A runtime or content policy may reduce but never increase the configured mode.
+Capture mode is configured per market/service/partner/API/direction and defaults to `METADATA_ONLY`. `FULL_SANITIZED` requires a reviewed field schema. `NO_PAYLOAD` creates no partner record. A runtime or content policy may reduce but never increase the configured mode.
 
 “Full” is intentionally constrained: all allowed scalar/text fields in the configured schema are preserved after masking, provided the candidate and safe result fit hard bounds. It does not promise verbatim bytes, order/whitespace, unknown fields, attachments, or an entire oversized document.
 
@@ -41,7 +41,7 @@ The first-stage sanitizer combines:
 4. Value detectors for Bearer/Basic credentials, JWT shape, PEM blocks, key material, data URIs, canonical Base64, and payment-card candidates passing the Luhn check.
 5. A per-API path allowlist and expected type. Non-allowlisted paths are omitted even when their names appear harmless.
 
-Configuration can add removal/masking aliases or remove an allowed field. It cannot downgrade built-in removal/masking rules.
+Configuration can add removal/masking field-name aliases or remove/mask a reviewed nested path. A field-name rule cannot create a global allow rule, expected DTO types can only narrow capture, and no configuration can downgrade built-in removal/masking rules.
 
 ## Binary and Base64 exclusion before queue admission
 
@@ -54,7 +54,9 @@ The candidate is rejected or its field omitted before a safe event is constructe
 - An unpadded 32+ character string uses only a Base64 alphabet and successfully decodes; it is omitted even from an otherwise allowed identifier field.
 - The candidate is a document/signature field regardless of apparent text encoding.
 
-Detection reads at most the raw candidate limit and never decodes into an unbounded array. Decoded bytes are discarded immediately. Ambiguity results in omission. Metadata may record `payloadStatus=BASE64` or `BINARY`; it never records the offending name/value.
+Detection inspects at most the raw candidate limit and never decodes a large string into another array. Ambiguity results in omission. Metadata may record `payloadStatus=BASE64` or `BINARY`; it never records the offending name/value.
+
+Optional SHA-256 omission metadata is disabled by default. When explicitly enabled, it is computed only over an already-materialized `byte[]` or a read-only view of a `ByteBuffer` no larger than the raw candidate limit. It is skipped for Base64/text, streams, encrypted values, oversized inputs, removed secret fields, and aggregate metadata covering multiple binary candidates. Hashing never makes a candidate capturable and never permits a source reference or decoded copy to enter a queue.
 
 ## Hard limits
 
@@ -64,6 +66,7 @@ Detection reads at most the raw candidate limit and never decodes into an unboun
 | Safe payload per event | 32 KiB UTF-8 | Omit payload and emit metadata with `OVERSIZE` |
 | Serialized envelope | 64 KiB UTF-8 | Drop event before queue |
 | String | 2,048 UTF-8 bytes | Truncate only an already-allowed safe string with `…`; prohibited values are removed, not truncated |
+| Number | 128 digits; decimal scale -128 to 128 | Omit values whose canonical decimal form could cause unreasonable allocation |
 | Object depth | 8 | Omit deeper subtree |
 | Total fields/nodes | 128 | Omit payload as `OVERSIZE` to avoid a misleading partial object |
 | Array elements | 64 | Omit array as `OVERSIZE`; no first-N capture |
@@ -83,7 +86,7 @@ Query values are absent in metadata-only mode. Full mode accepts only registered
 
 The application stage is authoritative and runs before queue admission. It performs type/content/size rejection, path allowlisting, removal, masking, value detection, output bounding, canonical serialization, and final self-scan for built-in secret/binary patterns. Any exception discards payload/event and increments only a reason enum. It never calls arbitrary `toString()`, reflects into unregistered classes, logs raw input, or retains a source reference.
 
-For domain objects, a registered extractor selects named scalar paths into a bounded builder. General-purpose whole-object Jackson serialization is not a permitted capture mechanism. JSON text may be parsed with depth/token/size constraints and then filtered by the same registered schema.
+For domain objects, a registered extractor selects named scalar paths with explicit expected types into a bounded projection and immediately invokes the same sanitizer. Extractors are not invoked in `METADATA_ONLY` or `NO_PAYLOAD`, and extractor failure rejects the projection without an input-bearing diagnostic. General-purpose whole-object Jackson serialization is not a permitted capture mechanism. Pre-parsed JSON maps/lists use normalized dot paths plus `[]` array-element paths; future raw JSON parsers must enforce depth/token/size constraints before applying the same schema.
 
 ## Second-stage Alloy sanitization
 

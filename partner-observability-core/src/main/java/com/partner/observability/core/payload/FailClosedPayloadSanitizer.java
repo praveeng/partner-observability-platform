@@ -8,13 +8,12 @@ import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.text.Normalizer;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
@@ -26,32 +25,48 @@ public final class FailClosedPayloadSanitizer implements PayloadSanitizer {
 
     private static final Set<String> REMOVAL_ALIASES = Set.of(
             "authorization", "proxyauthorization", "auth", "credential", "credentials",
-            "password", "passcode", "secret", "clientsecret", "token", "accesstoken",
-            "refreshtoken", "jwt", "cookie", "setcookie", "session", "sessionid",
-            "apikey", "privatekey", "signingkey", "encryptionkey", "otp", "onetimepassword",
-            "verificationcode", "pin", "card", "cardnumber", "pan", "cvv", "cvc", "cid",
-            "trackdata", "magneticstripe", "expiry");
-    private static final Set<String> PHONE_ALIASES = Set.of("phone", "phonenumber", "mobile", "mobilephone");
-    private static final Set<String> EMAIL_ALIASES = Set.of("email", "emailaddress");
-    private static final Set<String> ACCOUNT_ALIASES = Set.of("account", "accountnumber", "bankaccount", "iban");
+            "authorizationheader", "authorizationvalue", "authorizationtoken", "proxyauthorizationheader",
+            "xauthorization", "authentication", "password", "passwordvalue", "passcode", "secret",
+            "secretvalue", "clientsecret", "clientsecretvalue", "token", "accesstoken",
+            "refreshtoken", "bearertoken", "oauthtoken", "jwt", "cookie", "cookieheader",
+            "setcookie", "setcookieheader", "session", "sessionid", "sessioncookie", "csrftoken",
+            "xsrftoken", "apikey", "apikeyvalue", "xapikey", "secretkey", "privatekey", "signingkey",
+            "encryptionkey", "encryptionkeyvalue", "encryptioniv", "initializationvector", "iv",
+            "ivvalue", "nonce", "otp", "otpcode", "onetimepassword", "onetimecode",
+            "verificationcode", "authenticationpin", "pin",
+            "card", "cardnumber", "cardno", "pan", "pannumber", "cvv", "cvv2", "cvc", "cid",
+            "trackdata", "magneticstripe", "cardexpiry", "cardexpiration");
+    private static final Set<String> PHONE_ALIASES = Set.of(
+            "phone", "phonenumber", "telephone", "telephonenumber", "mobile", "mobilephone",
+            "contactnumber");
+    private static final Set<String> EMAIL_ALIASES = Set.of("email", "emailaddress", "emailid");
+    private static final Set<String> ACCOUNT_ALIASES = Set.of(
+            "account", "accountnumber", "acctno", "bankaccount", "bankaccountnumber", "iban");
     private static final Set<String> NATIONAL_ID_ALIASES = Set.of(
-            "nationalid", "nationalidentifier", "governmentid", "taxid", "taxidentifier");
-    private static final Set<String> ADDRESS_ALIASES = Set.of("address", "postaladdress", "streetaddress");
+            "nationalid", "nationalidentifier", "governmentid", "taxid", "taxidentifier", "ssn",
+            "socialsecuritynumber", "passportnumber");
+    private static final Set<String> ADDRESS_ALIASES = Set.of(
+            "address", "postaladdress", "streetaddress", "homeaddress", "mailingaddress",
+            "residentialaddress", "billingaddress");
     private static final Set<String> DOCUMENT_ALIASES = Set.of(
             "document", "documents", "attachment", "attachments", "signature", "pdf", "image", "photo");
 
     private static final Pattern JWT = Pattern.compile("[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}");
-    private static final Pattern BASE64_STANDARD = Pattern.compile("[A-Za-z0-9+/]+={0,2}");
-    private static final Pattern BASE64_URL = Pattern.compile("[A-Za-z0-9_-]+");
 
     private final PayloadLimits limits;
+    private final BinaryDigestMode digestMode;
 
     public FailClosedPayloadSanitizer() {
-        this(PayloadLimits.defaults());
+        this(PayloadLimits.defaults(), BinaryDigestMode.DISABLED);
     }
 
     public FailClosedPayloadSanitizer(PayloadLimits limits) {
+        this(limits, BinaryDigestMode.DISABLED);
+    }
+
+    public FailClosedPayloadSanitizer(PayloadLimits limits, BinaryDigestMode digestMode) {
         this.limits = java.util.Objects.requireNonNull(limits, "limits");
+        this.digestMode = java.util.Objects.requireNonNull(digestMode, "digestMode");
     }
 
     @Override
@@ -60,7 +75,7 @@ public final class FailClosedPayloadSanitizer implements PayloadSanitizer {
             java.util.Objects.requireNonNull(input, "input");
             java.util.Objects.requireNonNull(schema, "schema");
             java.util.Objects.requireNonNull(mode, "mode");
-            if (mode == PayloadCaptureMode.NONE || mode == PayloadCaptureMode.METADATA_ONLY) {
+            if (mode == PayloadCaptureMode.NO_PAYLOAD || mode == PayloadCaptureMode.METADATA_ONLY) {
                 return SanitizationResult.omitted(PayloadStatus.NOT_REQUESTED);
             }
             if (input.isMalformed()) {
@@ -83,8 +98,7 @@ public final class FailClosedPayloadSanitizer implements PayloadSanitizer {
             if (isBinaryType(input.value())) {
                 return binaryOmission(binaryKind(input.value()), input);
             }
-            if (input.value() instanceof String text
-                    && text.getBytes(StandardCharsets.UTF_8).length > limits.rawCandidateBytes()) {
+            if (input.value() instanceof String text && utf8LengthExceeds(text, limits.rawCandidateBytes())) {
                 return SanitizationResult.omitted(PayloadStatus.OVERSIZE);
             }
 
@@ -116,10 +130,26 @@ public final class FailClosedPayloadSanitizer implements PayloadSanitizer {
         }
     }
 
+    /** Sanitizes a registered DTO projection without reflection or whole-object serialization. */
+    @Override
+    public <T> SanitizationResult sanitizeObject(
+            T source, PayloadObjectSchema<T> schema, PayloadCaptureMode mode) {
+        try {
+            java.util.Objects.requireNonNull(schema, "schema");
+            java.util.Objects.requireNonNull(mode, "mode");
+            if (mode == PayloadCaptureMode.NO_PAYLOAD || mode == PayloadCaptureMode.METADATA_ONLY) {
+                return SanitizationResult.omitted(PayloadStatus.NOT_REQUESTED);
+            }
+            return sanitize(PayloadInput.of(schema.project(source)), schema.payloadSchema(), mode);
+        } catch (RuntimeException exception) {
+            return SanitizationResult.rejected(PayloadStatus.MALFORMED);
+        }
+    }
+
     private SanitizationResult binaryOmission(BinaryKind kind, PayloadInput input) {
         PayloadStatus status = statusFor(kind);
         OmittedBinaryMetadata metadata = new OmittedBinaryMetadata(
-                kind, 1, input.declaredSizeBytes(), input.contentType());
+                kind, 1, input.declaredSizeBytes(), input.contentType(), safeDigest(input.value()));
         return SanitizationResult.omitted(status, metadata);
     }
 
@@ -169,11 +199,13 @@ public final class FailClosedPayloadSanitizer implements PayloadSanitizer {
         private final PayloadInput input;
         private final IdentityHashMap<Object, Boolean> active = new IdentityHashMap<>();
         private int nodes;
+        private int fieldEntries;
         private int removed;
         private int masked;
         private int omitted;
         private int binaryCount;
         private BinaryKind binaryKind;
+        private Optional<String> binarySha256 = Optional.empty();
 
         private Traversal(PayloadSchema schema, PayloadInput input) {
             this.schema = schema;
@@ -181,7 +213,7 @@ public final class FailClosedPayloadSanitizer implements PayloadSanitizer {
         }
 
         private Optional<SanitizedValue> visit(
-                Object candidate, String path, int depth, PayloadFieldPolicy inheritedPolicy) {
+                Object candidate, String path, int depth, PayloadSchema.FieldRule inheritedRule) {
             if (++nodes > limits.totalNodes()) {
                 throw new PayloadOversizeException();
             }
@@ -190,37 +222,33 @@ public final class FailClosedPayloadSanitizer implements PayloadSanitizer {
                 return Optional.empty();
             }
             if (candidate == null) {
-                Optional<PayloadFieldPolicy> nullPolicy = policy(path, inheritedPolicy);
-                if (nullPolicy.orElse(null) == PayloadFieldPolicy.REMOVE) {
+                Optional<PayloadSchema.FieldRule> nullRule = rule(path, inheritedRule);
+                if (nullRule.map(PayloadSchema.FieldRule::policy).orElse(null) == PayloadFieldPolicy.REMOVE) {
                     removed++;
                     return Optional.empty();
                 }
-                return nullPolicy.map(ignored -> SanitizedNullValue.INSTANCE);
+                return nullRule.map(ignored -> SanitizedNullValue.INSTANCE);
             }
-            if (policy(path, inheritedPolicy).orElse(null) == PayloadFieldPolicy.REMOVE) {
+            PayloadSchema.FieldRule fieldRule = rule(path, inheritedRule).orElse(null);
+            if (fieldRule != null && fieldRule.policy() == PayloadFieldPolicy.REMOVE) {
                 removed++;
                 return Optional.empty();
             }
             if (isBinaryType(candidate)) {
-                recordBinary(binaryKind(candidate));
+                recordBinary(binaryKind(candidate), candidate);
                 return Optional.empty();
             }
             if (candidate instanceof Map<?, ?> map) {
                 return visitMap(map, path, depth);
             }
             if (candidate instanceof List<?> list) {
-                return visitList(list, path, depth, inheritedPolicy);
+                return visitList(list, path, depth, fieldRule);
             }
-            PayloadFieldPolicy fieldPolicy = policy(path, inheritedPolicy).orElse(null);
-            if (fieldPolicy == null) {
+            if (fieldRule == null) {
                 omitted++;
                 return Optional.empty();
             }
-            if (fieldPolicy == PayloadFieldPolicy.REMOVE) {
-                removed++;
-                return Optional.empty();
-            }
-            return visitScalar(candidate, fieldPolicy);
+            return visitScalar(candidate, fieldRule);
         }
 
         private Optional<SanitizedValue> visitMap(Map<?, ?> map, String path, int depth) {
@@ -228,7 +256,14 @@ public final class FailClosedPayloadSanitizer implements PayloadSanitizer {
             try {
                 Map<String, SanitizedValue> safe = new LinkedHashMap<>();
                 for (Map.Entry<?, ?> entry : map.entrySet()) {
+                    if (++fieldEntries > limits.totalNodes()) {
+                        throw new PayloadOversizeException();
+                    }
                     if (!(entry.getKey() instanceof String rawKey)) {
+                        omitted++;
+                        continue;
+                    }
+                    if (rawKey.length() > 256) {
                         omitted++;
                         continue;
                     }
@@ -237,28 +272,38 @@ public final class FailClosedPayloadSanitizer implements PayloadSanitizer {
                         omitted++;
                         continue;
                     }
+                    if (isRemovalAlias(key)) {
+                        removed++;
+                        continue;
+                    }
+                    PayloadFieldPolicy configuredNamePolicy = schema.policyForFieldName(key).orElse(null);
+                    if (configuredNamePolicy == PayloadFieldPolicy.REMOVE) {
+                        removed++;
+                        continue;
+                    }
                     String childPath = path.isEmpty() ? key : path + "." + key;
                     boolean known = schema.policyFor(childPath).isPresent() || schema.hasDescendant(childPath);
                     if (!known) {
                         omitted++;
                         continue;
                     }
-                    if (isRemovalAlias(key)) {
+                    if (schema.policyFor(childPath).orElse(null) == PayloadFieldPolicy.REMOVE) {
                         removed++;
                         continue;
                     }
                     BinaryKind keyKind = documentKind(key);
                     if (keyKind != null) {
-                        recordBinary(keyKind);
+                        recordBinary(keyKind, entry.getValue());
                         continue;
                     }
                     PayloadFieldPolicy builtInMask = builtInMask(key);
-                    if (builtInMask != null) {
-                        safe.put(key, mask(entry.getValue(), builtInMask));
+                    PayloadFieldPolicy effectiveNamePolicy = builtInMask != null ? builtInMask : configuredNamePolicy;
+                    if (effectiveNamePolicy != null) {
+                        safe.put(key, mask(entry.getValue(), effectiveNamePolicy));
                         masked++;
                         continue;
                     }
-                    visit(entry.getValue(), childPath, depth + 1, schema.policyFor(childPath).orElse(null))
+                    visit(entry.getValue(), childPath, depth + 1, schema.ruleFor(childPath).orElse(null))
                             .ifPresent(value -> safe.put(key, value));
                 }
                 return safe.isEmpty() ? Optional.empty() : Optional.of(new SanitizedObjectValue(safe));
@@ -268,7 +313,7 @@ public final class FailClosedPayloadSanitizer implements PayloadSanitizer {
         }
 
         private Optional<SanitizedValue> visitList(
-                List<?> list, String path, int depth, PayloadFieldPolicy inheritedPolicy) {
+                List<?> list, String path, int depth, PayloadSchema.FieldRule inheritedRule) {
             if (list.size() > limits.arrayElements()) {
                 throw new PayloadOversizeException();
             }
@@ -276,10 +321,10 @@ public final class FailClosedPayloadSanitizer implements PayloadSanitizer {
             try {
                 List<SanitizedValue> safe = new ArrayList<>();
                 String elementPath = path + "[]";
-                PayloadFieldPolicy elementPolicy = schema.policyFor(elementPath)
-                        .orElse(schema.policyFor(path).orElse(inheritedPolicy));
+                PayloadSchema.FieldRule elementRule = schema.ruleFor(elementPath)
+                        .orElse(schema.ruleFor(path).orElse(inheritedRule));
                 for (Object value : list) {
-                    visit(value, elementPath, depth + 1, elementPolicy).ifPresent(safe::add);
+                    visit(value, elementPath, depth + 1, elementRule).ifPresent(safe::add);
                 }
                 return Optional.of(new SanitizedArrayValue(safe));
             } finally {
@@ -287,23 +332,31 @@ public final class FailClosedPayloadSanitizer implements PayloadSanitizer {
             }
         }
 
-        private Optional<SanitizedValue> visitScalar(Object value, PayloadFieldPolicy policy) {
+        private Optional<SanitizedValue> visitScalar(Object value, PayloadSchema.FieldRule rule) {
+            PayloadFieldPolicy policy = rule.policy();
             if (policy != PayloadFieldPolicy.ALLOW) {
                 masked++;
                 return Optional.of(mask(value, policy));
             }
+            if (!rule.expectedType().accepts(value)) {
+                omitted++;
+                return Optional.empty();
+            }
             if (value instanceof String text) {
-                if (containsUnsafeControls(text)) {
-                    omitted++;
-                    return Optional.empty();
-                }
                 if (isSecretValue(text)) {
                     removed++;
                     return Optional.empty();
                 }
                 BinaryKind encoded = encodedKind(text);
                 if (encoded != null) {
-                    recordBinary(encoded);
+                    recordBinary(encoded, null);
+                    return Optional.empty();
+                }
+                if (utf8LengthExceeds(text, limits.rawCandidateBytes())) {
+                    throw new PayloadOversizeException();
+                }
+                if (containsUnsafeControls(text)) {
+                    omitted++;
                     return Optional.empty();
                 }
                 return Optional.of(new SanitizedStringValue(truncateUtf8(text, limits.stringBytes())));
@@ -312,26 +365,38 @@ public final class FailClosedPayloadSanitizer implements PayloadSanitizer {
                 return Optional.of(new SanitizedBooleanValue(bool));
             }
             if (value instanceof BigDecimal decimal) {
-                return Optional.of(new SanitizedNumberValue(decimal));
+                return safeDecimal(decimal);
             }
             if (value instanceof BigInteger integer) {
-                return Optional.of(new SanitizedNumberValue(new BigDecimal(integer)));
+                if (integer.bitLength() > 512) {
+                    omitted++;
+                    return Optional.empty();
+                }
+                return safeDecimal(new BigDecimal(integer));
             }
             if (value instanceof Byte || value instanceof Short || value instanceof Integer || value instanceof Long) {
-                return Optional.of(new SanitizedNumberValue(BigDecimal.valueOf(((Number) value).longValue())));
+                return safeDecimal(BigDecimal.valueOf(((Number) value).longValue()));
             }
             if (value instanceof Float || value instanceof Double) {
                 double number = ((Number) value).doubleValue();
                 if (Double.isFinite(number)) {
-                    return Optional.of(new SanitizedNumberValue(BigDecimal.valueOf(number)));
+                    return safeDecimal(BigDecimal.valueOf(number));
                 }
             }
             omitted++;
             return Optional.empty();
         }
 
-        private Optional<PayloadFieldPolicy> policy(String path, PayloadFieldPolicy fallback) {
-            Optional<PayloadFieldPolicy> configured = schema.policyFor(path);
+        private Optional<SanitizedValue> safeDecimal(BigDecimal value) {
+            if (value.precision() > 128 || value.scale() < -128 || value.scale() > 128) {
+                omitted++;
+                return Optional.empty();
+            }
+            return Optional.of(new SanitizedNumberValue(value));
+        }
+
+        private Optional<PayloadSchema.FieldRule> rule(String path, PayloadSchema.FieldRule fallback) {
+            Optional<PayloadSchema.FieldRule> configured = schema.ruleFor(path);
             return configured.isPresent() ? configured : Optional.ofNullable(fallback);
         }
 
@@ -348,11 +413,16 @@ public final class FailClosedPayloadSanitizer implements PayloadSanitizer {
             };
         }
 
-        private void recordBinary(BinaryKind kind) {
+        private void recordBinary(BinaryKind kind, Object candidate) {
             binaryCount++;
             omitted++;
             if (binaryKind == null) {
                 binaryKind = kind;
+            }
+            if (binaryCount == 1) {
+                binarySha256 = safeDigest(candidate);
+            } else {
+                binarySha256 = Optional.empty();
             }
         }
 
@@ -361,7 +431,8 @@ public final class FailClosedPayloadSanitizer implements PayloadSanitizer {
                     binaryKind,
                     Math.min(binaryCount, PayloadLimits.HARD_MAX_TOTAL_NODES),
                     input.declaredSizeBytes(),
-                    input.contentType());
+                    input.contentType(),
+                    binarySha256);
         }
 
         private void enter(Object value) {
@@ -412,88 +483,159 @@ public final class FailClosedPayloadSanitizer implements PayloadSanitizer {
     }
 
     private boolean isSecretValue(String value) {
-        String normalized = value.strip();
-        String lower = normalized.toLowerCase(Locale.ROOT);
-        return lower.startsWith("bearer ")
-                || lower.startsWith("basic ")
-                || lower.startsWith("-----begin ")
-                || JWT.matcher(normalized).matches()
-                || isPaymentCard(normalized);
+        int start = trimStart(value);
+        int end = trimEnd(value, start);
+        int length = end - start;
+        if (startsWithIgnoreCase(value, start, end, "bearer ")
+                || startsWithIgnoreCase(value, start, end, "basic ")
+                || startsWithIgnoreCase(value, start, end, "-----begin ")) {
+            return true;
+        }
+        if (length <= 4096) {
+            java.util.regex.Matcher matcher = JWT.matcher(value);
+            matcher.region(start, end);
+            if (matcher.matches()) {
+                return true;
+            }
+        }
+        return isPaymentCard(value, start, end) || isKnownSecretToken(value, start, end);
     }
 
     private BinaryKind encodedKind(String value) {
-        String normalized = value.strip();
-        String lower = normalized.toLowerCase(Locale.ROOT);
-        if (lower.startsWith("data:")) {
+        int start = trimStart(value);
+        int end = trimEnd(value, start);
+        int length = end - start;
+        if (startsWithIgnoreCase(value, start, end, "data:")) {
             return BinaryKind.BASE64;
         }
-        if (normalized.length() > limits.rawCandidateBytes()) {
-            throw new PayloadOversizeException();
+        if (startsWith(value, start, end, "JVBER")
+                || startsWith(value, start, end, "/9j/")
+                || startsWith(value, start, end, "iVBORw0KGgo")) {
+            return BinaryKind.BASE64;
         }
-        if (normalized.length() >= 12 && normalized.length() % 4 == 0
-                && BASE64_STANDARD.matcher(normalized).matches()) {
-            Optional<byte[]> decoded = decodeBounded(normalized, false);
-            if (decoded.isPresent() && (hasBinarySignature(decoded.get())
-                    || (normalized.length() >= 256 && looksBinary(decoded.get())))) {
-                return BinaryKind.BASE64;
+        if (length < 16) {
+            return null;
+        }
+
+        int inspectedEnd = Math.min(end, start + limits.rawCandidateBytes());
+        boolean standard = true;
+        boolean urlSafe = true;
+        boolean paddingSeen = false;
+        int padding = 0;
+        int encodedCharacters = 0;
+        for (int index = start; index < inspectedEnd; index++) {
+            char character = value.charAt(index);
+            if (isBase64AlphaNumeric(character)) {
+                if (paddingSeen) {
+                    return null;
+                }
+                encodedCharacters++;
+                continue;
             }
+            if (character == '+' || character == '/') {
+                urlSafe = false;
+                if (paddingSeen) {
+                    return null;
+                }
+                encodedCharacters++;
+                continue;
+            }
+            if (character == '-' || character == '_') {
+                standard = false;
+                if (paddingSeen) {
+                    return null;
+                }
+                encodedCharacters++;
+                continue;
+            }
+            if (character == '=') {
+                paddingSeen = true;
+                padding++;
+                encodedCharacters++;
+                if (padding > 2) {
+                    return null;
+                }
+                continue;
+            }
+            if (character == '\r' || character == '\n') {
+                continue;
+            }
+            return null;
         }
-        if (normalized.length() >= 256 && BASE64_URL.matcher(normalized).matches()
-                && decodeBounded(normalized, true).isPresent()) {
+
+        if (end > inspectedEnd) {
+            if ((standard || urlSafe) && encodedCharacters >= 32) {
+                return BinaryKind.UNKNOWN_ENCODED;
+            }
+            return null;
+        }
+        if (padding > 0) {
+            return (standard || urlSafe) && encodedCharacters >= 16 && encodedCharacters % 4 == 0
+                    ? BinaryKind.BASE64
+                    : null;
+        }
+        if ((standard || urlSafe) && encodedCharacters >= 32 && encodedCharacters % 4 != 1) {
             return BinaryKind.UNKNOWN_ENCODED;
         }
         return null;
     }
 
-    private Optional<byte[]> decodeBounded(String value, boolean urlSafe) {
-        try {
-            byte[] decoded = (urlSafe ? Base64.getUrlDecoder() : Base64.getDecoder()).decode(value);
-            return decoded.length > 0 && decoded.length <= limits.rawCandidateBytes()
-                    ? Optional.of(decoded)
-                    : Optional.empty();
-        } catch (IllegalArgumentException exception) {
-            return Optional.empty();
+    private boolean isBase64AlphaNumeric(char value) {
+        return value >= 'A' && value <= 'Z'
+                || value >= 'a' && value <= 'z'
+                || value >= '0' && value <= '9';
+    }
+
+    private int trimStart(String value) {
+        int index = 0;
+        int inspectionLimit = Math.min(value.length(), limits.rawCandidateBytes() + 1);
+        while (index < inspectionLimit && Character.isWhitespace(value.charAt(index))) {
+            index++;
         }
+        return index;
     }
 
-    private boolean hasBinarySignature(byte[] value) {
-        return startsWith(value, new byte[] {'%', 'P', 'D', 'F'})
-                || startsWith(value, new byte[] {(byte) 0xff, (byte) 0xd8, (byte) 0xff})
-                || startsWith(value, new byte[] {(byte) 0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a});
+    private int trimEnd(String value, int start) {
+        int index = value.length();
+        int inspectionLimit = Math.max(start, value.length() - limits.rawCandidateBytes() - 1);
+        while (index > inspectionLimit && Character.isWhitespace(value.charAt(index - 1))) {
+            index--;
+        }
+        return index;
     }
 
-    private boolean startsWith(byte[] value, byte[] signature) {
-        if (value.length < signature.length) {
+    private boolean startsWithIgnoreCase(String value, int start, int end, String prefix) {
+        return end - start >= prefix.length() && value.regionMatches(true, start, prefix, 0, prefix.length());
+    }
+
+    private boolean startsWith(String value, int start, int end, String prefix) {
+        return end - start >= prefix.length() && value.regionMatches(start, prefix, 0, prefix.length());
+    }
+
+    private boolean isPaymentCard(String value, int start, int end) {
+        if (end - start < 13 || end - start > 37) {
             return false;
         }
-        for (int index = 0; index < signature.length; index++) {
-            if (value[index] != signature[index]) {
+        int digits = 0;
+        for (int index = start; index < end; index++) {
+            char character = value.charAt(index);
+            if (character >= '0' && character <= '9') {
+                digits++;
+            } else if (character != ' ' && character != '-') {
                 return false;
             }
         }
-        return true;
-    }
-
-    private boolean looksBinary(byte[] value) {
-        int nonText = 0;
-        for (byte item : value) {
-            int unsigned = item & 0xff;
-            if (unsigned == 0 || unsigned > 0x7e || (unsigned < 0x20 && unsigned != '\n' && unsigned != '\r' && unsigned != '\t')) {
-                nonText++;
-            }
-        }
-        return nonText * 10 >= value.length;
-    }
-
-    private boolean isPaymentCard(String value) {
-        String digits = value.replaceAll("[ -]", "");
-        if (!digits.matches("[0-9]{13,19}")) {
+        if (digits < 13 || digits > 19) {
             return false;
         }
         int sum = 0;
         boolean doubleDigit = false;
-        for (int index = digits.length() - 1; index >= 0; index--) {
-            int digit = digits.charAt(index) - '0';
+        for (int index = end - 1; index >= start; index--) {
+            char character = value.charAt(index);
+            if (character == ' ' || character == '-') {
+                continue;
+            }
+            int digit = character - '0';
             if (doubleDigit) {
                 digit *= 2;
                 if (digit > 9) {
@@ -506,47 +648,138 @@ public final class FailClosedPayloadSanitizer implements PayloadSanitizer {
         return sum % 10 == 0;
     }
 
+    private boolean isKnownSecretToken(String value, int start, int end) {
+        int length = end - start;
+        if (length == 20 && (value.regionMatches(start, "AKIA", 0, 4)
+                || value.regionMatches(start, "ASIA", 0, 4))) {
+            for (int index = start + 4; index < end; index++) {
+                char character = value.charAt(index);
+                if (!((character >= 'A' && character <= 'Z') || (character >= '0' && character <= '9'))) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return length >= 16 && (startsWithIgnoreCase(value, start, end, "sk_live_")
+                || startsWithIgnoreCase(value, start, end, "sk_test_")
+                || startsWithIgnoreCase(value, start, end, "xoxb-")
+                || startsWithIgnoreCase(value, start, end, "xoxa-"))
+                || length >= 24 && (startsWithIgnoreCase(value, start, end, "ghp_")
+                        || startsWithIgnoreCase(value, start, end, "gho_")
+                        || startsWithIgnoreCase(value, start, end, "ghu_")
+                        || startsWithIgnoreCase(value, start, end, "ghs_"));
+    }
+
     private boolean containsUnsafeControls(String value) {
         return value.codePoints().anyMatch(codePoint -> codePoint == 0 || (codePoint < 32 && codePoint != '\n' && codePoint != '\r' && codePoint != '\t'));
     }
 
     private String maskEmail(String value) {
+        if (value.length() > limits.rawCandidateBytes()) {
+            return "[MASKED_EMAIL]";
+        }
         int at = value.indexOf('@');
         int dot = value.lastIndexOf('.');
-        if (at <= 0 || dot <= at + 1 || dot == value.length() - 1) {
+        int topLevelLength = value.length() - dot - 1;
+        if (at <= 0 || dot <= at + 1 || topLevelLength < 1 || topLevelLength > 16
+                || !isSafeMaskCharacter(value.charAt(0))
+                || !isSafeMaskCharacter(value.charAt(at + 1))) {
             return "[MASKED_EMAIL]";
+        }
+        for (int index = dot + 1; index < value.length(); index++) {
+            if (!isSafeMaskCharacter(value.charAt(index))) {
+                return "[MASKED_EMAIL]";
+            }
         }
         return value.charAt(0) + "***@" + value.charAt(at + 1) + "***" + value.substring(dot);
     }
 
     private String lastAlphanumeric(String value, int count) {
-        String normalized = Normalizer.normalize(value, Normalizer.Form.NFKC).replaceAll("[^A-Za-z0-9]", "");
-        if (normalized.isEmpty()) {
-            return "";
+        StringBuilder reversed = new StringBuilder(count);
+        int inspectionLimit = Math.max(0, value.length() - limits.rawCandidateBytes());
+        for (int index = value.length() - 1;
+                index >= inspectionLimit && reversed.length() < count;
+                index--) {
+            char character = value.charAt(index);
+            if (isSafeMaskCharacter(character)) {
+                reversed.append(character);
+            }
         }
-        return normalized.substring(Math.max(0, normalized.length() - count));
+        return reversed.reverse().toString();
+    }
+
+    private boolean isSafeMaskCharacter(char value) {
+        return value >= 'A' && value <= 'Z'
+                || value >= 'a' && value <= 'z'
+                || value >= '0' && value <= '9';
     }
 
     private String truncateUtf8(String value, int maximumBytes) {
-        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
-        if (bytes.length <= maximumBytes) {
+        if (!utf8LengthExceeds(value, maximumBytes)) {
             return value;
         }
-        int budget = maximumBytes - "…".getBytes(StandardCharsets.UTF_8).length;
+        int budget = maximumBytes - 3;
         StringBuilder result = new StringBuilder();
         int used = 0;
         for (int offset = 0; offset < value.length(); ) {
             int codePoint = value.codePointAt(offset);
-            String character = new String(Character.toChars(codePoint));
-            int characterBytes = character.getBytes(StandardCharsets.UTF_8).length;
+            int characterBytes = utf8Bytes(codePoint);
             if (used + characterBytes > budget) {
                 break;
             }
-            result.append(character);
+            result.appendCodePoint(codePoint);
             used += characterBytes;
             offset += Character.charCount(codePoint);
         }
         return result.append('…').toString();
+    }
+
+    private boolean utf8LengthExceeds(String value, int maximumBytes) {
+        int bytes = 0;
+        for (int offset = 0; offset < value.length(); ) {
+            int codePoint = value.codePointAt(offset);
+            bytes += utf8Bytes(codePoint);
+            if (bytes > maximumBytes) {
+                return true;
+            }
+            offset += Character.charCount(codePoint);
+        }
+        return false;
+    }
+
+    private int utf8Bytes(int codePoint) {
+        if (codePoint <= 0x7f) {
+            return 1;
+        }
+        if (codePoint <= 0x7ff) {
+            return 2;
+        }
+        return codePoint <= 0xffff ? 3 : 4;
+    }
+
+    private Optional<String> safeDigest(Object candidate) {
+        if (digestMode != BinaryDigestMode.SAFE_SHA_256) {
+            return Optional.empty();
+        }
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            if (candidate instanceof byte[] bytes) {
+                if (bytes.length > limits.rawCandidateBytes()) {
+                    return Optional.empty();
+                }
+                digest.update(bytes);
+            } else if (candidate instanceof ByteBuffer buffer) {
+                if (buffer.remaining() > limits.rawCandidateBytes()) {
+                    return Optional.empty();
+                }
+                digest.update(buffer.asReadOnlyBuffer());
+            } else {
+                return Optional.empty();
+            }
+            return Optional.of(java.util.HexFormat.of().formatHex(digest.digest()));
+        } catch (NoSuchAlgorithmException exception) {
+            return Optional.empty();
+        }
     }
 
     private int jsonBytes(SanitizedValue value) {
@@ -600,7 +833,7 @@ public final class FailClosedPayloadSanitizer implements PayloadSanitizer {
                     || codePoint == '\n' || codePoint == '\r' || codePoint == '\t') {
                 bytes += 2;
             } else {
-                bytes += new String(Character.toChars(codePoint)).getBytes(StandardCharsets.UTF_8).length;
+                bytes += utf8Bytes(codePoint);
             }
             offset += Character.charCount(codePoint);
         }

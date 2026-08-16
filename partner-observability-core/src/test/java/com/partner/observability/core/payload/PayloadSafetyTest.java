@@ -164,7 +164,7 @@ class PayloadSafetyTest {
         PayloadInput input = PayloadInput.of(Map.of("unknown", "unsafe", "known", "safe"));
 
         assertEquals(PayloadStatus.NOT_REQUESTED,
-                sanitizer.sanitize(input, schema, PayloadCaptureMode.NONE).status());
+                sanitizer.sanitize(input, schema, PayloadCaptureMode.NO_PAYLOAD).status());
         assertEquals(PayloadStatus.NOT_REQUESTED,
                 sanitizer.sanitize(input, schema, PayloadCaptureMode.METADATA_ONLY).status());
         assertEquals(Map.of("known", "safe"), safeMap(sanitize(input.value(), schema)));

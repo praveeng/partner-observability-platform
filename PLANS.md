@@ -22,9 +22,9 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 
 ### M2 — Core SDK (ready for review)
 
-- Implemented immutable framework-independent partner context, request/response/event/envelope models, searchable high-cardinality identifier metadata, capture modes, safe payload tree and omission metadata, fail-closed schema sanitizer, monotonic kill switches, fixed-dimension health state, publisher SPI, and two bounded MPSC queues with event and byte caps.
+- Implemented immutable framework-independent partner context, request/response/event/envelope models, searchable high-cardinality identifier metadata, `FULL_SANITIZED`/`METADATA_ONLY`/`NO_PAYLOAD` modes, safe payload tree and omission metadata, fail-closed nested-path/field-name/type sanitizer, registered DTO extractors, monotonic kill switches, fixed-dimension health state, publisher SPI, and two bounded MPSC queues with event and byte caps.
 - The dispatcher uses producer-side non-blocking `offer`, drop-newest saturation, one bounded retry holding slot on its daemon thread, partner-pure publisher batches, fixed priority fairness, exception containment, and a maximum two-second configurable shutdown bound.
-- M2 security evidence covers credential/OTP/card removal, required PII masks, PDF/JPEG/PNG/nested/unknown Base64 and document-array exclusion, malformed/encrypted/oversized handling, all capture modes, structural limits, trusted server context, unsafe defaults, and colliding application IDs across partner routing keys.
+- M2 security evidence covers credential/OTP/card removal, required PII masks, Authorization/JWT/known-secret value variants, PDF/JPEG/PNG/nested/non-obvious 10 MB Base64 and document-array exclusion, malformed/encrypted/oversized handling, all capture modes, DTO type confusion, structural/string/output limits, safe optional binary hashing, trusted server context, unsafe defaults, pre-queue byte accounting, and colliding application IDs across partner routing keys.
 - Acceptance: the core unit suite proves event/byte boundedness, non-blocking saturation, exact drop signals, sanitizer/record-construction containment, publisher outage/recovery, concurrency, batch isolation, kill switches, and bounded shutdown. Downstream Alloy/Loki/Grafana assertions and the exact long-duration performance profiles remain M4/M5/M7/M9 gates and are not claimed by M2.
 
 ### M3 — Spring Boot auto-configuration and interceptors
@@ -33,9 +33,9 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 - Preparatory fixture complete: `partner-observability-test-app` provides executable RestTemplate, WebClient, OkHttp, local mock-partner, transport failure, retry, encryption-boundary, multi-partner, and concurrency scenarios without implementing production interceptors.
 - Acceptance: opt-in configuration, compatibility, context startup, request-path isolation, and disabled-mode tests pass.
 
-### M4 — Payload safety and encrypted integration support
+### M4 — Payload integration, second-stage safety, and encrypted support
 
-- Implement fail-closed payload classification and the approved design for observing supported encrypted integrations without weakening application encryption.
+- Integrate the M2 fail-closed first-stage classifier with supported interceptors and explicit plaintext hooks, then implement Alloy defense in depth without weakening application encryption.
 - Preparatory fixture complete: generated PDF/JPEG/opaque/document-array Base64 candidates and synthetic nested credential, OTP, card, and mask-required PII payloads are available for future sanitizer assertions.
 - Acceptance: prohibited classes are absent before queue admission and from every sink, including error paths and malformed inputs.
 
@@ -72,4 +72,4 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 
 ## Current focus
 
-M1 and M2 are implemented and ready for review. The framework-neutral core now provides the safe pre-queue boundary and bounded dispatcher; it deliberately contains no Spring-specific auto-configuration or backend integration. The synthetic test-app remains an authorized preparatory fixture for M3/M4/M9. Next implementation work is M3 after review accepts the M2 APIs and evidence. Later milestones must implement downstream defense in depth, isolation, and exact performance gates against the numeric contracts rather than silently changing them.
+M1 and the hardened M2 first-stage payload-safety boundary are ready for review. The framework-neutral core provides bounded Base64 inspection, registered reflection-free DTO projections, configurable hard limits, and a bounded dispatcher; it deliberately contains no Spring-specific auto-configuration or backend integration. The M2 gate has 41 passing core tests, while the compatible synthetic test-app contributes 16 passing tests. The synthetic test-app remains an authorized preparatory fixture for M3/M4/M9. Next implementation work is M3 after review accepts the hardened M2 APIs and evidence. Later milestones must integrate the first-stage boundary, implement downstream defense in depth/isolation, and run exact performance gates against the numeric contracts rather than silently changing them.

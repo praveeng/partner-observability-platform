@@ -18,7 +18,7 @@ public record KillSwitchState(
 
     public PayloadCaptureMode effectiveCaptureMode(PayloadCaptureMode configured) {
         if (!observabilityEnabled || !eventsEnabled) {
-            return PayloadCaptureMode.NONE;
+            return PayloadCaptureMode.NO_PAYLOAD;
         }
         return payloadsEnabled ? configured : configured.reduceTo(PayloadCaptureMode.METADATA_ONLY);
     }

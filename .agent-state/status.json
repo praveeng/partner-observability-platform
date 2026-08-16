@@ -12,13 +12,12 @@
     ],
     "currentState": "READY_FOR_REVIEW"
   },
-  "milestone": "M3",
-  "summary": "The synthetic partner-observability-test-app fixture is implemented and verified as an isolated M3/M4/M9 preparatory slice; 16 tests, the executable Boot JAR build, and repository build/test entry points are green, with no production SDK behavior added.",
+  "milestone": "M2",
+  "summary": "M2 framework-neutral core is implemented and its 28 unit tests, scoped payload/partner security gate, full repository build, and repository test suite pass. Bounded queues, fail-closed sanitization, partner-pure dispatch, failure containment, retry, kill switches, and bounded shutdown are ready for review; no Spring-specific auto-configuration is included.",
   "blockers": [],
   "nextActions": [
-    "Use this fixture to test future SDK sanitizer/interceptor/context behavior without changing its synthetic inputs to obtain a pass.",
-    "Implement pre-queue and downstream security assertions only when the corresponding production SDK and local observability stack exist.",
-    "Run the full M9 duration and throughput profiles when the production dispatcher and performance harness are implemented."
+    "Review and accept the M2 public APIs, sanitizer policy, and dispatcher/drop semantics before beginning M3 Spring Boot integration.",
+    "Implement the downstream Alloy/Loki/Grafana security assertions in M4-M7 and the exact full-duration performance profiles in M9; whole-platform verify-all intentionally remains non-zero until those gates exist."
   ],
-  "lastUpdated": "2026-08-16T12:58:00Z"
+  "lastUpdated": "2026-08-16T13:47:14Z"
 }

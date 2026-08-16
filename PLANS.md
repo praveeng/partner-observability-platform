@@ -20,10 +20,12 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 - Remaining questions in `docs/decisions-needed.md` are accountable organizational/deployment/onboarding inputs with safe defaults, not silent security-critical design gaps.
 - Acceptance: documentation consistency checks pass and the M1 design is committed locally for review. No product functionality is implemented.
 
-### M2 — Core SDK
+### M2 — Core SDK (ready for review)
 
-- Implement framework-independent event models, allowlisting/sanitization, bounded queues, drop behavior, safe failure containment, and exporter abstractions.
-- Acceptance: unit and concurrency tests prove boundedness, non-blocking saturation, sanitization, and exception isolation.
+- Implemented immutable framework-independent partner context, request/response/event/envelope models, searchable high-cardinality identifier metadata, capture modes, safe payload tree and omission metadata, fail-closed schema sanitizer, monotonic kill switches, fixed-dimension health state, publisher SPI, and two bounded MPSC queues with event and byte caps.
+- The dispatcher uses producer-side non-blocking `offer`, drop-newest saturation, one bounded retry holding slot on its daemon thread, partner-pure publisher batches, fixed priority fairness, exception containment, and a maximum two-second configurable shutdown bound.
+- M2 security evidence covers credential/OTP/card removal, required PII masks, PDF/JPEG/PNG/nested/unknown Base64 and document-array exclusion, malformed/encrypted/oversized handling, all capture modes, structural limits, trusted server context, unsafe defaults, and colliding application IDs across partner routing keys.
+- Acceptance: the core unit suite proves event/byte boundedness, non-blocking saturation, exact drop signals, sanitizer/record-construction containment, publisher outage/recovery, concurrency, batch isolation, kill switches, and bounded shutdown. Downstream Alloy/Loki/Grafana assertions and the exact long-duration performance profiles remain M4/M5/M7/M9 gates and are not claimed by M2.
 
 ### M3 — Spring Boot auto-configuration and interceptors
 
@@ -70,4 +72,4 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 
 ## Current focus
 
-M1 is implemented as specification and awaiting review. The synthetic test-app fixture is implemented as an explicitly authorized cross-milestone preparatory slice; it does not make M2, M3, M4, or M9 complete and adds no production SDK behavior. M2 remains the next product milestone after M1 review accepts ADRs 0001-0008 and owners acknowledge the safe defaults/open inputs. Later milestones must implement against the numeric contracts rather than silently changing them.
+M1 and M2 are implemented and ready for review. The framework-neutral core now provides the safe pre-queue boundary and bounded dispatcher; it deliberately contains no Spring-specific auto-configuration or backend integration. The synthetic test-app remains an authorized preparatory fixture for M3/M4/M9. Next implementation work is M3 after review accepts the M2 APIs and evidence. Later milestones must implement downstream defense in depth, isolation, and exact performance gates against the numeric contracts rather than silently changing them.

@@ -3,7 +3,7 @@ plugins {
 }
 
 dependencies {
-    api 'org.slf4j:slf4j-api:1.7.36'
+    implementation 'org.jctools:jctools-core:4.0.5'
 
     testImplementation platform('org.junit:junit-bom:5.10.3')
     testImplementation 'org.junit.jupiter:junit-jupiter'

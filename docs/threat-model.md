@@ -2,7 +2,7 @@
 
 ## Method and scope
 
-This STRIDE-oriented model covers Spring instrumentation, explicit plaintext hooks, context propagation, bounded queues/dispatcher, Alloy ingress and processing, Loki, Prometheus, Grafana, query gateways, S3/EFS, ECS/IAM/networking, Terraform/configuration, and operator/account workflows. Partner business systems themselves are outside the platform boundary, but their exchanged data is hostile input.
+This STRIDE-oriented model covers outbound clients, inbound MVC/WebFlux callbacks, explicit plaintext/processing hooks, context propagation, bounded queues/dispatcher, Alloy ingress and processing, Loki, Prometheus, Grafana, tenant-fixed correlation/query gateways, S3/EFS, ECS/IAM/networking, Terraform/configuration, and operator/account workflows. Partner business systems and host callback authentication/idempotency/business processing are outside the platform boundary, but their exchanged data and claimed identifiers are hostile input.
 
 ## Assets
 
@@ -11,6 +11,7 @@ This STRIDE-oriented model covers Spring instrumentation, explicit plaintext hoo
 - Credentials, cryptographic material, local accounts, datasource/source secrets, and AWS identities.
 - Business-service availability/latency and bounded JVM resources.
 - Telemetry integrity, SLI definitions, dashboards, and configuration provenance.
+- Callback authentication outcomes, lifecycle semantics, typed correlation graph, and confidence/coverage presentation.
 - Loki S3 objects, Prometheus/Grafana state, internal audit evidence, and Terraform state.
 
 ## Actors
@@ -26,20 +27,22 @@ This STRIDE-oriented model covers Spring instrumentation, explicit plaintext hoo
 
 1. Untrusted partner input to authenticated business context.
 2. Business domain objects/plaintext to first-stage sanitizer.
-3. Business thread to bounded safe-event queue.
-4. Dispatcher across private TLS/load balancer to authenticated Alloy ingress.
-5. Ingress source identity plus partner mapping to fixed Alloy pipeline.
-6. Alloy to authenticated Loki/Prometheus write endpoints.
-7. Partner browser/local account to Grafana organization.
-8. Grafana datasource credential to query gateway and fixed tenant/slot.
-9. ECS task roles/network to S3, EFS, Secrets Manager, KMS, and CloudWatch.
-10. Terraform/config pipeline to non-production AWS APIs and artifacts.
+3. Callback transport ingress to host authentication/signature validation and trusted callback resolver.
+4. Business/callback thread to bounded safe-event queue.
+5. Dispatcher across private TLS/load balancer to authenticated Alloy ingress.
+6. Ingress source identity plus partner mapping to fixed Alloy pipeline.
+7. Alloy to authenticated Loki/Prometheus write endpoints.
+8. Partner browser/local account to Grafana organization.
+9. Grafana datasource credential to query gateway, fixed tenant/slot, and bounded journey resolver.
+10. ECS task roles/network to S3, EFS, Secrets Manager, KMS, and CloudWatch.
+11. Terraform/config pipeline to non-production AWS APIs and artifacts.
 
 ## Threats, controls, and verification
 
 | Threat | Attack/failure | Primary controls | Required verification |
 | --- | --- | --- | --- |
 | Spoofed partner | Forge partner header/MDC/body/route key | Authenticated server resolver; source-partner gateway map; strip/overwrite tenant headers | Negative resolver, ingress, and cross-tenant tests |
+| Spoofed/wrong-partner callback | Use expected route, forged signature/header/body ID, or conflicting authenticated identity | Host auth result only; callback resolver after security chain; configured route-partner consistency; no fallback tenant | Signature/auth failure, wrong-partner, conflicting-route tests with queue absence |
 | Cross-tenant Grafana query | Switch org, datasource, header, Loki tenant, PromQL matcher | One org/datasource per partner; fixed credential mapping; Loki header injection; prom-label-proxy; SG denial | Browser/API/direct-backend/PromQL bypass tests |
 | Secret/PII disclosure | Nested aliases, values, exception text, rendered log | Path allowlist, removal/masking/value detectors, no arbitrary logs, Alloy second stage | Property/fuzz corpus at queue, wire, Loki, metrics, diagnostics |
 | Binary/Base64 evasion | MIME lie, byte type, data URI, padded/unpadded encoding, PDF signature | Type/content/magic/UTF-8/Base64 detection before queue; omit ambiguity | Adversarial candidate corpus and memory bounds |
@@ -47,6 +50,10 @@ This STRIDE-oriented model covers Spring instrumentation, explicit plaintext hoo
 | Availability coupling | Backend/DNS/TLS/auth stalls business | Non-blocking producer; dispatcher-only I/O/timeouts; bounded retry; no readiness dependency | Backend blackhole/latency/failure injection with business assertions |
 | Resource exhaustion | Deep/large payload, queue flood, meter/label explosion | Hard traversal/event/queue byte bounds, rate buckets, precomputed meters/cardinality | Heap/CPU/load tests and config rejection |
 | Reactive/context leakage | Thread pool reuses partner context; cancellation duplicates | Reactor-context authority, scoped MDC, finally cleanup, immutable per-event context, terminal guard | Concurrent randomized MVC/Reactor/executor tests |
+| Callback body semantic change | Observability consumes body first, invalidates signature, changes MVC/WebFlux demand, or retains buffer | Post-auth ordering, typed advice, bounded tee-as-consumed, metadata fallback, explicit API, buffer release | Signature-order, byte equality, async dispatch, cancellation/backpressure/leak tests |
+| False lifecycle claim | Treat receipt/202/2xx as authentication or processing completion | Separate immutable receipt/auth/validation/start/terminal/response facts; explicit semantic API | Accepted-before-complete, parsing/process/write failure tests |
+| Replay/duplicate confusion | Retry is treated as original or SDK deduplicates business work | New attempt ID per delivery; trusted business idempotency result; no SDK business dedup | Duplicate/retry/out-of-order test matrix |
+| Correlation injection/collision | Attacker-supplied ID joins another journey or expands query cost | Authenticated tenant fixed first; typed validators; exact matching; stable/weak confidence; conflict stop; hard rounds/key/result/time bounds | Colliding identifiers across partners/within tenant, malformed seed, conflict and saturation tests |
 | Body semantic change | Interceptor consumes/serializes stream, changes backpressure | Tee only as application consumes; no repeat of OkHttp body; payload opt-in | Byte-for-byte client contract, cancellation, one-shot/duplex tests |
 | Telemetry injection | Control chars/duplicate fields/forged labels/schema | Fixed schema, canonical JSON, field/token validation, Alloy allowlists | Parser ambiguity and label-injection tests |
 | Source credential theft | Compromised service emits for other partner | Per-source secret, exact allowed partner set, rotation/revocation, SG boundary | Stolen credential cannot reach unassigned tenant |
@@ -62,7 +69,7 @@ This STRIDE-oriented model covers Spring instrumentation, explicit plaintext hoo
 
 ## Abuse cases
 
-The design assumes an attacker can choose field case/separators/Unicode, JSON duplicate keys, nesting, size, content types, encodings, identifiers, URLs, status bodies, exception-triggering input, concurrency, cancellations, and volume. It assumes observability backends can be absent, slow, compromised, or return malformed data. It assumes a partner Viewer can issue arbitrary queries supported by its Grafana datasource.
+The design assumes an attacker can choose field case/separators/Unicode, JSON duplicate keys, nesting, size, content types, encodings, identifiers, callback ordering/replay/timing, routes, URLs, status bodies, exception-triggering input, concurrency, cancellations, and volume. It assumes signature/authentication can fail before a trusted context exists, a callback can arrive after timeout or before earlier telemetry is visible, and processing can finish after a 202 response. It assumes observability backends can be absent, slow, compromised, or return malformed data. It assumes a partner Viewer can issue arbitrary queries supported by its Grafana datasource.
 
 A fully compromised onboarded application can access its configured source credential and emit fabricated partner-safe events for partners that service is authorized to serve. The gateway limits blast radius to that allowlist but cannot prove business truth. Reducing this residual risk requires workload identity/attestation and domain-source signing beyond the initial scope.
 
@@ -72,6 +79,7 @@ A fully compromised onboarded application can access its configured source crede
 - Local Grafana accounts may not satisfy production MFA/federation policy and Grafana OSS does not provide a complete tamper-proof audit facility.
 - Sanitization reduces disclosure risk but configuration mistakes can omit useful data or incorrectly allow a business field; two-stage tests and review are mandatory.
 - Structured-metadata identifier searches scan bounded time/streams and may be slower than indexed labels by design.
+- Journey correlation is best-effort within the 16-day telemetry window. Missing bridge events, reused identifiers, or bound exhaustion yields explicit partial/weak/conflict results; it is not a business source of truth.
 - At-most-once export loses events; a single retry may duplicate. Telemetry is not financial/audit evidence.
 - A compromised internal operator/backend role can access data within its IAM/network permissions; least privilege, named access, and audit evidence reduce but do not eliminate this risk.
 

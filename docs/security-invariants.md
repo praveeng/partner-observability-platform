@@ -11,6 +11,7 @@ These properties are non-configurable acceptance gates. ADRs and onboarding mani
 - Saturation, timeout, malformed backend response, dispatcher failure, and shutdown timeout drop telemetry.
 - Every observability exception is caught at the outer integration boundary and never replaces, suppresses, or changes a business response/exception.
 - Observability backends are not partner-service readiness dependencies.
+- Callback receipt, acknowledgement, response, and background-processing observations use the same bounded non-blocking producer path; no callback thread waits for correlation lookup or telemetry export.
 
 ## Data-class separation
 
@@ -18,6 +19,7 @@ These properties are non-configurable acceptance gates. ADRs and onboarding mani
 - Only a safe bounded projection produced by the first-stage sanitizer is partner-safe derived observability.
 - Internal-only logs, stack traces, configuration, credentials, audit events, infrastructure identity, and operator data never enter partner Loki tenants/datasources.
 - Partner telemetry is not an audit ledger and has no guaranteed delivery semantics.
+- Receipt, authentication/validation, processing completion/failure, and response transmission are separate facts. One must never be inferred from another solely from HTTP status.
 
 ## Disclosure control
 
@@ -38,6 +40,7 @@ These properties are non-configurable acceptance gates. ADRs and onboarding mani
 - Full sanitized capture requires a per-API/direction reviewed field schema and remains subject to all removal/exclusion/size rules.
 - Instrumentation never decrypts data for observability and never captures ciphertext as payload.
 - Explicit pre-encryption/post-decryption hooks operate only where business code already has authorized plaintext, sanitize immediately, and never retain source objects.
+- Callback request capture occurs only after trusted partner authentication/decryption and before business processing; callback response capture occurs after processing and before serialization/encryption. Uncertain ordering reduces capture to metadata-only/off.
 - Automatic interceptors do not serialize one-shot, streaming, duplex, reactive, binary, or unknown bodies for observation.
 - Arbitrary existing SLF4J rendered messages remain internal-only. Only marked structured safe-log events pass the normal sanitizer.
 
@@ -51,12 +54,14 @@ These properties are non-configurable acceptance gates. ADRs and onboarding mani
 - Prometheus partner queries pass through an authenticated label-enforcement proxy that pins the configured bounded partner slot.
 - One Grafana organization and fixed proxy datasources exist per partner. Partner users have Viewer access to exactly one organization and never receive admin/editor/backend credentials.
 - Unknown, missing, disabled, conflicting, or stale mapping fails closed for capture and query.
+- Callback route/body/header values cannot establish partner identity. Authentication/signature failure or a callback belonging to the wrong partner produces no partner record and no expected-partner fallback tenant.
 - Operator cross-tenant access is separate, named, one tenant at a time, and auditable.
 
 ## Cardinality and query safety
 
-- `applicationId`, `loanId`, `correlationId`, `requestId`, `partnerReference`, `eventId`, and `interactionId` are never Loki labels or metric labels.
+- `applicationId`, `loanId`, `originalCorrelationId`, `partnerReferenceId`, `externalTransactionId`, `callbackReferenceId`, `requestId`, `eventId`, `interactionId`, and `callbackAttemptId` are never Loki labels or metric labels.
 - Approved transaction identifiers use Loki structured metadata and validated bounded values.
+- Correlation occurs only after datasource authentication fixes one tenant. It uses typed exact-match identifiers, a required retained time range, and hard expansion/result limits; it never authorizes access, chooses a tenant, or controls business deduplication.
 - Loki uses at most the fixed eight labels defined by the contract; user/config input cannot create label names/values outside bounded registries.
 - The only partner metric dimension is the opaque, configured `partner_slot` with a hard maximum of 64 per market stack.
 - Meter creation is configuration-fixed and rejected when calculated series budgets exceed the documented caps.
@@ -82,3 +87,5 @@ These properties are non-configurable acceptance gates. ADRs and onboarding mani
 ## Verification rule
 
 Tests prove absence and isolation at the earliest queue boundary and every downstream sink, including malformed/error/fallback paths. A green downstream scan cannot compensate for raw prohibited data entering a queue. Missing verification is `NOT IMPLEMENTED`, never a pass.
+
+Callback tests additionally prove separate receipt/processing facts, authenticated context before partner emission, wrong-partner denial, safe parsing/auth/write failure paths, retry/duplicate attempts, background context restoration, and tenant-fixed bounded correlation across late/out-of-order records.

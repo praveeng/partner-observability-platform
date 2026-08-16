@@ -2,7 +2,7 @@
 
 ## Problem
 
-Partner-facing Spring Boot services need useful operational telemetry without allowing observability backends, unsafe payload capture, or tenant confusion to affect business availability or disclose partner data.
+Partner-facing Spring Boot services need useful operational telemetry for synchronous outbound calls and asynchronous acknowledgement/callback journeys without allowing observability backends, unsafe payload capture, or tenant confusion to affect business availability or disclose partner data.
 
 ## Intended users
 
@@ -19,6 +19,8 @@ Partner-facing Spring Boot services need useful operational telemetry without al
 5. Trusted server-side partner identity selects exactly one Loki tenant per partner.
 6. Operators can observe platform health and defined SLIs without high-cardinality metric or Loki label explosions.
 7. The system can be exercised locally with Docker Compose and provisioned for non-production AWS ECS with Terraform.
+8. Async acknowledgements and callbacks/webhooks are first-class interactions with distinct receipt, authentication/validation, processing, and response facts.
+9. A callback arriving minutes or hours later can be correlated through all available validated business/protocol identifiers without relying solely on the original HTTP correlation ID.
 
 ## Non-goals
 
@@ -33,10 +35,11 @@ Partner-facing Spring Boot services need useful operational telemetry without al
 - No-payload mode emits no partner record for APIs where even metadata is inappropriate.
 - Full sanitized mode is an explicitly reviewed, bounded safe projection of configured textual/scalar fields; it is never a verbatim payload copy and never includes prohibited, unknown, binary/Base64, document, or oversized content.
 - Existing arbitrary application logs remain internal-only. Partner-facing logs/events are created through interceptors, explicit observation APIs, or the marked structured safe logger.
+- Callback request capture is after trusted authentication/decryption and before business processing; callback response capture is after processing. Failed authentication never creates a partner-tenant fallback record.
 
 ## Success measures
 
-Quantitative M1 thresholds are defined in `metrics-sli.md` and `acceptance-criteria.md`. Success requires provable business-path isolation, zero prohibited-field disclosures in adversarial fixtures, server-side tenant/query isolation, bounded resource/cardinality use, 16-day Loki retention, and reproducible one-starter integration.
+Quantitative M1 thresholds are defined in `metrics-sli.md` and `acceptance-criteria.md`. Success requires provable business-path isolation, zero prohibited-field disclosures in adversarial fixtures, server-side tenant/query/correlation isolation, bounded resource/cardinality use, faithful callback lifecycle semantics, 16-day Loki retention, and reproducible one-starter integration.
 
 ## Scope discipline
 

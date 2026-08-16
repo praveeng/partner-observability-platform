@@ -12,12 +12,13 @@
     ],
     "currentState": "READY_FOR_REVIEW"
   },
-  "milestone": "M2",
-  "summary": "M2 first-stage payload safety is ready for review. All 41 core tests and 16 synthetic test-app tests pass with zero skips/failures; the clean build and scoped payload/trusted-context security gate pass. Evidence covers bounded Base64 detection including a 10 MB pre-queue candidate, configurable capture/structural/string/output limits, field/path/type policies, registered DTO extraction, safe optional hashing, PII handling, and queue byte accounting.",
+  "milestone": "M1",
+  "summary": "The revised M1 architecture/specification is ready for review. Schema 2 defines first-class synchronous, async acknowledgement, callback request/response/processing, and business records; authenticated callback capture boundaries; profile-scoped tenant-fixed bounded long-lived correlation; callback-aware metrics/dashboards; and aligned ECS/Terraform, threat, test, performance, and rollout contracts. Documentation/static checks, the clean Gradle build/test suite, and the implemented M2 core security gate pass. Whole-platform security and performance checks correctly remain NOT IMPLEMENTED for M4-M9. No application functionality changed.",
   "blockers": [],
   "nextActions": [
-    "Review the M2 public API refinements, including the NO_PAYLOAD name, registered DTO schema, expected types, and disabled-by-default binary digest policy.",
-    "Implement interceptor/plaintext-hook integration and downstream Alloy/Loki absence assertions in M3-M5; whole-platform verify-all remains intentionally non-zero until those and the M9 performance gates exist."
+    "Review ADRs 0009-0010 and resolve accountable production/callback inputs Q001-Q011 without weakening safe defaults.",
+    "Implement the M2 schema-2 async/callback record, correlation-profile, and lifecycle extension before accepting M3 inbound/outbound interception.",
+    "Implement and pass the intentionally outstanding Alloy/Loki/Grafana isolation and full-duration performance gates in M4-M9."
   ],
-  "lastUpdated": "2026-08-16T15:06:36Z"
+  "lastUpdated": "2026-08-16T15:37:48Z"
 }

@@ -6,7 +6,7 @@ Only a bounded, explicitly allowlisted projection may become partner-safe derive
 
 ## Capture policy
 
-Capture mode is configured per market/service/partner/API/direction and defaults to `METADATA_ONLY`. `FULL_SANITIZED` requires a reviewed field schema. `NO_PAYLOAD` creates no partner record. A runtime or content policy may reduce but never increase the configured mode.
+Capture mode is configured per market/service/partner/API/interaction-kind/leg and defaults to `METADATA_ONLY`. Legs are outbound request, outbound response, async acknowledgement, callback request, callback response, and business event. `FULL_SANITIZED` requires a reviewed field schema for that exact leg. `NO_PAYLOAD` creates no partner record for the leg. A runtime, trust, integration capability, or content policy may reduce but never increase the configured mode.
 
 “Full” is intentionally constrained: all allowed scalar/text fields in the configured schema are preserved after masking, provided the candidate and safe result fit hard bounds. It does not promise verbatim bytes, order/whitespace, unknown fields, attachments, or an entire oversized document.
 
@@ -23,7 +23,7 @@ Capture mode is configured per market/service/partner/API/direction and defaults
 | Bank account | Mask | Preserve final four alphanumerics: `********1234` |
 | National identifier | Mask | Preserve final four alphanumerics: `******6789` |
 | Address | Mask | Replace whole value/object with `[MASKED_ADDRESS]`; no partial street/postcode retention |
-| Transaction IDs | Allow after validator | `applicationId`, `loanId`, `correlationId`, `requestId`, partner reference; structured metadata, never label |
+| Transaction IDs | Allow after typed validator | `applicationId`, `loanId`, `originalCorrelationId`, `partnerReferenceId`, `externalTransactionId`, `callbackReferenceId`, `requestId`; structured metadata, never label/auth input |
 | Approved business fields | Allow | Amount, currency, tenure, SKU/product, configured status/error codes, operation/journey metadata |
 | Binary/documents | Exclude entire value/body | `byte[]`, ByteBuffer, stream, multipart file, PDF, image, signature, archive, audio/video, protobuf/octet-stream |
 | Base64/encoded binary | Exclude entire value/body | Data URI, PEM, canonical padded Base64, long unpadded encoded blob |
@@ -56,6 +56,8 @@ The candidate is rejected or its field omitted before a safe event is constructe
 
 Detection inspects at most the raw candidate limit and never decodes a large string into another array. Ambiguity results in omission. Metadata may record `payloadStatus=BASE64` or `BINARY`; it never records the offending name/value.
 
+When policy permits a per-field omission marker, its exact representation is `{"omitted":true,"category":"BINARY|DOCUMENT|BASE64","declaredSizeBytes":n?,"sha256":"lowercase-hex"?}` as an `OmittedBinaryMetadata` value outside the safe payload tree. `declaredSizeBytes` is included only when already known without reading. The marker has no filename, MIME parameter, source path, field value, prefix, sample, or decoded length. Aggregate/body-level omission uses only the envelope `payloadStatus` unless there is exactly one policy-approved binary field.
+
 Optional SHA-256 omission metadata is disabled by default. When explicitly enabled, it is computed only over an already-materialized `byte[]` or a read-only view of a `ByteBuffer` no larger than the raw candidate limit. It is skipped for Base64/text, streams, encrypted values, oversized inputs, removed secret fields, and aggregate metadata covering multiple binary candidates. Hashing never makes a candidate capturable and never permits a source reference or decoded copy to enter a queue.
 
 ## Hard limits
@@ -86,7 +88,7 @@ Query values are absent in metadata-only mode. Full mode accepts only registered
 
 The application stage is authoritative and runs before queue admission. It performs type/content/size rejection, path allowlisting, removal, masking, value detection, output bounding, canonical serialization, and final self-scan for built-in secret/binary patterns. Any exception discards payload/event and increments only a reason enum. It never calls arbitrary `toString()`, reflects into unregistered classes, logs raw input, or retains a source reference.
 
-For domain objects, a registered extractor selects named scalar paths with explicit expected types into a bounded projection and immediately invokes the same sanitizer. Extractors are not invoked in `METADATA_ONLY` or `NO_PAYLOAD`, and extractor failure rejects the projection without an input-bearing diagnostic. General-purpose whole-object Jackson serialization is not a permitted capture mechanism. Pre-parsed JSON maps/lists use normalized dot paths plus `[]` array-element paths; future raw JSON parsers must enforce depth/token/size constraints before applying the same schema.
+For domain objects, a registered extractor selects named scalar paths with explicit expected types into a bounded projection and immediately invokes the same sanitizer. Payload extractors are not invoked in `METADATA_ONLY` or `NO_PAYLOAD`; separately registered typed transaction-identifier extractors may run in metadata-only mode and remain subject to removal/value/length validators. Extractor failure rejects the projection without an input-bearing diagnostic. General-purpose whole-object Jackson serialization is not a permitted capture mechanism. Pre-parsed JSON maps/lists use normalized dot paths plus `[]` array-element paths; future raw JSON parsers must enforce depth/token/size constraints before applying the same schema.
 
 ## Second-stage Alloy sanitization
 
@@ -105,7 +107,9 @@ Alloy never forwards an unparsed original line on processor error. Security test
 
 ## Encryption boundaries
 
-The platform never decrypts for telemetry. Ciphertext is metadata-only because it is opaque/Base64/binary. Pre-encryption and post-decryption capture is permitted only where the host application already holds authorized plaintext, through the explicit scoped API described in `architecture.md`. The API sanitizes immediately and does not extend plaintext lifetime. Keys, IVs/nonces, ciphertext, algorithms tied to secrets, and crypto exceptions are removed.
+The platform never decrypts for telemetry. Ciphertext is metadata-only because it is opaque/Base64/binary. Pre-encryption and post-decryption capture is permitted only where the host application already holds authorized plaintext, through the explicit scoped APIs described in `architecture.md`. Callback request capture occurs after existing authentication/decryption and before business processing; response capture occurs after processing and before existing encryption/serialization. The API sanitizes immediately and does not extend plaintext lifetime. Keys, IVs/nonces, ciphertext, algorithms tied to secrets, signature material, and crypto exceptions are removed.
+
+No unauthenticated callback body is classified as partner-safe. If signature verification needs the body, the host security component owns its bounded handling and the starter observes only the verified result and later authorized plaintext. An expected route or partner-looking identifier is not enough to choose a tenant or payload policy.
 
 ## Logging and diagnostics
 
@@ -113,4 +117,4 @@ Sanitizer diagnostics may contain service/API configured IDs, policy version, da
 
 ## Required security corpus
 
-Tests cover case/separator/Unicode aliases, nested maps/lists, duplicate JSON keys, type confusion, cyclic objects, malformed UTF-8/JSON, compression/archive signatures, MIME mismatch, NUL/control data, padded/unpadded/URL-safe Base64, data URIs, PEM/JWT/Bearer, Luhn-valid cards, secrets in exceptions, very deep/wide/large inputs, reactive chunks, cancellation, and both sanitization stages. Assertions examine pre-queue records, wire batches, Alloy rejected paths, Loki results, metrics, and internal diagnostics.
+Tests cover case/separator/Unicode aliases, nested maps/lists, duplicate JSON keys, type confusion, cyclic objects, malformed UTF-8/JSON, compression/archive signatures, MIME mismatch, NUL/control data, padded/unpadded/URL-safe Base64, data URIs, PEM/JWT/Bearer, Luhn-valid cards, secrets in exceptions, very deep/wide/large inputs, reactive chunks, cancellation, and both sanitization stages. The mandatory corpus includes a 10 MB Base64 document, nested and non-obvious Base64, normal large non-Base64 text, malformed content, very deep JSON, huge arrays, nested/case-varied sensitive fields, Authorization variants, JWT-like values, accidental secret-like values, and binary callback bodies. Assertions examine pre-queue records and retained references/serialized bytes, wire batches, Alloy rejected paths, Loki results, metrics, and internal diagnostics to prove binary content was not copied into the asynchronous queue.

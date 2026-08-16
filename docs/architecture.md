@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-This is the M1 implementable architecture for the Partner Observability Platform. It defines contracts for M2-M10; it does not claim that product functionality exists. The decisions are recorded in ADRs 0001-0008 under `decisions/`.
+This is the revised M1 implementable architecture for the Partner Observability Platform. It defines contracts for M2-M10, including first-class asynchronous acknowledgements and callbacks/webhooks; it does not claim that the expanded product functionality exists. Decisions are recorded in ADRs 0001-0010 under `decisions/`. The existing schema-1 core is a safe implementation baseline, while the target async/callback contract is wire schema 2 and remains implementation work.
 
 The supported runtime is Java 17 and Spring Boot 2.7.x. The platform uses SLF4J/Logback, Grafana Alloy, Loki, Prometheus, Grafana, Docker Compose locally, and Terraform-managed AWS ECS. Kubernetes and Helm are prohibited.
 
@@ -30,12 +30,12 @@ The implementation must keep these classes distinct in types, routes, stores, ac
 ## Runtime topology
 
 ```text
-Partner request or outbound partner call
+Synchronous call, async initiation, callback, or explicit business event
                  |
                  v
 Spring Boot 2.7 partner service
   server-derived PartnerContext
-  interceptors / explicit plaintext API / marked safe-log appender
+  outbound + callback interceptors / explicit semantic API / safe logger
                  |
        classify + sanitize + bound
                  |
@@ -61,27 +61,52 @@ Grafana Alloy: validate schema, sanitize again, stamp fixed tenant route
  Loki tenant per partner                     shared bounded-cardinality TSDB
           \                                      /
            server-side query isolation gateways
+              + bounded journey resolver
                           |
               Grafana organization per partner
 ```
 
 Application threads never perform the network hop. Alloy, Loki, Prometheus, Grafana, DNS, AWS APIs, and configuration services are not application readiness dependencies.
 
+## Supported business interaction shapes
+
+Synchronous partner integration is one observed exchange:
+
+```text
+Samsung/service -- OutboundApiRequestRecord --> Partner API
+Samsung/service <-- OutboundApiResponseRecord -- Partner API
+                  shared interactionId
+```
+
+Asynchronous partner integration is a journey of separate facts, not one long HTTP span:
+
+```text
+Samsung/service -- OutboundApiRequestRecord (ASYNC_REQUEST_SENT) --> Partner async API
+Samsung/service <-- AsyncAcknowledgementRecord (ASYNC_ACK_RECEIVED) -- acknowledgement
+                                  minutes or hours pass
+Partner -- CallbackRequestRecord (CALLBACK_RECEIVED/RETRY_RECEIVED) --> Samsung/service
+           CallbackProcessingEventRecord: AUTHENTICATED / VALIDATED / STARTED
+           CallbackProcessingEventRecord: PROCESSED or PROCESSING_FAILED
+Partner <-- CallbackResponseRecord (CALLBACK_RESPONSE_SENT) -------- Samsung/service
+```
+
+`CALLBACK_RECEIVED` and `CALLBACK_PROCESSED` are always separate. A callback HTTP response may occur before background processing completes, and a successful business result may precede a failed response write. The event timestamps preserve those facts instead of forcing a single synchronous model.
+
 ## Repository module responsibilities
 
 ### `partner-observability-core`
 
-- Immutable telemetry envelope and record types.
+- Immutable schema-2 outbound, acknowledgement, callback request/response/processing, and business-event records.
 - Trusted `PartnerContext`, policy snapshot, capture modes, and kill-switch model.
 - Streaming classifier/sanitizer and bounded safe-tree representation.
 - Non-blocking MPSC queues, byte budgets, dispatcher, batching, and transport SPI.
-- Context carrier APIs, explicit observation API, health metrics SPI, and deterministic sampling.
+- Context carrier APIs, explicit outbound/callback observation APIs, health metrics SPI, and deterministic sampling.
 - No dependency on Spring, Reactor, OkHttp, Logback, Alloy, or Loki clients.
 
 ### `partner-observability-spring-boot-autoconfigure`
 
 - Conditional properties and bean wiring.
-- Servlet, RestTemplate, WebClient, OkHttp, Reactor, task-executor, MDC, Actuator, Micrometer, and Logback integration.
+- Servlet MVC callback, WebFlux callback, RestTemplate, WebClient, OkHttp, Reactor, task-executor, MDC, Actuator, Micrometer, and Logback integration.
 - Configuration validation and management-only kill-switch endpoint.
 - Optional dependencies guarded by classpath and bean conditions.
 
@@ -96,15 +121,15 @@ Application threads never perform the network hop. Alloy, Loki, Prometheus, Graf
 
 ## Capture lifecycle
 
-1. Resolve a trusted `PartnerContext` from the authenticated business context or an explicit trusted adapter. Untrusted request headers never directly establish it.
-2. Resolve the immutable policy snapshot for `(market, environment, service, partner, api, direction)`.
+1. Resolve a trusted `PartnerContext` from authenticated business/server state or an explicit trusted adapter. For callbacks, hold only the server ingress timestamp until authentication succeeds; untrusted route/header/body values never directly establish partner context.
+2. Resolve the immutable policy snapshot for `(market, environment, service, partner, api, interactionKind, leg)`.
 3. Evaluate kill switches and deterministic sampling. Disabled or unsampled work stops before payload traversal.
-4. Build bounded request/response/event metadata from configured identifiers and enums; never use raw URLs or exception text.
+4. Build bounded record metadata and all available typed correlation identifiers from configured extractors/enums; never use raw URLs, exception text, or identifiers for authorization.
 5. If the selected mode is `FULL_SANITIZED`, reject binary/document content and oversized candidates before parsing or copying.
 6. Apply first-stage allowlisting, complete removal, masking, depth/count/string/output bounds, and Base64 exclusion.
 7. Serialize an immutable safe event no larger than 64 KiB. Raw objects, byte arrays, streams, publishers, throwable graphs, and serializers are no longer referenced.
 8. Reserve the queue byte budget and call non-blocking `offer`. Failure releases the reservation, records a bounded drop reason, and returns to business code.
-9. A daemon dispatcher drains a bounded mixed batch, partitions it into bounded per-partner sub-batches, and sends each request with exactly one canonical partner key to Alloy. All transport exceptions are consumed internally.
+9. A daemon dispatcher drains a bounded mixed batch, partitions it into bounded per-partner sub-batches, and sends each request with exactly one canonical partner key to Alloy. Callback records use the same mechanism; no callback thread waits for export. All transport exceptions are consumed internally.
 10. Alloy parses only the fixed schema, performs defense-in-depth removal/masking/size checks, rejects invalid events, removes routing fields from the log line, and routes to a fixed partner tenant.
 
 ## Bounded asynchronous mechanism
@@ -123,7 +148,7 @@ The core uses bounded JCTools-style MPSC array queues rather than `BlockingQueue
 | Retry holding slot | One batch, 256 KiB | One retry after 200 ms jitter; then drop |
 | Shutdown drain | 2 seconds | JVM shutdown only; expiration drops remainder |
 
-High priority contains failed API responses and explicit journey events. Normal priority contains successful request/response records and safe-log records. The dispatcher drains one high batch then up to three normal batches, with an explicit fairness check so neither queue starves. A drained batch may contain several partners; zero-copy views partition it by partner and each network request contains one partner only. The sum of sub-batches stays within the original 256 KiB batch bound. Priority changes observability loss order, never business outcome.
+High priority contains failed API/callback responses, callback processing failures, and explicit journey events. Normal priority contains successful request/response/acknowledgement/callback records and safe-log records. The dispatcher drains one high batch then up to three normal batches, with an explicit fairness check so neither queue starves. A drained batch may contain several partners; zero-copy views partition it by partner and each network request contains one partner only. The sum of sub-batches stays within the original 256 KiB batch bound. Priority changes observability loss order, never business outcome. Receipt and completion can therefore be lost independently; dashboards expose coverage rather than infer a missing fact.
 
 Admission also uses bounded per-partner token buckets (default 100 events/second, burst 200) and a service-wide bucket (1,000 events/second, burst 2,000). The configured partner registry is capped at 64 entries per market deployment, so rate-limiter state is bounded. Limits may be lowered per environment; increasing the hard partner cap requires an ADR and cardinality/load evidence.
 
@@ -135,16 +160,16 @@ An atomically replaced immutable policy snapshot provides these independently ob
 
 1. `enabled=false`: all partner telemetry capture and export stops.
 2. `partners.<partnerKey>.enabled=false`: the partner is dropped before record construction.
-3. `apis.<apiId>.enabled=false`: that API produces no partner records.
+3. `apis.<apiId>.enabled=false`: that outbound or callback API produces no partner records.
 4. `payloadCaptureEnabled=false`: any `FULL_SANITIZED` policy is reduced to `METADATA_ONLY`.
-5. Per-integration switches disable RestTemplate, WebClient, OkHttp, explicit API, or safe-log capture.
+5. Per-integration switches disable RestTemplate, WebClient, OkHttp, MVC callback, WebFlux callback, explicit observation API, or safe-log capture. Callback switches can independently reduce request payload, response payload, and semantic processing events.
 6. `exportEnabled=false`: queues are atomically drained to drop counters and new events are not admitted.
 
 Defaults are global disabled until a service is onboarded, metadata-only for newly enabled APIs, and safe-log capture disabled. Runtime changes may be made through a management-network-only Actuator endpoint protected by the service's existing operator authentication; normal durable changes use configuration and ECS rollout. A runtime switch can only reduce capture. It cannot enable a field, partner, or API absent from the startup allowlist.
 
-## HTTP client interception
+## Outbound HTTP client interception
 
-All interceptors create request metadata immediately, call business transport exactly once, and contain their own errors. Response metadata is recorded from headers/status and duration. Payload observation follows downstream consumption and never consumes or closes a stream on behalf of business code.
+All interceptors create request metadata immediately, call business transport exactly once, and contain their own errors. A configured mapping declares `SYNC` or `ASYNC_INITIATION`. Sync calls emit an outbound request and outbound response. Async calls emit an outbound request with `ASYNC_REQUEST_SENT` and exactly one `AsyncAcknowledgementRecord` terminal fact; they do not double-count the acknowledgement as a generic response. Response/acknowledgement metadata is recorded from headers/status and monotonic duration. Payload observation follows downstream consumption and never consumes or closes a stream on behalf of business code.
 
 ### RestTemplate
 
@@ -152,6 +177,7 @@ All interceptors create request metadata immediately, call business transport ex
 - Request bytes are considered only for textual allowlisted content types and within the raw candidate cap; otherwise payload is omitted.
 - The response is wrapped with a tee input stream that copies at most the candidate cap while the application reads. It does not eagerly buffer the response or enable `BufferingClientHttpRequestFactory` globally.
 - If the body is not consumed, only response metadata is emitted. Streaming and multipart endpoints are forced to metadata-only/no-payload.
+- A configured async acknowledgement extractor may add partner/external references to the acknowledgement only after the application consumes a supported response or supplies the typed value explicitly.
 
 ### WebClient
 
@@ -159,6 +185,7 @@ All interceptors create request metadata immediately, call business transport ex
 - Request and response `DataBuffer` publishers are decorated to inspect supported textual chunks as they pass. The collector has a strict byte cap and releases its own copies; it never aggregates an unlimited body or changes demand.
 - Cancellation, error, empty, streaming, and multi-subscription behavior emits at most one response record using an atomic terminal guard.
 - Payload capture is opt-in. Metadata-only remains the default because body decoration is more invasive.
+- Reactor context owns the initiating identity; an async acknowledgement observed on another signal retains the immutable interaction snapshot rather than consulting the executing thread.
 
 ### OkHttp
 
@@ -166,8 +193,45 @@ All interceptors create request metadata immediately, call business transport ex
 - It never calls `RequestBody.writeTo` merely for observability because bodies may be one-shot, duplex, encrypted, or side-effectful.
 - A response source wrapper can tee already-consumed supported textual bytes up to the cap; it never calls `peekBody` above a limit.
 - Full request plaintext requires the explicit API. Streaming/duplex bodies are metadata-only.
+- Async acknowledgement extraction follows consumed response bytes or an explicit typed hook; `peekBody` and a second body subscription are prohibited.
 
 Interceptor ordering is documented per service. When an explicit observation already owns payload capture, automatic interceptors emit metadata only and reuse the same `interactionId`, preventing duplicate payloads.
+
+## Inbound callback/webhook interception
+
+Callbacks are enabled only for manifest-listed route templates and a named server-owned authentication/context adapter. They are never captured by a generic inbound access-log switch. Transport interception supplies receipt/response facts; an explicit semantic API supplies authentication, validation, processing, retry/deduplication, and background-completion facts that HTTP status cannot prove.
+
+The trust/capture order is fixed:
+
+```text
+transport ingress timestamp
+  -> host authentication/signature verification
+  -> trusted CallbackPartnerContextResolver (or stop; internal denial only)
+  -> configured route/API and identifier policy
+  -> callback request safe projection before controller/business processing
+  -> explicit authentication/validation/processing events
+  -> callback response safe projection after processing
+  -> local response-write terminal fact
+```
+
+Authentication/signature failure, wrong-partner identity, or conflicting route/context never produces a partner record. The starter holds no unauthenticated payload while waiting for trust. It may retain the ingress timestamp and bounded transport flags as primitives; internal denial evidence contains only configured route ID and reason enum.
+
+### Spring MVC callbacks
+
+- A configured `OncePerRequestFilter` records monotonic timing and scopes the observation around async dispatch without changing status or exception behavior.
+- A `HandlerInterceptor` resolves only a server-owned route template/API mapping after the host security chain; it never records a raw URI.
+- `RequestBodyAdvice.afterBodyRead` receives an already-decoded registered DTO, creates the safe projection synchronously, and emits the callback request before controller invocation. A scoped exception observer recognizes configured `HttpMessageNotReadableException`/empty-body paths after trust exists and emits metadata-only `MALFORMED` plus the bounded parsing-failure fact without reading exception text or changing resolution.
+- `ResponseBodyAdvice.beforeBodyWrite` creates the safe response projection after business handling and before serialization/encryption. The outer filter records final status and whether local write completion failed.
+- A request/response wrapper may tee only supported textual bytes as business/framework code consumes them, up to the raw candidate cap. It cannot enable global content caching, reread the stream, interfere with a signature filter, or retain the servlet request/response.
+- Servlet async processing installs an immutable context snapshot for each dispatched task and restores/clears it in `finally`. A `202` response ends the HTTP observation; later processing facts use the explicit callback scope.
+
+### Spring WebFlux callbacks
+
+- A post-authentication `WebFilter` writes the immutable context/observation to Reactor Context. Manifest-owned matching selects the API; a raw path does not select a tenant or policy.
+- For explicitly enabled textual routes, decorated request `DataBuffer` publishers inspect bounded copies only as the configured decoder consumes them. Completion occurs before an annotated handler receives its decoded argument; failure/cancellation produces at most metadata.
+- A decorated `ServerHttpResponse` observes supported response buffers after business processing and records one terminal fact using an atomic guard. It preserves demand, cancellation, buffer ownership/release, and error propagation.
+- Full capture stays opt-in. Signature/decryption filters, functional routes, streaming bodies, or uncertain ordering use metadata-only automatic records plus the explicit typed callback API at the authorized plaintext boundary.
+- Signal-scoped MDC is restored immediately. No singleton stores a callback context, body accumulator, or terminal flag shared across subscriptions.
 
 ## Context and MDC propagation
 
@@ -176,16 +240,17 @@ Interceptor ordering is documented per service. When an explicit observation alr
 - Reactor stores the context under a library-owned key. WebClient and reactive server integrations use `deferContextual`; an MDC bridge scopes values to each signal and restores the previous MDC immediately.
 - `CompletableFuture`, custom executors, callbacks, and messaging integrations use explicit `ContextSnapshot.wrap(Runnable/Callable)` utilities. Unknown executors do not inherit context automatically.
 - Context is never cached in singleton interceptors or transport batches. Each safe event carries its routing context immutably, which prevents cross-partner batch leakage.
+- A callback accepted before completion captures `PartnerContext`, `interactionId`, `callbackAttemptId`, and safe correlation identifiers in the explicit snapshot. It never captures request/response/domain objects, security principals, or mutable MDC maps. Snapshot restoration failure drops observability for the background fact and cannot fail business work.
 
-MDC exposes only `correlationId`, `requestId`, `applicationId`, and `loanId` when each passes its configured identifier validator. It never contains Loki tenant credentials, raw partner headers, PII, payloads, or secrets. MDC is convenience for internal log correlation, not tenant authorization.
+MDC exposes only `originalCorrelationId`, `requestId`, `applicationId`, and `loanId` when each passes its configured identifier validator. A schema-1 compatibility adapter may also set the legacy `correlationId` key during a documented migration, but the two values cannot conflict. MDC never contains Loki tenant credentials, raw partner headers, PII, payloads, partner/callback references, or secrets. MDC is convenience for internal log correlation, not tenant authorization.
 
 ## Existing SLF4J/Logback logs
 
 Arbitrary rendered logs cannot be made reliably partner-safe after formatting, so they remain internal-only and follow the service's normal ECS/CloudWatch route. They are never tailed wholesale into partner Loki.
 
-The optional `PartnerSafeAppender` accepts only events sent to the dedicated logger `partner.observability.safe` with marker `PARTNER_SAFE`. It ignores the rendered message and throwable. It reads allowlisted structured key/value arguments plus trusted context, passes them through the same sanitizer and bounded queues, and emits a `PartnerEventRecord`. Logger name, level, literal template ID, and stable error code may be retained; raw format strings, argument `toString()`, stack traces, and exception messages are excluded. This is disabled by default.
+The optional `PartnerSafeAppender` accepts only events sent to the dedicated logger `partner.observability.safe` with marker `PARTNER_SAFE`. It ignores the rendered message and throwable. It reads allowlisted structured key/value arguments plus trusted context, passes them through the same sanitizer and bounded queues, and emits a `PartnerBusinessEventRecord`. Logger name, level, literal template ID, and stable error code may be retained; raw format strings, argument `toString()`, stack traces, and exception messages are excluded. This is disabled by default.
 
-## Encrypted integrations and explicit observation API
+## Encrypted integrations and explicit observation APIs
 
 Instrumentation never decrypts data for observability and never captures ciphertext as a payload. If automatic interception occurs after encryption or before decryption, it records metadata only.
 
@@ -202,9 +267,28 @@ try (PartnerObservation observation = observations.begin(apiId, direction)) {
 
 `captureRequest`/`captureResponse` reject bytes, streams, documents, arbitrary serializers, and unsupported types. They synchronously derive only a bounded safe tree and do not retain the domain object. Observability failures return a no-op result. `close()` emits a safe failure metadata record if no outcome was set, without using exception text. Pre-encryption capture is placed immediately before the existing encryption call; post-decryption capture is placed immediately after successful existing decryption. Encryption keys, nonces, ciphertext, and cryptographic diagnostics are removed.
 
+Callback integrations use a parallel scoped API because automatic HTTP interception cannot determine semantic processing state:
+
+```java
+try (CallbackObservation callback = callbacks.beginAuthenticated(callbackApiId, trustedSubject)) {
+    callback.identifiers(knownIdentifiers);
+    callback.captureRequest(decryptedDto);       // safe projection before business processing
+    callback.authenticated();
+    callback.validated();                        // when this API has a validation phase
+    try (CallbackProcessing processing = callback.processingStarted(BACKGROUND)) {
+        existingBusinessProcessing();
+        processing.processed();
+    }
+    callback.captureResponse(responseDto);       // after processing, before encryption/serialization
+    callback.response(statusCode);
+}
+```
+
+The actual API uses registered definitions/typed extractors rather than free-form stage names or attributes. `beginAuthenticated` accepts an opaque trusted subject resolved by the configured adapter, not a partner key. Retry/duplicate classification comes only from the host's authenticated idempotency result. Each semantic method is idempotent per observation and rejects invalid transitions to a bounded internal counter; it never throws into business logic. Automatic transport interception reuses the same IDs and suppresses duplicate request/response payloads.
+
 ## Metrics path
 
-Micrometer records bounded counters, gauges, and timers in process. Alloy discovers private `/actuator/prometheus` targets through configured AWS Cloud Map DNS names, scrapes at 30-second intervals, drops non-contract metrics/labels, stamps trusted market/environment/service labels, validates each `partner_slot` against the source service's configured finite set, and remote-writes to Prometheus with its receiver explicitly enabled. Metrics do not use the event queues; meter registration itself is bounded by configuration.
+Micrometer records bounded counters, gauges, and timers in process. The registry distinguishes synchronous completions, async acknowledgement outcomes, callback receipt/retry, callback processing terminal outcomes, and callback response writes without using transaction identifiers. Alloy discovers private `/actuator/prometheus` targets through configured AWS Cloud Map DNS names, scrapes at 30-second intervals, drops non-contract metrics/labels, stamps trusted market/environment/service labels, validates each `partner_slot` against the source service's configured finite set, and remote-writes to Prometheus with its receiver explicitly enabled. Metrics do not use the event queues; meter registration itself is bounded by configuration.
 
 The only approved partner dimension is `partner_slot`, an opaque onboarding value from `p001` to `p064`. It is derived from trusted context and enforced by Alloy relabeling. Raw partner IDs and every transaction identifier are prohibited metric labels. Details and SLI formulas are in `metrics-sli.md`.
 
@@ -221,20 +305,22 @@ Grafana OSS uses one organization per partner. Each organization contains only p
 
 Each partner Loki datasource authenticates to the query gateway, which maps its credential to one fixed tenant. Each Prometheus datasource authenticates to an Nginx auth layer that injects a fixed `X-Partner-Slot`; a single `prom-label-proxy` parses every supported Prometheus query and enforces `partner_slot=<fixed>`. Grafana-supplied tenant/slot headers are stripped first. Direct backend network access is denied by security groups.
 
+The query-gateway task also contains a stateless journey resolver. Datasource identity fixes the Loki tenant before the resolver validates a typed seed. A configured correlation profile groups compatible APIs and defines stable/weak/singleton identifier types; profiles are never merged. The resolver performs exact structured-metadata queries and bounded graph expansion: at most eight candidate profiles, three rounds per selected candidate, 32 typed identifiers, 500 records per round, the 16-day retained time range, a 2 MiB response, and a 10-second deadline. Weak-only edges cannot merge incompatible stable branches. It never accepts a tenant/slot from a browser request, never queries multiple tenants, never stores partner data, and returns explicit complete/partial/unresolved/weak/conflict status. Direct LogQL remains available only through the same tenant-fixed gateway and documented bounded endpoints.
+
 Grafana organizations isolate OSS datasources from other organizations, but they do not replace backend authorization. The gateway controls are mandatory. Datasource permission features that require Grafana Enterprise are not assumed.
 
 ## Loki data model and partner experience
 
 Indexed labels are fixed to `service_name`, `deployment_environment`, `market`, `event_domain`, `event_type`, `direction`, `outcome`, and `severity`, with a maximum of eight labels per stream. Tenant identity is not duplicated as a label. API name, status code, error code, product, and journey stage remain line fields or structured metadata to avoid multiplying streams.
 
-`event_id`, `interaction_id`, `application_id`, `loan_id`, `correlation_id`, `request_id`, and `partner_reference` are structured metadata, never labels. Loki uses TSDB index with schema v13 and structured metadata enabled. The safe JSON line contains bounded display fields and the sanitized payload projection.
+`event_id`, `interaction_id`, `callback_attempt_id`, `application_id`, `loan_id`, `original_correlation_id`, `partner_reference_id`, `external_transaction_id`, `callback_reference_id`, and `request_id` are structured metadata, never labels. `timeline_stage` and `api_id` are also structured metadata/line fields. Loki uses TSDB index with schema v13 and structured metadata enabled. The safe JSON line contains bounded display fields and the sanitized payload projection.
 
 Partner dashboards provide:
 
-- Application/loan search: a required time range and identifier input filters structured metadata after a low-cardinality stream selector. Identifier input is syntax/length validated but is not authorization.
-- Journey timeline: request, response, and explicit event records are sorted by `occurredAt`, with `eventSequence` only as a tie-breaker within one observation. Concurrent services are displayed as concurrent, not given a false total order.
-- Detail view: selecting `eventId` shows request/response metadata and sanitized JSON; omitted payloads show mode and omission reason.
-- SLA/SLI dashboard: volume, success rate, error rate/code, latency p50/p95/p99, queue drops, and telemetry coverage from the partner-scoped Prometheus datasource.
+- Typed application/loan/reference search: a required time range and one of the seven identifier types calls the tenant-fixed journey resolver. Input is syntax/length validated but is never authorization.
+- Journey timeline: outbound request, async acknowledgement, callback receipt/retry, authentication/validation, processing, callback response, and business events are grouped by HTTP interaction/callback attempt and sorted by real timestamps. Correlation status and missing stages are visible; concurrent/late events are not given a false total order.
+- Detail view: selecting `eventId` shows record-specific request/acknowledgement/callback/processing metadata and sanitized JSON; omitted payloads show effective mode/status and safe omission metadata. Internal-only failures are never linked into a partner detail page.
+- SLA/SLI dashboard: synchronous availability/latency, async acknowledgement acceptance/latency, callback volume/retries, processing success/latency, response-write outcome, error codes, freshness, and telemetry coverage from the partner-scoped Prometheus datasource. “No data” remains distinct from zero.
 
 ## Market deployment topology
 
@@ -254,7 +340,7 @@ The initial cost-conscious topology is:
 | Loki single-binary | 1 | 1 | S3 TSDB v13; encrypted EFS for WAL/cache/compactor work |
 | Prometheus | 1 | 1 | Encrypted EFS TSDB, 16-day and size retention caps |
 | Grafana | 1 | 1 | Encrypted EFS SQLite initially; local accounts |
-| Query gateway + prom-label-proxy | 2 | 1 | Stateless; generated auth mapping |
+| Query gateway + prom-label-proxy + journey resolver | 2 | 1 | Stateless; generated auth/query mapping, no partner-data store |
 
 Single stateful tasks mean the initial design does not claim backend high availability. Task restart or upgrade can temporarily remove dashboards/ingestion without affecting business traffic. The migration trigger to Loki simple-scalable mode and an external Grafana database is sustained resource use above 70%, inability to meet the approved query SLO, or an approved backend HA requirement.
 
@@ -262,9 +348,9 @@ Loki objects use an encrypted S3 bucket per stack. Compactor retention is exactl
 
 ## Configuration-driven onboarding
 
-A versioned market manifest is the single non-secret source of truth. It contains market/environment, service principals and Cloud Map scrape names, partners, opaque tenant ID, `partner_slot`, Grafana organization, API IDs, route templates, direction, capture mode, field allowlist, identifier validators, rate/sample limits, local-user references, and secret ARNs. It never contains passwords or keys.
+A versioned market manifest is the single non-secret source of truth. It contains market/environment, service principals and Cloud Map scrape names, partners, opaque tenant ID, `partner_slot`, Grafana organization, outbound and callback API IDs, interaction kind, server-owned route templates, callback trust-adapter ID, supported Spring stack, per-leg capture modes, field/path/type schemas, correlation profiles linking compatible APIs with the seven typed identifier validators/extractors and stable/weak/singleton rules, bounded outcome/stage mappings, rate/sample limits, local-user references, and secret ARNs. It never contains passwords, signature keys, tokens, or encryption material.
 
-Validation enforces uniqueness, naming regexes, one tenant/slot/org per partner, no more than 64 partners, no more than 64 APIs per service, safe defaults, known capture modes/data classes, fixed retention, and source-to-partner authorization. A reviewed manifest change generates Alloy/gateway/Grafana artifacts and Terraform inputs. Onboarding order is DEV with mocks, STAGE, then PROD; removal disables capture/query first, waits 16 days, then removes tenant configuration and credentials.
+Validation enforces uniqueness, naming regexes, one tenant/slot/org per partner, no more than 64 partners, no more than 64 APIs per service, safe defaults, known record types/callback stages/capture modes/data classes, fixed retention, source-to-partner authorization, a trust adapter for every enabled callback, and no full callback capture without a reviewed schema/order test. A reviewed manifest change generates Alloy/gateway/journey-resolver/Grafana artifacts and Terraform inputs. Onboarding order is DEV with mocks, STAGE, then PROD; removal disables capture/query first, waits 16 days, then removes tenant configuration and credentials.
 
 ## Upgrade and compatibility strategy
 
@@ -282,14 +368,119 @@ Git history and ADRs record schema, policy, dashboard, manifest, and Terraform c
 
 Grafana OSS does not provide a complete tamper-proof audit/MFA solution. Production identity assurance and formal audit-retention requirements remain explicit questions in `decisions-needed.md`; they cannot be inferred from local accounts.
 
+Callback authentication decisions, idempotency decisions, and business completion remain business/audit concerns. Partner telemetry records only bounded derived outcomes. Configuration changes to callback trust adapters, route maps, correlation validators, payload schemas, gateway credentials, tenant routes, or retention generate internal-only named-operator evidence and reviewed artifact digests.
+
+## Failure-mode behavior
+
+| Failure or edge condition | Application behavior | Partner telemetry / operator signal |
+| --- | --- | --- |
+| Alloy/Loki/Prometheus/Grafana/DNS unavailable | Business call/callback continues | Bounded queue then drops; internal fixed-dimension health only |
+| Sanitizer/extractor/model exception | Original business value/exception is preserved | Payload/event omitted; bounded reason without raw input |
+| Queue count/byte/rate saturation | Producer returns immediately | Drop-newest; exact bounded counter |
+| Dispatcher death | No business-thread takeover | Alive gauge/alert; capped daemon restart or continued loss |
+| Async original times out, callback later arrives | Callback business handling is unchanged | Timeout acknowledgement fact and later callback joined by bridge identifiers when available |
+| Duplicate/retry callback | SDK never deduplicates business work | Separate attempt and retry stage only when trusted idempotency adapter says so |
+| Callback arrives out of order | No buffering/waiting for an earlier event | Actual timestamps; resolver may show partial/unresolved until bridge appears |
+| Unknown reference or missing application ID | Callback is not rejected by observability | Record other safe IDs; resolver returns unresolved/weak status |
+| Wrong partner or authentication/signature failure | Host security policy decides business response | No partner record/fallback tenant; internal denial counter/evidence only |
+| Callback parsing failure after authentication | Host error handling is unchanged | Metadata-only receipt plus bounded parsing failure stage |
+| Callback processing failure | Business exception/status is unchanged | Separate started/failed facts and response observation if available |
+| `202` before downstream completion | HTTP scope closes normally | Response precedes later background processing facts using explicit snapshot |
+| Processing succeeds but response write fails | Success is not rewritten as processing failure | Successful processed fact plus response `WRITE_FAILED` |
+| Correlation limit/collision | No business effect | Resolver returns partial/conflict; never broadens tenant/time/query bounds |
+| Retention expires before callback/search | No retention extension | Older bridge is unavailable; unresolved result is explicit |
+| Invalid startup manifest | Service application starts in safe disabled mode unless strict non-production validation requested | No capture/export; internal config health |
+
 ## Failure and cost posture
 
 Backend outage, DNS/TLS/auth failure, malformed response, dispatcher death, queue saturation, invalid context/config, sanitizer error, and shutdown timeout all result in bounded telemetry loss and safe health signals. A supervisor may restart the dispatcher with capped backoff; it never runs work on business threads. Invalid startup policy prevents the observability beans from enabling capture but does not fail the Spring application context unless an operator explicitly selects strict non-production validation.
 
-Cost is controlled through 16-day retention, S3 single-store Loki, single stateful tasks initially, bounded capture/rate/sample limits, eight labels, partner/API cardinality caps, compressed asynchronous batches, no traces, no raw logs, no binaries, and scale triggers based on measured saturation rather than speculative HA. Security boundaries are not relaxed to save cost.
+Cost is controlled through 16-day retention, S3 single-store Loki, single stateful tasks initially, bounded capture/rate/sample limits, eight labels, partner/API cardinality caps, compressed asynchronous batches, no traces, no raw logs, no binaries, and scale triggers based on measured saturation rather than speculative HA. Journey resolution is stateless and query-time bounded, avoiding a new correlation database, stream processor, or application write. Security boundaries are not relaxed to save cost.
 
 ## Verification and rollout
 
-Testing is layered across unit/property/fuzz, framework contract, concurrency, Docker Compose, tenant security, dashboard/query, Terraform/static, failure injection, and performance suites. Exact gates are in `acceptance-criteria.md`.
+Testing is layered across unit/property/fuzz, framework contract, concurrency, Docker Compose, tenant security, dashboard/query, Terraform/static, failure injection, and performance suites. Async/callback suites include late/out-of-order callbacks, duplicate/retry attempts, acknowledgement bridges, missing/unknown/conflicting IDs, wrong partners, auth/signature/parsing/processing/write failures, accepted-before-complete, MVC async dispatch, WebFlux cancellation/backpressure, and bounded correlation queries. Exact gates are in `acceptance-criteria.md`.
 
-Existing partner services roll out in phases: inventory/integration-point mapping; deploy empty backends; add starter disabled; enable health metrics; enable metadata-only for one synthetic/low-risk API; validate tenant/search/dashboards; enable explicit plaintext hooks where needed; approve full-sanitized fields per API; expand partner-by-partner; retain kill-switch and rollback evidence. No phase enables production payload capture without security and service-owner approval.
+Existing partner services roll out in phases: inventory outbound and callback routes/authentication/encryption/idempotency/completion semantics; deploy empty backends; add starter disabled; enable health metrics; enable metadata-only for one DEV mock synchronous API; enable one mock async acknowledgement/callback journey; validate tenant/correlation/timeline/dashboards; enable explicit plaintext/processing hooks where needed; approve full-sanitized fields per leg; expand partner-by-partner; retain kill-switch and rollback evidence. Callback capture remains disabled until its trusted resolver and filter/decryption ordering are tested. No phase enables production payload capture without security and service-owner approval.
+
+## Requirement-to-design map
+
+This map is a completeness index; the linked contracts are normative and contain the implementation detail.
+
+| # | Required design | Normative location |
+| ---: | --- | --- |
+| 1 | Core telemetry object model | `telemetry-contract.md` core/envelope model |
+| 2 | Partner context model | `telemetry-contract.md`; `partner-isolation.md` trust chain |
+| 3 | Outbound API request | `telemetry-contract.md` outbound request |
+| 4 | Outbound API response | `telemetry-contract.md` outbound response |
+| 5 | Async acknowledgement | `telemetry-contract.md` acknowledgement |
+| 6 | Callback/webhook request | `telemetry-contract.md`; MVC/WebFlux sections above |
+| 7 | Callback/webhook response | `telemetry-contract.md`; MVC/WebFlux sections above |
+| 8 | Callback processing result/event | `telemetry-contract.md` processing event and edge cases |
+| 9 | Partner business event | `telemetry-contract.md` business event |
+| 10 | SLI metric model | `metrics-sli.md` |
+| 11 | Async queue/dispatcher | bounded asynchronous mechanism above; ADR 0002 |
+| 12 | Backpressure/drop policy | bounded mechanism and failure-mode table |
+| 13 | Kill switches | kill-switch section above |
+| 14 | RestTemplate | outbound interception above |
+| 15 | WebClient | outbound interception above |
+| 16 | OkHttp | outbound interception above |
+| 17 | Spring MVC callback interception | inbound callback section; ADR 0010 |
+| 18 | Spring WebFlux callback interception | inbound callback section; ADR 0010 |
+| 19 | MDC/context propagation | context/MDC section above |
+| 20 | Existing SLF4J capture | safe-log section above |
+| 21 | Async/reactive context | context/MDC and WebFlux sections |
+| 22 | Full sanitized capture | `payload-policy.md` and capture lifecycle |
+| 23 | Metadata-only capture | `telemetry-contract.md` capture modes |
+| 24 | No-payload capture | `telemetry-contract.md` capture modes |
+| 25 | Pre-encryption capture | explicit API section; `payload-policy.md` |
+| 26 | Post-decryption capture | explicit API section; `payload-policy.md` |
+| 27 | Callback capture before processing | inbound interception and ADR 0010 |
+| 28 | Callback response after processing | inbound interception and ADR 0010 |
+| 29 | Explicit API for invisible plaintext/semantics | explicit APIs section above |
+| 30 | Pre-queue binary/Base64 exclusion | `payload-policy.md`; `security-invariants.md` |
+| 31 | Payload limits | `payload-policy.md` hard-limit table |
+| 32 | First-stage sanitization | `payload-policy.md` application stage |
+| 33 | Second-stage Alloy sanitization | `payload-policy.md` Alloy stage |
+| 34 | One Loki tenant per partner | `partner-isolation.md` |
+| 35 | Tenant routing/trust boundary | `partner-isolation.md`; ADR 0004 |
+| 36 | Loki labels | Loki model above; ADR 0005 |
+| 37 | Loki structured metadata | `telemetry-contract.md` wire/Loki contract |
+| 38 | Prometheus/Micrometer | `metrics-sli.md` |
+| 39 | Local Grafana accounts | `partner-isolation.md` |
+| 40 | Grafana authorization | `partner-isolation.md` |
+| 41 | Partner datasource isolation | `partner-isolation.md`; tenant/query section above |
+| 42 | Application/loan search | Loki experience and query-resolver sections |
+| 43 | Outbound-to-callback correlation | `telemetry-contract.md` deterministic correlation; ADR 0009 |
+| 44 | Journey/event timeline | Loki experience; ADR 0009 |
+| 45 | Request/response/callback detail | Loki experience above |
+| 46 | SLA/SLI dashboard | `metrics-sli.md`; Loki experience above |
+| 47 | S3/Loki retention | deployment topology; `deployment-model.md` |
+| 48 | ECS topology | market deployment topology; `deployment-model.md` |
+| 49 | Terraform boundaries | `deployment-model.md` |
+| 50 | Upgrade strategy | upgrade/compatibility section above |
+| 51 | Configuration-driven onboarding | onboarding section above; ADR 0008 |
+| 52 | Auditability | audit section above; `threat-model.md` |
+| 53 | SDK self-monitoring | `metrics-sli.md` SDK health metrics |
+| 54 | Failure modes | failure-mode table above |
+| 55 | Threat model | `threat-model.md` |
+| 56 | Cost-conscious design | failure/cost posture; `deployment-model.md` |
+| 57 | Testing strategy | `acceptance-criteria.md` |
+| 58 | Performance strategy | `acceptance-criteria.md` performance gates |
+| 59 | Existing-service rollout/migration | verification/rollout above; ADR 0008 |
+
+## Scoped architecture review verdict
+
+| Gate | Status | Evidence |
+| --- | --- | --- |
+| Data-class and pre-queue safety boundary | PASS | Three data classes, capture lifecycle, `payload-policy.md`, ADR 0001 |
+| Business-thread availability and boundedness | PASS | Queue/dispatcher/kill-switch/failure sections, ADR 0002 |
+| Module/dependency direction and one-starter integration | PASS | Repository responsibilities and Spring integration contracts |
+| Sync plus first-class async/callback semantics | PASS | Schema-2 contract, inbound/outbound interception, ADRs 0009-0010 |
+| Trusted identity, one-tenant routing, datasource and correlation isolation | PASS | `partner-isolation.md`, ADRs 0004-0005/0009 |
+| Low-cardinality logs/metrics and partner dashboards | PASS | Loki model, `metrics-sli.md`, query/dashboard contracts |
+| ECS/Terraform/retention/no-Helm deployment design | PASS | Market topology, `deployment-model.md`, ADR 0007 |
+| Threat, failure, test, performance, rollout, and unresolved-input treatment | PASS | `threat-model.md`, `acceptance-criteria.md`, `decisions-needed.md`, ADR 0008 |
+| Expanded schema-2/runtime/backend implementation | NOT APPLICABLE to this specification task | Explicitly pending M2 extension and M3-M9; whole-platform security/performance checks remain `NOT IMPLEMENTED` |
+
+Overall verdict: **PASS for the M1 architecture/specification scope**. This is not a runtime, security-integration, release, or production-readiness verdict.

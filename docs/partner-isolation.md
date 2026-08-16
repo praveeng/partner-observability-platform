@@ -19,6 +19,8 @@ authenticated business principal / server-owned integration configuration
 
 The SDK never trusts a public header, query parameter, body field, MDC value, Grafana variable, Loki label, or caller-supplied tenant ID. A host service may authenticate a partner using a header/certificate/token, but the resolver consumes only the authenticated principal or server-owned result after that authentication.
 
+For callbacks, an expected route is not authenticated identity. The callback resolver runs after the host's authentication/signature verification and must agree with the route's configured allowed partner. If authentication requires the body, the host security component owns that operation; the starter receives only the verified server result. Authentication failure, wrong partner, or route/context conflict creates no partner telemetry, even for a metadata-only receipt.
+
 Missing, ambiguous, stale, disabled, conflicting, or unmapped context produces no partner telemetry. It does not route to an internal or common tenant. Business processing continues.
 
 ## Application enforcement
@@ -29,6 +31,7 @@ Missing, ambiguous, stale, disabled, conflicting, or unmapped context produces n
 - Queues and a drain may contain multiple partners, but the dispatcher partitions them into bounded single-partner transport requests. The ingress maps each request to one fixed tenant pipeline.
 - Rate/sampling state is preallocated per configured partner and cannot create dynamic tenants.
 - Reactive/thread context restoration tests prevent partner identity leakage through pooled threads.
+- Callback and background-processing scopes capture only immutable trusted context, attempt/interaction IDs, and already-validated safe identifiers. They never retain a principal credential, request, body, or mutable security context.
 
 ## Ingest enforcement
 
@@ -69,15 +72,17 @@ Organization isolation is necessary but not sufficient because any Viewer may qu
 
 An internal operations Grafana organization has separate internal-only datasources/credentials. Partner dashboards and partner accounts are never added to it.
 
+The stateless journey resolver is part of the query-gateway trust boundary, not a browser-side join. Its caller credential is mapped to one fixed tenant before any seed is evaluated. It accepts one typed identifier, a required time range at most 16 days, and fixed endpoint parameters only. A configured correlation profile groups compatible APIs and defines stable/weak/singleton ID rules; absent a selected profile, at most eight candidates are returned separately and are never merged. It performs exact structured-metadata expansion within that tenant/profile with hard limits of three rounds, 32 identifiers, 500 records per round, a 2 MiB response, and a 10-second deadline. Client tenant IDs, partner slots, raw LogQL, regular-expression seeds, and cross-tenant/multi-tenant expansion are rejected. Results carry complete/partial/unresolved/weak/conflict status.
+
 ## Search and visualization isolation
 
-Application/loan/reference search occurs only inside the datasource's fixed Loki tenant. Search inputs are length/syntax validated and require a bounded time range but never influence tenant selection. Timeline and detail links carry an `eventId`/identifier as a query value; the destination dashboard repeats the same tenant-fixed datasource query rather than trusting the link.
+Application/loan/original-correlation/partner-reference/external-transaction/callback-reference/request search occurs only inside the datasource's fixed Loki tenant. Search inputs are type/length/syntax validated and require a bounded time range but never influence tenant selection. The resolver constructs the bounded connected identifier component using trusted co-occurrence records; weak/colliding IDs cannot authorize data. Timeline and detail links carry an `eventId`/typed identifier as a query value; the destination dashboard repeats the same tenant-fixed datasource query rather than trusting the link.
 
 SLA/SLI dashboards use a datasource behind the enforced `partner_slot`. The slot is not exposed as a dashboard variable. Dashboard variables may only narrow API/service/direction within the already authorized tenant.
 
 ## Configuration-driven onboarding/offboarding
 
-The reviewed market manifest assigns canonical partner key, tenant ID, slot, Grafana organization, allowed source services/APIs, datasource credential secret ARNs, and local user references. Validation rejects collisions and changes that would reassign an existing tenant/slot/org.
+The reviewed market manifest assigns canonical partner key, tenant ID, slot, Grafana organization, allowed source services/outbound and callback APIs, callback trust-adapter IDs, correlation profiles and typed validators/stability rules, datasource credential secret ARNs, and local user references. Validation rejects collisions, incompatible APIs in one profile, callback routes without a trusted resolver, and changes that would reassign an existing tenant/slot/org.
 
 Onboarding creates isolation in this order: secrets/identities, backend tenant/slot mapping, gateway/Alloy routes, Grafana organization/datasources/dashboards, user, then SDK enablement. Tests must pass before enablement. Offboarding reverses access first: disable SDK and user/query credentials, retain inaccessible telemetry for the remaining 16-day period, then delete mappings/resources. A tenant ID is never reassigned.
 
@@ -87,9 +92,11 @@ Onboarding creates isolation in this order: secrets/identities, backend tenant/s
 - Every source principal can emit only for its exact configured partner set.
 - Unknown/missing/conflicting partner context produces no fallback telemetry.
 - Concurrent servlet, executor, Reactor, batch, retry, and cache paths do not cross context.
+- Unauthenticated/signature-failed/wrong-partner callbacks never enter the expected partner tenant; authenticated callback background work retains exactly its original partner context.
 - A partner Grafana account cannot join/switch to another organization or access its datasource/dashboard.
 - Loki query/write credentials cannot change or combine `X-Scope-OrgID`.
 - PromQL selectors and metadata endpoints cannot remove, regex-widen, or conflict with enforced `partner_slot`.
 - Direct backend/internal endpoint access is denied.
 - Rotation, disabled mapping, stale config, and offboarding fail closed.
 - Internal operator access is separate and auditable.
+- Identical identifier values in two partners never correlate; within one tenant, weak/colliding/conflicting identifiers return explicit status and cannot exceed query bounds.

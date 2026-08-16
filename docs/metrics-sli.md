@@ -19,12 +19,17 @@ All label values must come from startup configuration or bounded enums:
 | `api` | At most 64 configured API IDs per service |
 | `event_name` | At most 64 configured event names per service |
 | `direction` | `inbound`, `outbound` |
+| `interaction_kind` | `sync_outbound`, `async_initiation`, `callback` |
+| `ack_outcome` | `accepted`, `rejected`, `no_ack_timeout`, `transport_failure`, `cancelled`, `unknown` |
+| `delivery_class` | `initial`, `retry`, `duplicate`, `unknown` |
+| `callback_stage` | Fixed callback lifecycle stage enum; never a configured free string |
+| `processing_mode` / `processing_phase` | Fixed `inline|background` and bounded phase enums |
 | `outcome` | `success`, `business_rejected`, `technical_failure`, `cancelled`, `unknown` |
 | `status_class` | `1xx`, `2xx`, `3xx`, `4xx`, `5xx`, `io_error`, `cancelled`, `unknown` |
 | `capture_mode` | `full_sanitized`, `metadata_only`, `no_payload` |
 | `reason` | Contract enum; never raw text |
 | `queue` | `high`, `normal`, `retry` |
-| `record_type` | `api_request`, `api_response`, `partner_event` |
+| `record_type` | `outbound_api_request`, `outbound_api_response`, `async_acknowledgement`, `callback_request`, `callback_response`, `callback_processing_event`, `partner_business_event` |
 | `result` | Metric-specific documented enum; never raw backend text |
 | `action` / `data_class` | Sanitizer enums defined by payload policy |
 | `version` | Exactly one active manifest-generated policy version per service |
@@ -35,12 +40,20 @@ The meter registry pre-registers only manifest-defined partner/API combinations.
 
 | Metric | Type | Labels | Meaning |
 | --- | --- | --- | --- |
-| `partner_observability_api_requests_total` | Counter | market, environment, service, partner_slot, api, direction, outcome, status_class | Completed eligible interactions |
-| `partner_observability_api_duration_seconds` | Histogram | market, environment, service, partner_slot, api, direction, outcome | Monotonic end-to-end client/server observation duration |
-| `partner_observability_api_in_flight` | Gauge | service, partner_slot, api, direction | Current observed interactions; bounded registrations |
+| `partner_observability_http_interactions_total` | Counter | market, environment, service, partner_slot, api, interaction_kind, direction, outcome, status_class | Completed sync responses, async acknowledgement terminals, or callback response writes |
+| `partner_observability_http_duration_seconds` | Histogram | service, partner_slot, api, interaction_kind, direction, outcome | Monotonic duration of one HTTP observation, not an entire async journey |
+| `partner_observability_http_in_flight` | Gauge | service, partner_slot, api, interaction_kind, direction | Current observed HTTP interactions; bounded registrations |
+| `partner_observability_async_acknowledgements_total` | Counter | service, partner_slot, api, ack_outcome, status_class | Async initiation terminal acknowledgement outcomes, including no-ack failures |
+| `partner_observability_async_acknowledgement_duration_seconds` | Histogram | service, partner_slot, api, ack_outcome | Initiation-to-terminal acknowledgement observation |
+| `partner_observability_callback_deliveries_total` | Counter | service, partner_slot, api, delivery_class | Authenticated callback deliveries; unauthenticated attempts stay internal-only |
+| `partner_observability_callback_processing_total` | Counter | service, partner_slot, api, processing_mode, processing_phase, outcome | Explicit validated/started/terminal processing facts from fixed phases |
+| `partner_observability_callback_processing_duration_seconds` | Histogram | service, partner_slot, api, processing_mode, outcome | Started-to-terminal business processing duration when observed |
+| `partner_observability_callback_response_total` | Counter | service, partner_slot, api, outcome, status_class, result | Local response outcome; `result` is `write_completed`, `write_failed`, `cancelled`, or `unknown` |
 | `partner_observability_events_total` | Counter | service, partner_slot, event_name, outcome | Explicit journey events; event_name from max-64 registry |
 
 Histogram buckets are `0.05`, `0.1`, `0.25`, `0.5`, `1`, `2`, `5`, `10`, and `30` seconds. Values above 30 seconds remain in `+Inf`. API-specific SLO thresholds are configuration data used by dashboards/alerts, not new labels or buckets.
+
+Callback delivery age or total async journey duration is not derived from an unbounded in-memory correlation map. An optional `partner_observability_callback_delivery_age_seconds` histogram may be registered only for APIs whose business adapter supplies a trusted original-sent timestamp from existing business state; the SDK validates a 0-to-16-day duration and never stores a transaction identifier. Without that adapter, the dashboard shows Loki event-time distributions as diagnostic, explicitly not as a complete Prometheus SLA.
 
 ## SDK health metrics
 
@@ -55,10 +68,11 @@ Histogram buckets are `0.05`, `0.1`, `0.25`, `0.5`, `1`, `2`, `5`, `10`, and `30
 | `partner_observability_dispatch_events_total` | Counter | service, result | Records by bounded dispatch result |
 | `partner_observability_dispatch_duration_seconds` | Histogram | service, result | Dispatcher-only network duration |
 | `partner_observability_sanitization_total` | Counter | service, action, data_class | `allowed`, `masked`, `removed`, `omitted`; class enum only |
+| `partner_observability_callback_ingress_denied_total` | Counter | service, reason | Internal-only missing/untrusted/conflicting callback-context reason; no partner slot, route/body ID, or credential detail |
 | `partner_observability_policy_version_info` | Gauge fixed at 1 | service, version | Version is deployment-generated and bounded to one active value |
 | `partner_observability_dispatcher_alive` | Gauge | service | 1 while dispatcher loop is alive |
 
-SDK health metrics intentionally omit `partner_slot` to limit series and prevent operational details from appearing on partner dashboards. The partner-visible “telemetry coverage” uses partner-scoped API event counters, while internal operators see queue/export health.
+SDK health metrics intentionally omit `partner_slot` to limit series and prevent operational details from appearing on partner dashboards. The partner-visible “telemetry coverage” uses partner-scoped interaction/event counters, while internal operators see queue/export/context-denial health.
 
 ## Platform metrics
 
@@ -66,25 +80,31 @@ Alloy, Loki, Prometheus, Grafana, gateways, ECS, ALB/NLB, S3, and EFS metrics re
 
 ## SLI definitions
 
-For a window `W` and server-enforced `partner_slot`, service, API, and direction:
+For a window `W` and server-enforced `partner_slot`, service, API, interaction kind, and direction:
 
-- Availability = `success / eligible`, where `eligible` is all outcomes except explicitly configured partner-caused `business_rejected`. Both numerator and exclusions are shown.
+- Synchronous availability = successful completed sync responses / eligible sync responses, where eligible excludes only explicitly configured partner-caused business rejection. Numerator, denominator, and exclusions are shown.
+- Async acknowledgement acceptance = `accepted / eligible async acknowledgement terminals`; timeout, transport failure, and technical rejection remain in the denominator, while configured business rejection is shown separately.
+- Async acknowledgement latency = p50/p95/p99 of the acknowledgement histogram by accepted and all terminal outcomes.
+- Callback delivery volume and retry ratio = authenticated deliveries and `(retry + duplicate) / all authenticated deliveries`. This is not callback completeness because the platform does not know how many callbacks a partner should send without an approved business denominator.
+- Callback processing success = terminal `CALLBACK_PROCESSED success / (processed success + processing failed)` for eligible processing attempts. Received/started but non-terminal callbacks are shown as in-flight/coverage gaps, not counted as success.
+- Callback processing latency = p50/p95/p99 from explicit started-to-terminal observations, separated by inline/background and outcome.
+- Callback response-write success = `write_completed / all terminal callback response writes`; it remains separate from business processing success.
 - Technical error rate = `technical_failure / eligible`.
 - Business rejection rate = `business_rejected / all completed`.
-- Latency = p50/p95/p99 from histogram, displayed for successful eligible requests and for all requests separately.
+- HTTP latency = p50/p95/p99 from the applicable one-exchange histogram, displayed for successful eligible interactions and all interactions separately.
 - Volume = completed interactions per second/minute and total over `W`.
-- Telemetry coverage = response records divided by request records for an interaction class; it is an observability-quality SLI, not a business SLA.
+- Telemetry coverage is shown separately as sync responses/requests, async acknowledgements/async requests, callback responses/callback deliveries, and processing terminals/processing starts. Ratios are observability-quality SLIs, may be distorted by independent drops/retries, and are never business SLAs.
 - Drop ratio = SDK dropped records divided by capture attempts; internal-only because SDK health lacks partner dimension.
 - Isolation correctness = denied cross-tenant test attempts / attempted cross-tenant tests; target all denied.
 - Prohibited disclosure count = findings from controlled security verification; target exactly zero and not inferred from production scanning.
 
-Default evaluation windows are 5 minutes for operational panels, 1 hour and 24 hours for trend, and rolling 16 days for partner reports. Calendar SLA semantics, exclusions, and targets are configured per partner/API; the architecture does not invent contractual SLA percentages.
+Default evaluation windows are 5 minutes for operational panels, 1 hour and 24 hours for trend, and rolling 16 days for partner reports. “No data” and “no terminal event yet” are distinct from zero failures or success. Calendar SLA semantics, callback-completeness denominator, maximum processing window, exclusions, and targets are configured per partner/API; the architecture does not invent contractual SLA percentages.
 
 ## Cardinality budget
 
 Per application instance, the SDK must expose no more than 10,000 `partner_observability_*` active series. The generated manifest validator calculates the exact upper bound before deployment and rejects a configuration above that number. The market Prometheus target is at most 100,000 active partner-observability series initially; exceeding 70% for 15 minutes blocks onboarding and triggers a capacity review.
 
-The calculation includes histogram buckets plus `_sum`/`_count`, all configured partner/API/outcome combinations, and health metrics. Optional event metrics are disabled unless their precomputed series fit. Meters expire only on process restart because the registry is configuration-fixed.
+The calculation includes histogram buckets plus `_sum`/`_count`, every valid configured partner/API/interaction/outcome/stage combination, and health metrics. It counts only legal combinations from the manifest state machine rather than registering a full Cartesian product, but it still rejects the configuration if the exact total exceeds the cap. Optional event and callback-delivery-age metrics are disabled unless their precomputed series fit. Meters expire only on process restart because the registry is configuration-fixed.
 
 ## Collection and storage
 
@@ -104,8 +124,8 @@ Alloy accepts `partner_slot` only from the starter's fixed meter registry and va
 
 ## Dashboard contract
 
-The SLA/SLI dashboard provides volume, availability, business rejection, technical error, latency p50/p95/p99, error/status breakdown, and 16-day trend. Dashboard variables may narrow service/API/direction/time, but the partner slot is not a variable. “No data” is visually distinct from zero success or zero errors. Panels disclose the formula, exclusions, source freshness, and last sample time.
+The SLA/SLI dashboard provides sync volume/availability/latency, async acknowledgement acceptance/latency, callback delivery/retry, processing success/latency, response-write outcome, business rejection, technical error, error/status breakdown, coverage, and 16-day trend. Dashboard variables may narrow service/API/interaction kind/direction/time, but the partner slot is not a variable. “No data,” “not terminal yet,” and zero success/errors are visually distinct. Panels disclose the formula, exclusions, source freshness, last sample time, and whether a measure is Prometheus SLI or best-effort Loki diagnostic.
 
 ## Alerting baseline
 
-Internal alerts, subject to environment-specific routing, include dispatcher dead for 2 minutes, normal/high queue above 80% for 5 minutes, any sustained drops above 1% for 5 minutes, export failures for 5 minutes, Alloy rejection >0, Prometheus remote-write failure, Loki compactor failure, storage above 70%, query gateway denials spike, and datasource health failure. Partner SLA alert thresholds require an approved partner contract and are not enabled by default.
+Internal alerts, subject to environment-specific routing, include dispatcher dead for 2 minutes, normal/high queue above 80% for 5 minutes, any sustained drops above 1% for 5 minutes, export failures for 5 minutes, Alloy rejection >0, callback trusted-context denials spike, correlation partial/conflict/query-limit spike, Prometheus remote-write failure, Loki compactor failure, storage above 70%, query gateway denials spike, and datasource health failure. Partner SLA/callback-staleness alert thresholds require an approved partner contract and are not enabled by default.

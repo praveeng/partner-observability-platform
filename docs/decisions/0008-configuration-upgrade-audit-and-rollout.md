@@ -10,13 +10,13 @@ Markets, partners, services, APIs, capture policies, tenants, datasources, and c
 
 ## Decision
 
-Use one versioned non-secret manifest per market/environment as source of truth. It declares configured services/Cloud Map names, partners, opaque tenant/slot/org mappings, API/event schemas, capture/rate/sample policy, source authorizations, SLO inputs, local-user references, and secret ARNs. Validation enforces uniqueness, tombstones, hard caps, safe defaults, and no secret values. Generated artifacts have content digests and feed Alloy/gateway/Grafana/Terraform.
+Use one versioned non-secret manifest per market/environment as source of truth. It declares configured services/Cloud Map names, partners, opaque tenant/slot/org mappings, outbound/callback API and event schemas, callback trust-adapter IDs and route/filter ordering, typed correlation extractors/validators, per-leg capture/rate/sample policy, source authorizations, SLO inputs, local-user references, and secret ARNs. Validation enforces uniqueness, tombstones, hard caps, safe defaults, authenticated callback context, and no secret values. Generated artifacts have content digests and feed Alloy/gateway/journey-resolver/Grafana/Terraform.
 
 Pin SDK/container/dependency versions and container digests. Promote identical artifacts DEV->STAGE->PROD. Alloy supports event schema N/N-1. Loki schema entries are append-only/future-dated. Stateless services roll/blue-green; stateful upgrades use compatibility/backup/maintenance steps. Kill switches reduce capture independently of rollback.
 
 Audit evidence comes from Git/ADRs/CI artifacts/config digests, CloudTrail, ALB access logs, ECS/CloudWatch internal logs, and named operator/ticket account workflows. Partner telemetry remains best-effort operational data, not audit evidence.
 
-Migrate existing services disabled -> health/metrics -> metadata-only DEV/STAGE -> tenant/dashboard validation -> explicit plaintext hooks -> per-API full-safe approval -> canary/soak -> approved PROD. Offboarding disables access/capture first and preserves inaccessible data only for the remaining retention period.
+Migrate existing services disabled -> health/metrics -> metadata-only sync DEV/STAGE -> one mock async acknowledgement/callback journey -> tenant/correlation/dashboard validation -> explicit plaintext/processing hooks -> per-leg full-safe approval -> canary/soak -> approved PROD. Offboarding disables access/capture first and preserves inaccessible data only for the remaining retention period.
 
 ## Security and availability consequences
 

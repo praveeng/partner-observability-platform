@@ -12,7 +12,7 @@ The platform must provide useful partner request/response detail while never cap
 
 Use three explicit data classes: raw partner exchange data, partner-safe derived observability, and internal-only information. Only the second can implement `TelemetryRecord` or enter partner Loki.
 
-Support `NO_PAYLOAD`, `METADATA_ONLY`, and `FULL_SANITIZED`. Full sanitized is a complete safe projection of registered textual/scalar paths within hard limits, not a copy of the original body. Removal and binary/document exclusion always win. Unknown content fails closed.
+Support `NO_PAYLOAD`, `METADATA_ONLY`, and `FULL_SANITIZED` independently per outbound request/response, async acknowledgement, callback request/response, and business-event leg. Full sanitized is a complete safe projection of registered textual/scalar paths within hard limits, not a copy of the original body. Removal and binary/document exclusion always win. Unknown content fails closed. Callback data cannot be classified as partner-safe until authenticated server context exists.
 
 First-stage application sanitization is authoritative and occurs before queue insertion. Alloy repeats allowlisting/removal/masking/limits as defense in depth and drops on uncertainty. Internal raw SLF4J logs remain in internal logging; partner-safe log capture requires a dedicated marker/logger and structured fields passed through the same sanitizer.
 

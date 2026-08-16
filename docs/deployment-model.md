@@ -39,9 +39,9 @@ One Grafana OSS ECS task is exposed through a TLS ALB with WAF/rate limiting and
 
 Scaling Grafana beyond one task requires migration to an external supported database and a reviewed session/secret strategy. Partner organizations, datasources, and dashboards are provisioned; local users are managed through an audited operator workflow using Secrets Manager references rather than committed passwords.
 
-### Query gateway service
+### Query gateway and journey-resolver service
 
-PROD uses two stateless tasks; DEV/STAGE one. Nginx authenticates datasource credentials, strips tenant/slot headers, maps identity to fixed tenant/slot, and proxies Loki requests. For Prometheus it supplies the trusted slot to a colocated pinned `prom-label-proxy`, which parses/enforces the label on supported query endpoints. Unsupported endpoints are denied. Only Grafana and approved internal operators can connect.
+PROD uses two stateless tasks; DEV/STAGE one. Nginx authenticates datasource credentials, strips tenant/slot headers, maps identity to fixed tenant/slot, and proxies approved Loki requests. For Prometheus it supplies the trusted slot to a colocated pinned `prom-label-proxy`, which parses/enforces the label on supported query endpoints. A colocated stateless journey resolver accepts a typed identifier only after datasource authentication fixes the tenant, selects at most eight separate configured correlation-profile candidates, performs exact bounded structured-metadata graph queries (three rounds, 32 identifiers, 500 records/round, at most 16 days), and returns at most 2 MiB of timeline/detail data with correlation status. It enforces a 10-second request deadline, at most 20 in-flight resolutions per task, and a default per-datasource rate of 2 requests/second with burst 5. Limit exhaustion returns an explicit partial/429/timeout result without a broader query. It has no database, cache containing partner values, cross-tenant mode, or write permission. Unsupported endpoints are denied. Only Grafana and approved internal operators can connect.
 
 ## Network boundaries
 
@@ -75,6 +75,7 @@ The versioned non-secret market manifest generates:
 - Alloy receivers/processors/tenant routes and metric scrape/relabel rules;
 - ingress/query gateway identity maps containing secret references, not secret values;
 - Grafana organization, datasource, dashboard, and folder definitions;
+- journey-resolver typed identifier schemas, bounded query templates, and record/stage allowlists;
 - ECS task configuration locations/digests;
 - Terraform variables for partner slots, Cloud Map services, storage, and service sizing.
 
@@ -94,7 +95,7 @@ Generated configuration is validated, assigned a content digest, stored in a ver
 | `ecs-loki` | Loki task/service, EFS mount, S3/IAM wiring, private discovery |
 | `ecs-prometheus` | Prometheus task/service, EFS, retention/size flags, private discovery |
 | `ecs-grafana` | Grafana task/service, EFS, ALB target, config/secret wiring, backup policy |
-| `ecs-query-gateway` | Nginx + prom-label-proxy task/service, mappings, private discovery |
+| `ecs-query-gateway` | Nginx + prom-label-proxy + stateless journey-resolver task/service, fixed identity maps, query limits, private discovery |
 | `observability-alerts` | ECS/LB/EFS/S3/platform CloudWatch alarms and notification inputs |
 
 Modules take existing ECS cluster, subnets, VPC, DNS zone, image digests, sizing, manifest digest, and approved secret ARNs as inputs. They do not create partner integration services, users/password values, Terraform backends, production credentials, or perform deployments from documentation checks.
@@ -103,7 +104,7 @@ Examples under `terraform/examples/dev`, `stage`, and `prod` eventually demonstr
 
 ## Sizing and autoscaling
 
-Initial task CPU/memory values are deployment inputs validated against minimums after M9 tests. Stateless Alloy/query gateways scale on CPU plus accepted request rate with min/max bounds (PROD 2-6, non-prod 1-2). Stateful Loki/Prometheus/Grafana do not autoscale horizontally in the initial topology. Storage alarms fire at 70%, scaling review at 70% sustained, and critical at 85%.
+Initial task CPU/memory values are deployment inputs validated against minimums after M9 tests. Stateless Alloy/query gateways scale on CPU plus accepted request/query rate with min/max bounds (PROD 2-6, non-prod 1-2). Journey-resolver request concurrency, Loki query timeout, response bytes, and per-credential rate are bounded deployment inputs with safe hard maxima defined by the application contract; overload returns a query error rather than broadening bounds. Stateful Loki/Prometheus/Grafana do not autoscale horizontally in the initial topology. Storage alarms fire at 70%, scaling review at 70% sustained, and critical at 85%.
 
 Application queue/rate limits are the first protection against ingest-cost spikes. Loki per-tenant ingestion/query limits, Prometheus series budgets, ALB/NLB limits, and dashboard query time ranges provide platform bounds.
 

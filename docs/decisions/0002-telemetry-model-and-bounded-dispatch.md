@@ -1,16 +1,16 @@
 # ADR 0002: Telemetry model and bounded dispatch
 
-- Status: Accepted for M2 implementation
+- Status: Accepted baseline; schema-2 record model refined by ADR 0009
 - Date: 2026-08-16
 - Decision owners: SDK architecture
 
 ## Context
 
-Instrumentation must model requests, responses, journey events, and SLI observations while preserving business availability under backend slowness, high volume, and large inputs. Standard blocking queues/executors and unbounded retry can couple resource use to telemetry.
+Instrumentation must model synchronous requests/responses, async acknowledgements, callback receipt/processing/response, business events, and SLI observations while preserving business availability under backend slowness, high volume, and large inputs. Standard blocking queues/executors and unbounded retry can couple resource use to telemetry.
 
 ## Decision
 
-Use immutable Java 17 `TelemetryEnvelope` records containing one sealed `ApiRequestRecord`, `ApiResponseRecord`, or `PartnerEventRecord`. Safe values have no binary/arbitrary-object subtype. SLI observations update pre-registered Micrometer meters and are not queued records.
+Use immutable Java 17 `TelemetryEnvelope` records containing the sealed schema-2 record set in `telemetry-contract.md`: outbound request/response, async acknowledgement, callback request/response/processing event, or partner business event. Safe values have no binary/arbitrary-object subtype. SLI observations update pre-registered Micrometer meters and are not queued records. ADR 0009 defines long-lived correlation and separate callback facts.
 
 Use bounded non-blocking MPSC array queues with independent count and byte budgets: high 256/4 MiB and normal 1,024/16 MiB by default. Producers reserve bytes then call `offer` once. Saturation drops newest. A single daemon dispatcher drains one high then up to three normal batches, maximum 128 events/256 KiB, flushes at 200 ms, and performs all network work. Connect/request timeouts are 250 ms/1 second. One bounded batch may be retried once after jitter; shutdown drains for at most two seconds.
 
@@ -33,7 +33,7 @@ Use preallocated per-partner and global token buckets, deterministic sampling, a
 
 ## Implementation and migration
 
-Core provides queue/byte accounting/dispatcher/transport SPI. Autoconfiguration owns lifecycle. Services can lower limits; hard maxima cannot be raised by configuration. SDK schema N/N-1 coexist at Alloy during rolling upgrades.
+Core provides record/correlation models, queue/byte accounting/dispatcher/transport SPI. Autoconfiguration owns lifecycle. Services can lower limits; hard maxima cannot be raised by configuration. The schema-1 core remains a safe baseline but must be extended to schema 2 before callback milestones are accepted. SDK schema N/N-1 coexist at Alloy during rolling upgrades.
 
 ## Verification evidence required
 
@@ -41,4 +41,4 @@ Concurrency/linearizability-style accounting tests, queue/byte saturation, dispa
 
 ## References and supersession
 
-Normative details: `../architecture.md`, `../telemetry-contract.md`, `../acceptance-criteria.md`. No ADR is superseded.
+Normative details: `../architecture.md`, `../telemetry-contract.md`, `../acceptance-criteria.md`, and ADR 0009. No ADR is superseded; ADR 0009 refines the record/correlation decision.

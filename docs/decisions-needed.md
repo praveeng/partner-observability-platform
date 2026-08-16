@@ -8,7 +8,7 @@ The security/availability architecture decisions previously listed as D001-D015 
 | --- | --- | --- |
 | D001 trusted partner identity | Authenticated server resolver plus source-service allowlist; fail closed | ADR 0003/0004, `partner-isolation.md` |
 | D002 Loki tenant/credentials/operator access | One opaque tenant, authenticating gateways, fixed mapping, named operator access | ADR 0004/0005 |
-| D003 safe event schema | Versioned immutable envelope and three record types | ADR 0002, `telemetry-contract.md` |
+| D003 safe event schema | Versioned immutable schema-2 envelope with seven first-class outbound/acknowledgement/callback/business record types | ADR 0002/0009/0010, `telemetry-contract.md` |
 | D004 removal/masking | Non-overridable classification and deterministic mask rules | ADR 0001, `payload-policy.md` |
 | D005 binary/Base64/size limits | Pre-queue detectors and numeric hard limits | ADR 0001, `payload-policy.md` |
 | D006 queue/drop/shutdown | Dual bounded MPSC queues, byte caps, drop-newest, two-second drain | ADR 0002 |
@@ -19,7 +19,7 @@ The security/availability architecture decisions previously listed as D001-D015 
 | D011 Grafana auth/authorization | Individual local Viewers, org per partner, backend-enforced datasources | ADR 0004 |
 | D012 ECS/IAM/network topology | Independent market stack and explicit Terraform modules/security groups | ADR 0007 |
 | D013 storage/retention/HA | S3 Loki 384h, EFS state, initial non-HA single stateful tasks | ADR 0005/0007 |
-| D014 Spring clients/context | RestTemplate/WebClient/OkHttp plus scoped servlet/executor/Reactor/MDC | ADR 0003 |
+| D014 Spring clients/context | RestTemplate/WebClient/OkHttp plus scoped MVC/WebFlux callback, servlet/executor/Reactor/MDC, and explicit semantic hooks | ADR 0003/0010 |
 | D015 performance budgets | Workload profiles and quantitative gates | `acceptance-criteria.md` |
 
 ## Unresolved organizational/deployment inputs
@@ -36,6 +36,9 @@ These questions do not authorize unsafe defaults. Their affected production acti
 | Q006 | For each service, what authenticated principal source, API inventory, encryption ordering, safe field schema, and service owner apply? Service/security owners | Starter disabled; then metadata-only after resolver/API approval | Before each onboarding |
 | Q007 | Which exact supported image versions/digests and artifact registries are approved at implementation time? Platform/security owner | No floating/latest tags; select and pin during M5-M8 with compatibility tests | Before component implementation/deploy |
 | Q008 | Contractual partner SLA targets, eligible/excluded outcomes, calendar/time zone, and alert recipients? Product/legal/partner owner | Show measured SLI with formula; no SLA percentage/alert claim | Before partner SLA activation |
+| Q009 | What is the maximum callback/retry arrival horizon for each partner API, and must journeys remain searchable after the required 16-day telemetry retention? Product/legal owner | Correlate only inside retained telemetry; do not extend retention or create a second store | Before claiming callback completeness beyond 16 days |
+| Q010 | For each callback route, which host authentication/signature result is authoritative, what is the security/decryption filter order, and which business idempotency result classifies retry/duplicate? Service/security owner | Callback partner telemetry disabled; no expected-route fallback tenant | Before enabling that callback in any environment |
+| Q011 | For each callback API, what exact business point means `CALLBACK_PROCESSED`, can a 202 precede it, and which failures/exclusions are partner-visible? Service/product owner | Emit only transport receipt/response metadata; semantic processing events disabled | Before enabling processing SLIs or contractual dashboards |
 
 ## Explicit requirement challenges
 
@@ -44,5 +47,7 @@ These questions do not authorize unsafe defaults. Their affected production acti
 - Grafana OSS organization isolation alone is not sufficient for shared Prometheus/Loki authorization. Fixed credential mappings, tenant-header injection, PromQL label enforcement, and network denial are mandatory.
 - One initial stateful ECS task per backend is cost-conscious but not highly available. No production HA/RTO claim is made without Q002.
 - Local Grafana accounts satisfy the stated initial mechanism but may not satisfy production MFA/audit policy; Q001 remains explicit.
+- Callback receipt cannot safely be emitted to an expected partner tenant before the host establishes authenticated partner context. The design preserves the ingress timestamp and emits the partner receipt fact only after trust succeeds; failed authentication is internal-only.
+- Sixteen-day telemetry retention bounds read-time journey correlation. Q009 must be answered before anyone promises completeness for later callbacks; the platform does not silently add a business-path correlation database.
 
 No unresolved question weakens `AGENTS.md`, permits production deployment, or permits a fallback shared tenant.

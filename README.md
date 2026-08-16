@@ -1,8 +1,8 @@
 # Partner Observability Platform
 
-Foundation repository for a partner-isolated observability SDK and platform targeting Java 17, Spring Boot 2.7.x, Grafana Alloy, Loki, Prometheus, Grafana, Terraform, and AWS ECS.
+Repository for a partner-isolated observability SDK and platform targeting Java 17, Spring Boot 2.7.x, Grafana Alloy, Loki, Prometheus, Grafana, Terraform, and AWS ECS.
 
-The repository is at **M0: foundation ready for review**. It intentionally contains no product implementation. See [PLANS.md](PLANS.md) and [the machine-readable state](.agent-state/status.json).
+The revised **M1 architecture/specification** is ready for review. The safe framework-neutral M2 pre-queue payload/dispatcher baseline exists, but the schema-2 async acknowledgement and callback model, Spring interception, and backend platform remain later implementation milestones. See [PLANS.md](PLANS.md) and [the machine-readable state](.agent-state/status.json).
 
 ## Core promise
 
@@ -27,24 +27,25 @@ Observability must never reduce business availability. Application traffic write
 
 Read [AGENTS.md](AGENTS.md) in full before making changes. Then inspect `.agent-state/status.json`, [PLANS.md](PLANS.md), and [open decisions](docs/decisions-needed.md). Repository state, not prior chat context, is the source of truth.
 
-## Foundation commands
+## Verification commands
 
 Prerequisites are Java 17, Bash, and Docker Compose/Terraform only when their milestones are implemented. A Gradle wrapper is included for reproducibility.
 
 ```bash
 ./scripts/build.sh
 ./scripts/test.sh
-./scripts/test-security.sh     # explicitly NOT IMPLEMENTED at M0
-./scripts/test-performance.sh  # explicitly NOT IMPLEMENTED at M0
+./scripts/test-security.sh --core  # implemented M2 pre-queue/trusted-context scope
+./scripts/test-security.sh         # non-zero until downstream M4-M9 gates exist
+./scripts/test-performance.sh      # non-zero until M9 profiles exist
 ./scripts/verify-all.sh        # non-zero until every required suite exists
 ```
 
-The M0 scaffold can be checked without claiming later milestone coverage:
+Documentation/static state can be checked without claiming later milestone coverage:
 
 ```bash
 ./gradlew projects
 bash -n scripts/*.sh
-python3 -m json.tool .agent-state/status.json
+jq empty .agent-state/status.json
 ```
 
 ## Constraints

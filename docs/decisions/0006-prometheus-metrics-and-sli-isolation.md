@@ -16,7 +16,7 @@ Alloy discovers private Actuator endpoints through configured Cloud Map DNS, scr
 
 Partner Grafana Prometheus datasources authenticate to the query gateway. It maps the credential to one fixed slot and supplies that value to `prom-label-proxy`, which enforces the label on every supported parsed query and rejects conflict/unsupported endpoints.
 
-Use contract metrics/formulas/buckets in `metrics-sli.md`. Contractual SLA percentages/exclusions remain onboarding business inputs, not architecture guesses.
+Use contract sync, async acknowledgement, callback delivery/processing/response, event, and SDK-health metrics/formulas/buckets in `metrics-sli.md`. HTTP completion, callback business processing, and response write are separate SLIs. Contractual SLA percentages, callback-completeness denominators, and exclusions remain onboarding business inputs, not architecture guesses.
 
 ## Security and availability consequences
 

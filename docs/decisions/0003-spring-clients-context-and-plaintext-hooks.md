@@ -1,12 +1,12 @@
 # ADR 0003: Spring clients, context propagation, and plaintext hooks
 
-- Status: Accepted for M3/M4 implementation
+- Status: Accepted for M3/M4 implementation; callback ingress refined by ADR 0010
 - Date: 2026-08-16
 - Decision owners: SDK and application integration architecture
 
 ## Context
 
-Services use RestTemplate, WebClient, and OkHttp across servlet, executor, and Reactor flows. Bodies may be streaming, one-shot, reactive, encrypted, binary, or never consumed. ThreadLocal/MDC propagation can leak tenant context on pooled threads. Automatic interceptors may not see authorized plaintext.
+Services use RestTemplate, WebClient, OkHttp, and inbound MVC/WebFlux callbacks across servlet, executor, and Reactor flows. Bodies may be streaming, one-shot, reactive, encrypted, signed, binary, or never consumed. ThreadLocal/MDC propagation can leak tenant context on pooled threads. Automatic interceptors may not see authorized plaintext or semantic callback completion.
 
 ## Decision
 
@@ -15,6 +15,8 @@ Provide conditional RestTemplate, WebClient, and OkHttp integrations. All captur
 Use immutable `PartnerContext`. Servlet scopes use a library ThreadLocal with `finally` restoration; configured executors use an opt-in `TaskDecorator`; Reactor Context is authoritative for reactive work and MDC is bridged per signal with restoration. `InheritableThreadLocal` and singleton mutable context are forbidden. Custom async work uses explicit snapshot wrappers.
 
 Provide a scoped `PartnerObservation` API for pre-encryption/post-decryption points where business code already has plaintext. It immediately builds a safe projection and never decrypts, retains domain objects, accepts bytes/streams, or propagates errors. Automatic interceptors reuse its interaction ID and avoid duplicate payload capture.
+
+ADR 0010 adds configured post-authentication MVC/WebFlux callback transport interception and an explicit callback observation API for authenticated/validated/processing/response facts. Callback route/body/header claims never establish partner context.
 
 ## Security and availability consequences
 
@@ -41,4 +43,4 @@ Byte-for-byte and behavior contract tests for status/body/errors/cancel/backpres
 
 ## References and supersession
 
-Normative details: `../architecture.md`, `../telemetry-contract.md`, `../payload-policy.md`. No ADR is superseded.
+Normative details: `../architecture.md`, `../telemetry-contract.md`, `../payload-policy.md`, and ADR 0010. No ADR is superseded.

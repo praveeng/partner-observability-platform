@@ -10,7 +10,7 @@ The platform must run in the same AWS ECS cluster as partner integration service
 
 ## Decision
 
-Deploy one independent stack for every account/market/environment/cluster. Use dedicated ECS services for Alloy ingress (proxy+Alloy), Loki single-binary, Prometheus, Grafana, and query gateway (auth proxy+prom-label-proxy). PROD starts with two stateless ingress/query tasks; stateful components use one task. DEV/STAGE use one each. No backend is a partner-service health dependency.
+Deploy one independent stack for every account/market/environment/cluster. Use dedicated ECS services for Alloy ingress (proxy+Alloy), Loki single-binary, Prometheus, Grafana, and query gateway (auth proxy+prom-label-proxy+stateless bounded journey resolver). PROD starts with two stateless ingress/query tasks; stateful components use one task. DEV/STAGE use one each. The resolver stores no partner data and has read-only fixed-tenant access. No backend is a partner-service health dependency.
 
 Use encrypted S3 for Loki TSDB objects and encrypted EFS access points for Loki WAL/cache/work, Prometheus TSDB, and initial single-instance Grafana SQLite. Use Secrets Manager, least-privilege task roles, private service discovery/endpoints, TLS load balancers, security-group boundaries, CloudWatch internal telemetry, and AWS Backup for Grafana state.
 

@@ -12,7 +12,7 @@ The requirement is one Loki tenant per partner with local Grafana accounts and p
 
 Create one opaque Loki tenant, opaque `partner_slot`, and Grafana organization per market/environment/partner. Trusted application context supplies a canonical partner key. The private Alloy ingress authenticates a source-service credential, authorizes the exact source-partner pair, strips tenant headers, and routes to a fixed generated Alloy partner pipeline. The Loki authenticating gateway injects fixed `X-Scope-OrgID`; Loki direct access and multi-tenant queries are disabled.
 
-Give each partner organization only fixed proxy datasources. Datasource credentials authenticate at a query gateway. Loki credentials map to one tenant. Prometheus credentials map to one slot; Nginx strips caller headers and supplies the fixed slot to a shared pinned `prom-label-proxy`, which parses PromQL and enforces `partner_slot=<fixed>`. Unsupported endpoints are denied. Network policy prevents direct backend access.
+Give each partner organization only fixed proxy datasources. Datasource credentials authenticate at a query gateway. Loki credentials map to one tenant. The stateless journey resolver receives that fixed tenant before it accepts a typed identifier and uses only bounded exact structured-metadata queries. Prometheus credentials map to one slot; Nginx strips caller headers and supplies the fixed slot to a shared pinned `prom-label-proxy`, which parses PromQL and enforces `partner_slot=<fixed>`. Unsupported endpoints are denied. Network policy prevents direct backend access.
 
 Initial users are individual local Grafana Viewer accounts in exactly one partner organization. Anonymous/self-signup is disabled. Partner users are not Editor/Admin/server admin. Internal operations uses a separate organization and credentials.
 
@@ -46,4 +46,4 @@ Cross-source/tenant/org/header/direct-network/PromQL endpoint bypass tests, cont
 - [Grafana organization isolation](https://grafana.com/docs/grafana/latest/administration/organization-management/)
 - [prom-label-proxy query enforcement](https://github.com/prometheus-community/prom-label-proxy)
 
-Normative details: `../partner-isolation.md`. No ADR is superseded.
+Normative details: `../partner-isolation.md` and ADR 0009. No ADR is superseded.

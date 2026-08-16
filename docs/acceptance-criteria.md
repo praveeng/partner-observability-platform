@@ -4,7 +4,9 @@
 
 M1 is ready for review when:
 
-- Requirements 1-50 in the task are addressed by the architecture, contracts, threat model, deployment model, acceptance criteria, or ADRs.
+- Requirements 1-59 in the revised task are addressed by the architecture, contracts, threat model, deployment model, acceptance criteria, or ADRs.
+- Both synchronous outbound exchanges and asynchronous initiation/acknowledgement/callback journeys are explicit. Callbacks are first-class record, integration, and dashboard types, not generic inbound logs.
+- Long-lived correlation uses every available typed identifier, acknowledgement bridge records, and a deterministic tenant-fixed bounded resolver; it does not depend solely on an HTTP correlation ID or add a business-path store.
 - The three data classes—partner exchange, partner-safe derived observability, internal-only—have distinct types/routes/access.
 - Every M0 security-critical decision has a concrete design and ADR; remaining questions are external policy/sizing inputs and do not permit unsafe implementation defaults.
 - Queue/event/payload/cardinality/timeout/retention defaults and hard maxima agree across documents.
@@ -18,12 +20,16 @@ M1 approval authorizes implementation planning, not production deployment or pro
 
 - One starter dependency plus configuration integrates a supported Spring Boot 2.7 service; disabled mode requires no application code.
 - Core has no Spring dependency. Optional RestTemplate, WebClient, OkHttp, Logback, Reactor, Actuator, and Micrometer integrations are classpath/bean conditional.
-- Request, response, partner event, context, safe value, capture decision, and SLI models match `telemetry-contract.md`.
+- Schema-2 outbound request/response, async acknowledgement, callback request/response/processing, business event, context, correlation identifiers, safe value, capture decision, and SLI models match `telemetry-contract.md`.
 - RestTemplate/WebClient/OkHttp execute business I/O exactly once and preserve response bytes, streaming, cancellation, and exception semantics.
+- Async client mappings emit one outbound request and one acknowledgement terminal record without double-counting a generic response; accepted, rejected, timeout, cancellation, and transport failure mappings are tested.
+- Configured MVC/WebFlux callback interception preserves authentication/signature ordering, route mapping, body bytes, status, exceptions, async dispatch, backpressure, cancellation, and buffer ownership. Unconfigured inbound traffic emits no partner callback record.
+- Callback receipt/retry, authentication/validation, processing start/terminal, and response write are distinct facts. HTTP 2xx/202 is never treated as proof of business completion.
 - Explicit pre-encryption/post-decryption API immediately creates a safe projection, never decrypts, and suppresses all observability failures.
-- Context propagation/restoration works for servlet, configured executor, Reactor, callback wrappers, and MDC without stale cross-partner values.
+- Context propagation/restoration works for servlet, MVC async dispatch, configured executor, Reactor, callback/background wrappers, and MDC without stale cross-partner values or source-object retention.
 - Marked structured safe logs work; arbitrary rendered SLF4J messages/throwables remain internal-only.
 - All kill switches reduce capture immediately and cannot expand the startup allowlist.
+- Automatic and explicit observations share interaction/attempt IDs and emit at most one request/response payload record.
 
 ## Availability and boundedness gates
 
@@ -37,6 +43,7 @@ M1 approval authorizes implementation planning, not production deployment or pro
 
 - Security corpus finds zero credentials, secrets, Authorization, tokens/JWTs, cookies, API keys, cryptographic keys, OTP/auth PINs, card data, documents/images/PDFs/signatures/binary/Base64, or unmasked phone/email/account/national ID/address in safe trees, queues, batches, Alloy outputs, Loki, metrics, dashboards, fallback diagnostics, or test reports.
 - Binary/Base64/type/content/size rejection is proven before queue reservation/admission.
+- A 10 MB Base64 document and binary callback candidates leave no matching content, source reference, or proportional copied allocation in any queued submission; normal large non-Base64 text follows configured size policy without being misclassified as Base64.
 - Unknown paths/types/schemas/contents and classifier exceptions are omitted/dropped.
 - Full sanitized mode retains every configured safe scalar within limits while removal/masking rules still win.
 - Metadata-only contains no header/query/body values. None mode contains no partner record.
@@ -48,21 +55,23 @@ M1 approval authorizes implementation planning, not production deployment or pro
 
 - Authenticated server context is the only partner source; spoofed public inputs/MDC cannot select context.
 - Each source credential can emit only to its configured partners; unknown/conflicting source-partner mappings fail closed.
+- Callback authentication/signature failure, wrong-partner identity, and route/context conflict produce no partner record and no expected-partner fallback; internal evidence contains no body or untrusted identifier.
 - Loki multi-tenancy is enabled, multi-tenant queries disabled, and each partner has a unique non-reused tenant.
 - Ingress/query proxies strip and overwrite tenant/slot headers; direct backend access is denied.
 - Each local Grafana partner user is a Viewer in exactly one organization with only that partner's provisioned datasources/dashboards.
 - Arbitrary LogQL/search inputs remain inside the fixed tenant.
 - `prom-label-proxy` tests cover query, query_range, series, labels/values if enabled, rules/alerts if exposed, conflicting/regex/absent matchers, and unsupported API denial.
 - Concurrent thread/reactive/batch/retry/rotation/offboarding tests prove no partner leakage.
+- Tenant-fixed journey resolution cannot cross a tenant or configured correlation profile even when all seven identifier values collide. Weak IDs cannot merge incompatible stable branches; singleton conflicts, regex/malformed seeds, oversized ranges, more than eight profile candidates, excessive expansion, and direct resolver bypass fail closed or return explicit bounded partial/conflict status.
 
 ## Labels, metadata, metrics, and dashboards
 
 - Loki streams use no more than the fixed eight labels; identifier and tenant values are absent from labels.
-- Application/loan/correlation/request/partner/event/interaction IDs are validated structured metadata and searchable within a bounded time range.
+- Application/loan/original-correlation/partner-reference/external-transaction/callback-reference/request/event/interaction/callback-attempt IDs are validated structured metadata and searchable within a bounded time range.
 - Structured metadata stays within 32 entries/8 KiB; event lines stay within 64 KiB.
 - Micrometer exposes only precomputed contract meters/tags, <=10,000 series per application and <=100,000 initial series per market Prometheus.
 - Alloy overwrites trusted scrape labels, drops unapproved labels/metrics, and remote-write failure cannot affect applications.
-- Partner dashboards provide identifier search, journey timeline, request/response detail with omission status, and SLA/SLI volume/success/rejection/error/latency/freshness views.
+- Partner dashboards provide typed identifier search, correlation confidence/coverage, an outbound/acknowledgement/callback processing timeline, record detail with omission status, and sync/async/callback SLI volume/success/rejection/error/latency/retry/write/freshness views.
 - “No data” is not rendered as zero/success; formulas and exclusions are visible.
 
 ## Deployment and retention gates
@@ -82,18 +91,19 @@ M1 approval authorizes implementation planning, not production deployment or pro
 
 - Immutable models, schema serialization, limits, identifier validators, masking, removal precedence, content detection, rate/sampling, byte budgets, kill-switch lattice, outcome mapping, and metric cardinality calculator.
 - Property/fuzz tests generate nested/Unicode/malformed/adversarial data and assert prohibited sentinels never appear.
+- Deterministic model tests cover every callback stage and legal/illegal transition, acknowledgement bridging, duplicate/retry attempt identities, late/out-of-order sorting, missing application ID, unknown reference, timeout-then-callback, parsing/processing/write failures, and 202-before-completion.
 
 ### Concurrency and framework tests
 
-- MPSC multi-producer/single-consumer races, queue byte accounting, priority fairness, shutdown, retry slot, dispatcher recovery, and exact drop accounting.
-- Spring context slices and synthetic MVC/WebFlux services for RestTemplate, WebClient, OkHttp, Logback, MDC, `@Async`, Reactor, cancellation, one-shot/duplex/streaming bodies, encryption hooks, and disabled/missing optional dependencies.
+- MPSC multi-producer/single-consumer races, queue byte accounting, priority fairness, independent callback-stage loss, shutdown, retry slot, dispatcher recovery, and exact drop accounting.
+- Spring context slices and synthetic MVC/WebFlux services for RestTemplate, WebClient, OkHttp, callback filters/advice/decorators, Logback, MDC, servlet async, `@Async`, Reactor, cancellation, one-shot/duplex/streaming bodies, authentication/signature/decryption ordering, explicit processing hooks, and disabled/missing optional dependencies.
 
 ### Integration/security/end-to-end tests
 
-- Docker Compose application -> Alloy -> Loki/Prometheus -> Grafana with at least two synthetic partners and internal-only data.
+- Docker Compose application -> Alloy -> Loki/Prometheus -> Grafana with at least two synthetic partners, synchronous and async/callback journeys, colliding typed identifiers, and internal-only data.
 - Direct cross-tenant ingest/query, Grafana organization/API, proxy/header/PromQL bypass, credential rotation, stale config, and network-denial tests.
 - Backend fault injection for latency, reset, invalid response, auth denial, full disk/limits, component restart, and compactor failure.
-- Dashboard JSON/query linting and browser tests for search/timeline/detail/SLI isolation.
+- Dashboard JSON/query linting and browser tests for typed search, bounded graph resolution, late/out-of-order/duplicate callback timeline, detail, SLI, and isolation.
 - Terraform format, validate, TFLint/Checkov-equivalent approved static checks, policy tests, and non-production plan assertions.
 
 ## Performance strategy and thresholds
@@ -108,16 +118,19 @@ Benchmarks run on a pinned Java 17 runtime with fixed CPU/memory, warmup, GC/JFR
 | Saturation | Backend blackhole, 2,000 attempts/s for 15 min | Offer p99 <=100 microseconds; no business errors; queue bytes/events never exceed caps; heap plateaus within caps +32 MiB |
 | Mixed soak | 80% metadata success, 10% errors, 10% full; 1,000 attempts/s for 60 min | No leak/deadlock/context crossing; exact bounded drop metrics; business p99 regression <=5% |
 | Reactive | 500 concurrent streaming/cancelled calls for 30 min | No DataBuffer leak warnings, double subscription/terminal event, demand change, or unbounded accumulation |
+| Callback MVC | 500 authenticated metadata callbacks/s for 30 min plus 10% async completion | Local capture p99 <=250 microseconds excluding host authentication/business work; no status/exception/body change; bounded queue/memory |
+| Callback WebFlux | 500 concurrent callback bodies with 20% cancellation for 30 min | No DataBuffer leak/demand change/double record/context crossing; candidate memory stays within configured caps |
+| Journey query | Synthetic retained tenant at initial sizing, 10 concurrent users and 32-key/3-round worst case | p95 <=5 s, no request exceeds the 10 s gateway deadline, all time/key/round/record/2 MiB response limits hold, and no cross-tenant query occurs |
 
 If host variability makes a latency percentage statistically invalid, both absolute distributions and confidence intervals are reported; the gate is not silently waived. M9 may tighten thresholds through an ADR but cannot weaken business isolation/boundedness.
 
 ## Rollout and migration gates
 
-1. Inventory services, trusted partner identity source, clients, encryption ordering, APIs, payload schemas, current logs, and owners.
+1. Inventory services, trusted partner identity source, clients, outbound and callback APIs/routes, authentication/signature/decryption/idempotency/202/background-completion semantics, payload schemas, current logs, and owners.
 2. Deploy/validate an empty market stack with synthetic tenants and no application traffic.
 3. Add starter with global disabled; prove no behavior/performance regression.
-4. Enable SDK health/metrics and metadata-only for one DEV mock API; then STAGE.
-5. Verify source/tenant/query/dashboards and operate kill switches/backend failure drills.
+4. Enable SDK health/metrics and metadata-only for one DEV mock synchronous API; then one async acknowledgement/callback journey; then STAGE.
+5. Verify source/tenant/query/correlation/timeline/dashboards and operate kill switches/backend failure drills.
 6. Add explicit plaintext hooks only where automatic clients cannot see safe plaintext.
 7. Approve field schemas and enable full sanitized per API/partner, never globally.
 8. Canary one service/partner, soak, then expand partner-by-partner with rollback criteria.

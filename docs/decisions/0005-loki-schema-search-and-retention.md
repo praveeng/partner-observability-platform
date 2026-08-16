@@ -12,7 +12,7 @@ Partners need transaction search and detail/timelines, while identifiers are hig
 
 Use Loki multi-tenant mode, TSDB index, schema v13, S3 object storage, and structured metadata. Each event stream has at most eight fixed labels: service name, deployment environment, market, event domain, event type, direction, outcome, and severity. Tenant is not a label.
 
-Store event/interaction/application/loan/correlation/request/partner-reference IDs as validated structured metadata, along with bounded API/status/error/product metadata. Store the display envelope and sanitized payload in a maximum-64-KiB JSON line. Identifier searches require tenant-fixed datasource, time range, and low-cardinality stream selector.
+Store event/interaction/callback-attempt/application/loan/original-correlation/request/partner-reference/external-transaction/callback-reference IDs as validated structured metadata, along with bounded API/timeline/status/error/product metadata. Store the display envelope and sanitized payload in a maximum-64-KiB JSON line. Identifier searches require a tenant-fixed datasource, typed seed, retained time range, low-cardinality stream selector, and the bounded journey resolver defined by ADR 0009.
 
 Enable compactor retention at 384 hours with two-hour delete delay. Use an 18-day S3 lifecycle backstop, disable telemetry-object versioning, and alert on compactor failure. Initial ECS deployment is single-binary with S3 plus encrypted EFS WAL/cache/work; migration to simple-scalable mode is threshold/availability driven.
 
@@ -33,7 +33,7 @@ Enable compactor retention at 384 hours with two-hour delete delay. Use an 18-da
 
 ## Implementation and migration
 
-Alloy schema pipelines set labels/metadata. Loki config pins v13/TSDB and retention. Schema changes append future UTC entries; never edit historical entries. Dashboard searches constrain time/stream before metadata filter. Tenant IDs are tombstoned, never reassigned.
+Alloy schema pipelines set labels/metadata. Loki config pins v13/TSDB and retention. Schema changes append future UTC entries; never edit historical entries. Dashboard searches fix tenant and constrain time/stream before exact metadata expansion. Tenant IDs are tombstoned, never reassigned.
 
 ## Verification evidence required
 
@@ -45,4 +45,4 @@ Label/cardinality contract tests, structured-metadata search by each identifier,
 - [Recommended TSDB v13 S3 schema](https://grafana.com/docs/loki/latest/operations/storage/schema/)
 - [Loki configuration and compactor retention](https://grafana.com/docs/loki/latest/configure/)
 
-Normative details: `../telemetry-contract.md`, `../deployment-model.md`. No ADR is superseded.
+Normative details: `../telemetry-contract.md`, `../deployment-model.md`, and ADR 0009. No ADR is superseded.

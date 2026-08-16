@@ -1,0 +1,4 @@
+interface:
+  display_name: "Loki Isolation"
+  short_description: "Review Loki tenant routing and data isolation"
+  default_prompt: "Use $loki-isolation to verify Loki tenant routing labels and exposure controls."

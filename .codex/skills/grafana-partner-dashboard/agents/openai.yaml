@@ -1,0 +1,4 @@
+interface:
+  display_name: "Grafana Partner Dashboard"
+  short_description: "Review secure partner dashboards and access"
+  default_prompt: "Use $grafana-partner-dashboard to verify partner dashboards and Grafana isolation."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Test Adequacy"
+  short_description: "Assess requirement coverage and test strength"
+  default_prompt: "Use $test-adequacy to assess whether tests adequately prove the claimed milestone."

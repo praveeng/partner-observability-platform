@@ -1,5 +1,5 @@
 # Repository-local Codex skills
 
-Project-specific skills may be added here in later milestones when a repeated, stable workflow justifies one. Skills must comply with the root `AGENTS.md`, must not embed credentials or production actions, and must not replace verifiable repository scripts or documentation.
+Project-specific skills live in one named subdirectory each. Skills must comply with the root `AGENTS.md`, must not embed credentials or production actions, and must not replace verifiable repository scripts or authoritative documentation.
 
-M0 defines the location only; no project-specific skill is installed.
+Installed review and validation skills cover architecture, the Spring Boot starter, payload safety, partner security, Loki isolation, Grafana partner dashboards, performance, test adequacy, Terraform/ECS, and release readiness. Their `SKILL.md` files are the entry points; generated `agents/openai.yaml` files provide discovery metadata.

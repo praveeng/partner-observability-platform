@@ -1,0 +1,4 @@
+interface:
+  display_name: "Performance Validation"
+  short_description: "Enforce observability performance acceptance gates"
+  default_prompt: "Use $performance-validation to run and assess the repository performance gates."

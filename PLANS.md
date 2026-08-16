@@ -15,6 +15,7 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 ### M1 — Architecture and specification (ready for review)
 
 - Resolved D001-D015 through ADRs 0001-0008 and normative data, payload, context, queue, client, metric, tenancy, Grafana, ECS, Terraform, upgrade, audit, testing, performance, and rollout contracts.
+- Added repository-local Codex skills for repeatable architecture, starter, payload, partner-security, Loki, Grafana, performance, test, Terraform/ECS, and release gates. Each skill reads the authoritative contracts, produces an explicit verdict, and records valid findings in repository state.
 - Challenged contradictory/insufficient requirements explicitly: full sanitized is not raw capture; arbitrary SLF4J logs remain internal; Grafana OSS requires backend query enforcement; initial stateful ECS topology is not HA; local-account production policy remains external.
 - Remaining questions in `docs/decisions-needed.md` are accountable organizational/deployment/onboarding inputs with safe defaults, not silent security-critical design gaps.
 - Acceptance: documentation consistency checks pass and the M1 design is committed locally for review. No product functionality is implemented.
@@ -66,4 +67,4 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 
 ## Current focus
 
-M1 is implemented as specification and awaiting review. M2 is next only after M1 review accepts ADRs 0001-0008 and owners acknowledge the safe defaults/open inputs. No product functionality has been implemented. Later milestones must implement against the numeric contracts rather than silently changing them.
+M1 is implemented as specification and awaiting review. Repository-local skills now preserve its repeatable review procedures for future autonomous runs. M2 is next only after M1 review accepts ADRs 0001-0008 and owners acknowledge the safe defaults/open inputs. No product functionality has been implemented. Later milestones must implement against the numeric contracts rather than silently changing them.

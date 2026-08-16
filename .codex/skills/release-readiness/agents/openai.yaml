@@ -1,0 +1,4 @@
+interface:
+  display_name: "Release Readiness"
+  short_description: "Verify package and release readiness gates"
+  default_prompt: "Use $release-readiness to verify all release gates without pushing or deploying."

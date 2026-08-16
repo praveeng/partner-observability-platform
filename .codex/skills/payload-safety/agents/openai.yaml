@@ -1,0 +1,4 @@
+interface:
+  display_name: "Payload Safety"
+  short_description: "Verify payload removal masking and exclusion"
+  default_prompt: "Use $payload-safety to verify payload handling against the repository safety contract."

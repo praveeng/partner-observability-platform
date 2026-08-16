@@ -1,0 +1,4 @@
+interface:
+  display_name: "Architecture Review"
+  short_description: "Review architecture against repository invariants"
+  default_prompt: "Use $architecture-review to review this design against the project constitution."

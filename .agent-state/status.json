@@ -13,12 +13,12 @@
     "currentState": "READY_FOR_REVIEW"
   },
   "milestone": "M1",
-  "summary": "M1 implementable architecture, contracts, ADRs, testing strategy, and rollout design are complete and verified; no application functionality is implemented.",
+  "summary": "Ten repository-local Codex verification skills are authored and validated against the approved M1 architecture; skill metadata, required-case coverage, state recording, and repository consistency checks pass, with no application functionality implemented.",
   "blockers": [],
   "nextActions": [
     "Review and accept ADRs 0001-0008 and the M1 contracts before starting M2.",
     "Assign owners and answers for Q001-Q008 before their documented production/onboarding gates.",
-    "After M1 approval, begin M2 core SDK implementation against the fixed numeric and security contracts."
+    "Use the repository-local skills as milestone gates when M2 implementation begins."
   ],
-  "lastUpdated": "2026-08-16T11:27:17Z"
+  "lastUpdated": "2026-08-16T11:58:33Z"
 }

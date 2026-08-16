@@ -1,0 +1,4 @@
+interface:
+  display_name: "Spring Boot Starter"
+  short_description: "Review safe Spring Boot starter integration"
+  default_prompt: "Use $springboot-starter to review or guide the Spring Boot starter integration."

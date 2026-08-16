@@ -1,0 +1,4 @@
+interface:
+  display_name: "Partner Security"
+  short_description: "Test partner identity and tenant isolation"
+  default_prompt: "Use $partner-security to test partner isolation and fail-closed authorization."

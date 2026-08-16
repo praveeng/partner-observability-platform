@@ -9,5 +9,5 @@ if [[ ! -x ./gradlew ]]; then
   exit 1
 fi
 
-echo "Running implemented Gradle tests; M0 contains no product tests."
+echo "Running implemented Gradle tests, including the synthetic partner integration fixture."
 exec ./gradlew --no-daemon test

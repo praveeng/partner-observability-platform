@@ -28,11 +28,13 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 ### M3 — Spring Boot auto-configuration and interceptors
 
 - Implement conditional Spring Boot 2.7 auto-configuration and supported HTTP/client interception with one-starter integration.
+- Preparatory fixture complete: `partner-observability-test-app` provides executable RestTemplate, WebClient, OkHttp, local mock-partner, transport failure, retry, encryption-boundary, multi-partner, and concurrency scenarios without implementing production interceptors.
 - Acceptance: opt-in configuration, compatibility, context startup, request-path isolation, and disabled-mode tests pass.
 
 ### M4 — Payload safety and encrypted integration support
 
 - Implement fail-closed payload classification and the approved design for observing supported encrypted integrations without weakening application encryption.
+- Preparatory fixture complete: generated PDF/JPEG/opaque/document-array Base64 candidates and synthetic nested credential, OTP, card, and mask-required PII payloads are available for future sanitizer assertions.
 - Acceptance: prohibited classes are absent before queue admission and from every sink, including error paths and malformed inputs.
 
 ### M5 — Alloy and Loki
@@ -58,6 +60,7 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 ### M9 — Security, performance, and end-to-end verification
 
 - Complete adversarial disclosure, tenant isolation, backend failure, saturation, throughput, latency, and Docker Compose end-to-end suites.
+- Preparatory fixture complete: two partner lanes, colliding application IDs, bounded synchronous concurrency, and reactive concurrency are covered by test-app integration tests. This does not claim the M9 duration/throughput gates.
 - Acceptance: explicit thresholds in `docs/acceptance-criteria.md` pass with retained test evidence and no real data.
 
 ### M10 — Release documentation and package readiness
@@ -67,4 +70,4 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 
 ## Current focus
 
-M1 is implemented as specification and awaiting review. Repository-local skills now preserve its repeatable review procedures for future autonomous runs. M2 is next only after M1 review accepts ADRs 0001-0008 and owners acknowledge the safe defaults/open inputs. No product functionality has been implemented. Later milestones must implement against the numeric contracts rather than silently changing them.
+M1 is implemented as specification and awaiting review. The synthetic test-app fixture is implemented as an explicitly authorized cross-milestone preparatory slice; it does not make M2, M3, M4, or M9 complete and adds no production SDK behavior. M2 remains the next product milestone after M1 review accepts ADRs 0001-0008 and owners acknowledge the safe defaults/open inputs. Later milestones must implement against the numeric contracts rather than silently changing them.

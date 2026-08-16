@@ -1,0 +1,97 @@
+package com.partner.observability.testapp.web;
+
+import com.partner.observability.testapp.client.OkHttpFixtureClient;
+import com.partner.observability.testapp.client.RestTemplateFixtureClient;
+import com.partner.observability.testapp.client.WebClientFixtureClient;
+import com.partner.observability.testapp.crypto.EncryptedRestTemplateFixture;
+import com.partner.observability.testapp.crypto.EncryptedRoundTrip;
+import com.partner.observability.testapp.model.ScenarioSummary;
+import com.partner.observability.testapp.model.SyntheticPartner;
+import com.partner.observability.testapp.model.SyntheticPartnerRequest;
+import com.partner.observability.testapp.model.SyntheticScenario;
+import java.io.IOException;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Mono;
+
+/**
+ * Loopback fixture control plane. Path values select predefined synthetic lanes; they are not a
+ * production partner-context resolver and must never be reused as one.
+ */
+@RestController
+@RequestMapping("/fixture")
+public final class FixtureScenarioController {
+
+    private final RestTemplateFixtureClient restTemplateClient;
+    private final WebClientFixtureClient webClient;
+    private final OkHttpFixtureClient okHttpClient;
+    private final EncryptedRestTemplateFixture encryptedFixture;
+
+    public FixtureScenarioController(
+            RestTemplateFixtureClient restTemplateClient,
+            WebClientFixtureClient webClient,
+            OkHttpFixtureClient okHttpClient,
+            EncryptedRestTemplateFixture encryptedFixture) {
+        this.restTemplateClient = restTemplateClient;
+        this.webClient = webClient;
+        this.okHttpClient = okHttpClient;
+        this.encryptedFixture = encryptedFixture;
+    }
+
+    @PostMapping("/rest/{partner}/{scenario}")
+    public ScenarioSummary restTemplate(
+            @PathVariable String partner, @PathVariable String scenario) {
+        SyntheticPartner partnerLane = SyntheticPartner.fromFixturePath(partner);
+        SyntheticScenario selectedScenario = SyntheticScenario.fromFixturePath(scenario);
+        try {
+            return ScenarioSummary.success(restTemplateClient.exchange(selectedScenario, partnerLane));
+        } catch (RuntimeException exception) {
+            return ScenarioSummary.failure(
+                    "rest-template", selectedScenario, partnerLane, exception.getClass().getSimpleName());
+        }
+    }
+
+    @PostMapping("/webclient/{partner}/{scenario}")
+    public Mono<ScenarioSummary> webClient(
+            @PathVariable String partner, @PathVariable String scenario) {
+        SyntheticPartner partnerLane = SyntheticPartner.fromFixturePath(partner);
+        SyntheticScenario selectedScenario = SyntheticScenario.fromFixturePath(scenario);
+        return webClient
+                .exchange(selectedScenario, partnerLane)
+                .map(ScenarioSummary::success)
+                .onErrorResume(exception -> Mono.just(ScenarioSummary.failure(
+                        "web-client", selectedScenario, partnerLane, exception.getClass().getSimpleName())));
+    }
+
+    @PostMapping("/okhttp/{partner}/{scenario}")
+    public ScenarioSummary okHttp(
+            @PathVariable String partner, @PathVariable String scenario) {
+        SyntheticPartner partnerLane = SyntheticPartner.fromFixturePath(partner);
+        SyntheticScenario selectedScenario = SyntheticScenario.fromFixturePath(scenario);
+        try {
+            return ScenarioSummary.success(okHttpClient.exchange(selectedScenario, partnerLane));
+        } catch (IOException exception) {
+            return ScenarioSummary.failure("okhttp", selectedScenario, partnerLane, exception.getClass().getSimpleName());
+        }
+    }
+
+    @PostMapping("/encrypted-rest/{partner}")
+    public ScenarioSummary encryptedRestTemplate(@PathVariable String partner) {
+        SyntheticPartner partnerLane = SyntheticPartner.fromFixturePath(partner);
+        SyntheticPartnerRequest request = SyntheticPartnerRequest.standard(
+                partnerLane, SyntheticPartnerRequest.COLLIDING_APPLICATION_ID);
+        EncryptedRoundTrip result = encryptedFixture.roundTrip(request);
+        return new ScenarioSummary(
+                "rest-template-encrypted",
+                "ENCRYPTED_ROUND_TRIP",
+                partnerLane.name(),
+                result.response().applicationId(),
+                1,
+                200,
+                result.responseCiphertextBytes(),
+                null,
+                null);
+    }
+}

@@ -9,5 +9,5 @@ if [[ ! -x ./gradlew ]]; then
   exit 1
 fi
 
-echo "Running foundation build (product implementation is not present at M0)."
+echo "Running repository build, including the synthetic compatibility fixture; production SDK implementation remains incomplete."
 exec ./gradlew --no-daemon clean build

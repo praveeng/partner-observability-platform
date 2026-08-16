@@ -12,13 +12,13 @@
     ],
     "currentState": "READY_FOR_REVIEW"
   },
-  "milestone": "M1",
-  "summary": "Ten repository-local Codex verification skills are authored and validated against the approved M1 architecture; skill metadata, required-case coverage, state recording, and repository consistency checks pass, with no application functionality implemented.",
+  "milestone": "M3",
+  "summary": "The synthetic partner-observability-test-app fixture is implemented and verified as an isolated M3/M4/M9 preparatory slice; 16 tests, the executable Boot JAR build, and repository build/test entry points are green, with no production SDK behavior added.",
   "blockers": [],
   "nextActions": [
-    "Review and accept ADRs 0001-0008 and the M1 contracts before starting M2.",
-    "Assign owners and answers for Q001-Q008 before their documented production/onboarding gates.",
-    "Use the repository-local skills as milestone gates when M2 implementation begins."
+    "Use this fixture to test future SDK sanitizer/interceptor/context behavior without changing its synthetic inputs to obtain a pass.",
+    "Implement pre-queue and downstream security assertions only when the corresponding production SDK and local observability stack exist.",
+    "Run the full M9 duration and throughput profiles when the production dispatcher and performance harness are implemented."
   ],
-  "lastUpdated": "2026-08-16T11:58:33Z"
+  "lastUpdated": "2026-08-16T12:58:00Z"
 }

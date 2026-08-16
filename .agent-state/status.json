@@ -12,13 +12,13 @@
     ],
     "currentState": "READY_FOR_REVIEW"
   },
-  "milestone": "M0",
-  "summary": "Repository foundation is scaffolded and ready for review; no product functionality is implemented.",
+  "milestone": "M1",
+  "summary": "M1 implementable architecture, contracts, ADRs, testing strategy, and rollout design are complete and verified; no application functionality is implemented.",
   "blockers": [],
   "nextActions": [
-    "Review and accept the M0 repository foundation.",
-    "Begin M1 by resolving security-critical items in docs/decisions-needed.md.",
-    "Record approved architecture choices as ADRs before product implementation."
+    "Review and accept ADRs 0001-0008 and the M1 contracts before starting M2.",
+    "Assign owners and answers for Q001-Q008 before their documented production/onboarding gates.",
+    "After M1 approval, begin M2 core SDK implementation against the fixed numeric and security contracts."
   ],
-  "lastUpdated": "2026-08-16T10:57:57Z"
+  "lastUpdated": "2026-08-16T11:27:17Z"
 }

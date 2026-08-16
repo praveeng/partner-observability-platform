@@ -6,17 +6,18 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 
 ## Milestones
 
-### M0 — Repository foundation (ready for review)
+### M0 — Repository foundation (complete)
 
 - Establish the constitution, lifecycle state, documentation map, Gradle multi-module skeleton, infrastructure/test directories, and honest command entry points.
 - Pin Java 17 and Spring Boot 2.7.x compatibility expectations.
 - Acceptance: repository structure exists, documentation links resolve, state JSON parses, shell scripts pass syntax checks, Gradle discovers all modules, and the foundation is committed locally.
 
-### M1 — Architecture and specification
+### M1 — Architecture and specification (ready for review)
 
-- Resolve the open decisions in `docs/decisions-needed.md`.
-- Convert requirements, threat model, telemetry schema, payload classifications, isolation boundaries, SLIs, and deployment assumptions into reviewed contracts and ADRs.
-- Acceptance: no security-critical TBD remains; architecture and acceptance criteria are internally consistent.
+- Resolved D001-D015 through ADRs 0001-0008 and normative data, payload, context, queue, client, metric, tenancy, Grafana, ECS, Terraform, upgrade, audit, testing, performance, and rollout contracts.
+- Challenged contradictory/insufficient requirements explicitly: full sanitized is not raw capture; arbitrary SLF4J logs remain internal; Grafana OSS requires backend query enforcement; initial stateful ECS topology is not HA; local-account production policy remains external.
+- Remaining questions in `docs/decisions-needed.md` are accountable organizational/deployment/onboarding inputs with safe defaults, not silent security-critical design gaps.
+- Acceptance: documentation consistency checks pass and the M1 design is committed locally for review. No product functionality is implemented.
 
 ### M2 — Core SDK
 
@@ -65,4 +66,4 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 
 ## Current focus
 
-M0 is implemented and awaiting review. M1 is next. Product implementation must not begin until the M1 security-critical decisions are resolved or explicitly approved through ADRs.
+M1 is implemented as specification and awaiting review. M2 is next only after M1 review accepts ADRs 0001-0008 and owners acknowledge the safe defaults/open inputs. No product functionality has been implemented. Later milestones must implement against the numeric contracts rather than silently changing them.

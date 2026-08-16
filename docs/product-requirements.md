@@ -27,10 +27,17 @@ Partner-facing Spring Boot services need useful operational telemetry without al
 - Kubernetes or Helm support.
 - Production deployment from this repository or autonomous-agent access to production credentials.
 
+## Capture products
+
+- Metadata-only is the safe default for a newly enabled API.
+- No-payload mode emits no partner record for APIs where even metadata is inappropriate.
+- Full sanitized mode is an explicitly reviewed, bounded safe projection of configured textual/scalar fields; it is never a verbatim payload copy and never includes prohibited, unknown, binary/Base64, document, or oversized content.
+- Existing arbitrary application logs remain internal-only. Partner-facing logs/events are created through interceptors, explicit observation APIs, or the marked structured safe logger.
+
 ## Success measures
 
-Quantitative thresholds remain an M1 decision and must be finalized in `metrics-sli.md` and `acceptance-criteria.md`. At minimum, success requires provable business-path isolation, zero prohibited-field disclosures in adversarial fixtures, server-side tenant isolation, bounded resource use, and a reproducible consumer integration.
+Quantitative M1 thresholds are defined in `metrics-sli.md` and `acceptance-criteria.md`. Success requires provable business-path isolation, zero prohibited-field disclosures in adversarial fixtures, server-side tenant/query isolation, bounded resource/cardinality use, 16-day Loki retention, and reproducible one-starter integration.
 
 ## Scope discipline
 
-This M0 document expresses intent, not an implemented feature claim. Open design choices are tracked in `decisions-needed.md`; later changes require tests and, for architecture-significant choices, ADRs.
+This document expresses requirements, not an implemented feature claim. M1 choices are recorded in ADRs; unresolved organizational inputs remain in `decisions-needed.md`. Later changes require tests and, for architecture-significant choices, an ADR.

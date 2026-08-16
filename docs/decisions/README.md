@@ -3,3 +3,14 @@
 Store accepted architecture decisions here using zero-padded names such as `0001-partner-identity-source.md`.
 
 Each ADR must include: status and date; context; decision; security/availability consequences; alternatives considered; implementation and migration impact; verification evidence; and links to superseded decisions. An ADR can refine but cannot waive `AGENTS.md` invariants.
+
+## M1 index
+
+- `0001-data-boundaries-and-capture-modes.md`
+- `0002-telemetry-model-and-bounded-dispatch.md`
+- `0003-spring-clients-context-and-plaintext-hooks.md`
+- `0004-tenant-routing-and-grafana-isolation.md`
+- `0005-loki-schema-search-and-retention.md`
+- `0006-prometheus-metrics-and-sli-isolation.md`
+- `0007-ecs-market-topology-and-terraform.md`
+- `0008-configuration-upgrade-audit-and-rollout.md`

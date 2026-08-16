@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "project": "partner-observability-platform",
+  "lifecycle": {
+    "allowedStates": [
+      "BOOTSTRAPPING",
+      "IN_PROGRESS",
+      "VERIFYING",
+      "BLOCKED",
+      "READY_FOR_REVIEW",
+      "COMPLETE"
+    ],
+    "currentState": "READY_FOR_REVIEW"
+  },
+  "milestone": "M0",
+  "summary": "Repository foundation is scaffolded and ready for review; no product functionality is implemented.",
+  "blockers": [],
+  "nextActions": [
+    "Review and accept the M0 repository foundation.",
+    "Begin M1 by resolving security-critical items in docs/decisions-needed.md.",
+    "Record approved architecture choices as ADRs before product implementation."
+  ],
+  "lastUpdated": "2026-08-16T10:57:57Z"
+}

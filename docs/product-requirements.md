@@ -1,0 +1,36 @@
+# Product Requirements
+
+## Problem
+
+Partner-facing Spring Boot services need useful operational telemetry without allowing observability backends, unsafe payload capture, or tenant confusion to affect business availability or disclose partner data.
+
+## Intended users
+
+- Application teams integrating observability into Java 17 / Spring Boot 2.7 services.
+- Platform operators running a shared AWS ECS observability platform.
+- Security and support personnel investigating synthetic or authorized partner-scoped telemetry.
+
+## Required outcomes
+
+1. An application team can integrate through one starter dependency plus configuration.
+2. Request processing never synchronously depends on Alloy, Loki, Prometheus, or Grafana.
+3. All telemetry paths are bounded, shed load under saturation, and contain their own failures.
+4. Payload handling removes prohibited data, masks restricted identifiers, rejects binary/Base64 content before queue admission, and fails closed for unknown unsafe content.
+5. Trusted server-side partner identity selects exactly one Loki tenant per partner.
+6. Operators can observe platform health and defined SLIs without high-cardinality metric or Loki label explosions.
+7. The system can be exercised locally with Docker Compose and provisioned for non-production AWS ECS with Terraform.
+
+## Non-goals
+
+- Business analytics, audit-ledger guarantees, distributed tracing in the initial scope, or guaranteed delivery of telemetry.
+- Storing full request/response payloads, binary attachments, documents, images, PDFs, card data, credentials, secrets, or OTPs.
+- Kubernetes or Helm support.
+- Production deployment from this repository or autonomous-agent access to production credentials.
+
+## Success measures
+
+Quantitative thresholds remain an M1 decision and must be finalized in `metrics-sli.md` and `acceptance-criteria.md`. At minimum, success requires provable business-path isolation, zero prohibited-field disclosures in adversarial fixtures, server-side tenant isolation, bounded resource use, and a reproducible consumer integration.
+
+## Scope discipline
+
+This M0 document expresses intent, not an implemented feature claim. Open design choices are tracked in `decisions-needed.md`; later changes require tests and, for architecture-significant choices, ADRs.

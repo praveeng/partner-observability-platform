@@ -1,0 +1,6 @@
+rootProject.name = 'partner-observability-platform'
+
+include 'partner-observability-core'
+include 'partner-observability-spring-boot-autoconfigure'
+include 'partner-observability-spring-boot-starter'
+include 'partner-observability-test-app'

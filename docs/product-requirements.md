@@ -21,6 +21,7 @@ Partner-facing Spring Boot services need useful operational telemetry for synchr
 7. The system can be exercised locally with Docker Compose and provisioned for non-production AWS ECS with Terraform.
 8. Async acknowledgements and callbacks/webhooks are first-class interactions with distinct receipt, authentication/validation, processing, and response facts.
 9. A callback arriving minutes or hours later can be correlated through all available validated business/protocol identifiers without relying solely on the original HTTP correlation ID.
+10. Every external partner API, acknowledgement/response, callback/webhook, and partner-facing Grafana connection uses HTTPS/TLS without the observability starter mutating certificate validation, hostname verification, redirect, trust-store, or other TLS settings.
 
 ## Non-goals
 
@@ -28,6 +29,7 @@ Partner-facing Spring Boot services need useful operational telemetry for synchr
 - Storing full request/response payloads, binary attachments, documents, images, PDFs, card data, credentials, secrets, or OTPs.
 - Kubernetes or Helm support.
 - Production deployment from this repository or autonomous-agent access to production credentials.
+- Implementing partner authentication through TLS metadata or implementing mTLS before certificate identity/lifecycle requirements are approved.
 
 ## Capture products
 
@@ -39,7 +41,7 @@ Partner-facing Spring Boot services need useful operational telemetry for synchr
 
 ## Success measures
 
-Quantitative M1 thresholds are defined in `metrics-sli.md` and `acceptance-criteria.md`. Success requires provable business-path isolation, zero prohibited-field disclosures in adversarial fixtures, server-side tenant/query/correlation isolation, bounded resource/cardinality use, faithful callback lifecycle semantics, 16-day Loki retention, and reproducible one-starter integration.
+Quantitative M1 thresholds are defined in `metrics-sli.md` and `acceptance-criteria.md`. Success requires provable business-path isolation, zero prohibited-field disclosures in adversarial fixtures, server-side tenant/query/correlation isolation, HTTPS-only external partner transport with unchanged client TLS validation, private ALB-to-ECS ingress, bounded resource/cardinality use, faithful callback lifecycle semantics, 16-day Loki retention, and reproducible one-starter integration.
 
 ## Scope discipline
 

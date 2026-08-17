@@ -16,3 +16,4 @@ Each ADR must include: status and date; context; decision; security/availability
 - `0008-configuration-upgrade-audit-and-rollout.md`
 - `0009-async-callback-records-and-correlation.md`
 - `0010-callback-ingress-trust-and-capture-boundaries.md`
+- `0011-https-tls-ownership-and-ingress-boundary.md`

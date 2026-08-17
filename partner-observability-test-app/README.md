@@ -2,6 +2,8 @@
 
 Java 17 / Spring Boot 2.7 compatibility fixture for SDK integration, security, failure-mode, concurrency, and performance verification. It is not a production example. The application and its dedicated mock partner server bind to loopback and use generated synthetic values only.
 
+Its in-process HTTP mock is the `LOCAL_SYNTHETIC` exception defined by `docs/transport-security.md`: loopback-only, ephemeral, synthetic, and not deployable as a DEV/STAGE/PROD partner endpoint. It must never be exposed through a public/container interface or configured for a real partner. ECS DEV mock partners use HTTPS; future TLS verification fixtures use synthetic certificates within this non-production boundary.
+
 ## Fixture control plane
 
 Run the application locally and trigger predefined outbound scenarios:

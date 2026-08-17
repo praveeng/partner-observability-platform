@@ -75,6 +75,21 @@ These properties are non-configurable acceptance gates. ADRs and onboarding mani
 - Partner-visible actions cannot mutate provisioned dashboards/datasources or access internal operator surfaces.
 - Configuration, infrastructure, secret access, account lifecycle, gateway denial, and operator access produce internal-only evidence; no claim of a tamper-proof audit ledger is made.
 
+## External transport security
+
+- Every external partner API request, acknowledgement/response, callback/webhook, and partner Grafana session uses HTTPS/TLS in DEV, STAGE, and PROD. ECS DEV mocks use HTTPS.
+- Plain HTTP is permitted only for an explicitly marked `LOCAL_SYNTHETIC` fixture on loopback or an isolated Docker network with no real-partner/deployed-environment route.
+- External callback and Grafana ALBs expose 443/HTTPS only. Port 80 has no listener and no security-group rule; redirect-only HTTP is not permitted because it still creates a plaintext first hop.
+- ALB/ACM is the approved external TLS termination boundary. Callback TLS transport does not replace host authentication/signature verification or establish a partner tenant.
+- Callback/Grafana ECS targets are private, have no public IP, and accept application traffic only from the owning ALB security group. Direct internet reachability to ECS tasks is prohibited.
+- RestTemplate, WebClient, and OkHttp retain their service-owned standard certificate-path validation and hostname verification. Trust-all managers, permissive hostname verifiers, certificate-validation bypass, and HTTP downgrade/fallback are prohibited.
+- The starter never creates, installs, assigns, mutates, relaxes, or bypasses an `SSLContext`, `SSLSocketFactory`, `TrustManager`, `HostnameVerifier`, WebClient connector/`SslProvider`, OkHttp certificate pinner/connection specification, TLS policy, proxy, or redirect policy.
+- A custom partner CA is security-reviewed, scoped to the host integration, delivered through an approved read-only secret/artifact mechanism, and never disables hostname, validity, chain, or protocol checks. Failure cannot fall back to trust-all or HTTP.
+- ACM/private/client keys, keystore or trust-store bytes/passwords, certificate private material, session/signature secrets, and URI credentials never enter telemetry, metrics, logs, dashboards, Git, generated manifests, or Terraform values/state committed to Git.
+- Partner-safe TLS diagnostics contain only configured API/attempt/duration/correlation metadata and a bounded structured outcome/failure enum. Exception messages, peer URLs/addresses, certificate chains/subjects/issuers/SANs/serials/fingerprints, trust-store paths, cipher debug output, and key material are prohibited.
+- TLS validation failures preserve the host client's original business error. Observability does not retry, suppress, replace, or transform it, and an inbound handshake failure before trusted callback context creates no partner record.
+- Future mTLS may plug into the existing host-owned client TLS and callback trust-adapter boundaries, but the starter never owns keys, certificates, key managers, trust managers, issuance, revocation, or rotation.
+
 ## Retention and deployment
 
 - Partner Loki telemetry is logically deleted after 384 hours by the compactor, with only the documented two-hour deletion delay; S3 lifecycle is a backstop, not an extension.

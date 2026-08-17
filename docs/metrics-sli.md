@@ -28,6 +28,7 @@ All label values must come from startup configuration or bounded enums:
 | `status_class` | `1xx`, `2xx`, `3xx`, `4xx`, `5xx`, `io_error`, `cancelled`, `unknown` |
 | `capture_mode` | `full_sanitized`, `metadata_only`, `no_payload` |
 | `reason` | Contract enum; never raw text |
+| `transport_failure_class` | `tls_handshake`, `tls_certificate_validation`, `tls_hostname_verification`, `tls_protocol_negotiation`, `tls_configuration`, `unknown_tls` |
 | `queue` | `high`, `normal`, `retry` |
 | `record_type` | `outbound_api_request`, `outbound_api_response`, `async_acknowledgement`, `callback_request`, `callback_response`, `callback_processing_event`, `partner_business_event` |
 | `result` | Metric-specific documented enum; never raw backend text |
@@ -69,10 +70,11 @@ Callback delivery age or total async journey duration is not derived from an unb
 | `partner_observability_dispatch_duration_seconds` | Histogram | service, result | Dispatcher-only network duration |
 | `partner_observability_sanitization_total` | Counter | service, action, data_class | `allowed`, `masked`, `removed`, `omitted`; class enum only |
 | `partner_observability_callback_ingress_denied_total` | Counter | service, reason | Internal-only missing/untrusted/conflicting callback-context reason; no partner slot, route/body ID, or credential detail |
+| `partner_observability_transport_security_failures_total` | Counter | service, api, direction, interaction_kind, transport_failure_class | Internal-only structured outbound TLS terminal failures; no peer/certificate/exception/key detail |
 | `partner_observability_policy_version_info` | Gauge fixed at 1 | service, version | Version is deployment-generated and bounded to one active value |
 | `partner_observability_dispatcher_alive` | Gauge | service | 1 while dispatcher loop is alive |
 
-SDK health metrics intentionally omit `partner_slot` to limit series and prevent operational details from appearing on partner dashboards. The partner-visible “telemetry coverage” uses partner-scoped interaction/event counters, while internal operators see queue/export/context-denial health.
+SDK health metrics intentionally omit `partner_slot` to limit series and prevent operational details from appearing on partner dashboards. Transport-security failures are internal-only health; partner-visible HTTP SLIs continue to show the bounded technical outcome without certificate detail. The partner-visible “telemetry coverage” uses partner-scoped interaction/event counters, while internal operators see queue/export/context-denial/transport health.
 
 ## Platform metrics
 
@@ -90,6 +92,7 @@ For a window `W` and server-enforced `partner_slot`, service, API, interaction k
 - Callback processing latency = p50/p95/p99 from explicit started-to-terminal observations, separated by inline/background and outcome.
 - Callback response-write success = `write_completed / all terminal callback response writes`; it remains separate from business processing success.
 - Technical error rate = `technical_failure / eligible`.
+- TLS handshake/certificate/hostname failures contribute to the normal technical-failure outcome. They do not create a separate partner SLA denominator or expose certificate identity; internal operators may use the fixed transport-failure counter for diagnosis.
 - Business rejection rate = `business_rejected / all completed`.
 - HTTP latency = p50/p95/p99 from the applicable one-exchange histogram, displayed for successful eligible interactions and all interactions separately.
 - Volume = completed interactions per second/minute and total over `W`.
@@ -128,4 +131,4 @@ The SLA/SLI dashboard provides sync volume/availability/latency, async acknowled
 
 ## Alerting baseline
 
-Internal alerts, subject to environment-specific routing, include dispatcher dead for 2 minutes, normal/high queue above 80% for 5 minutes, any sustained drops above 1% for 5 minutes, export failures for 5 minutes, Alloy rejection >0, callback trusted-context denials spike, correlation partial/conflict/query-limit spike, Prometheus remote-write failure, Loki compactor failure, storage above 70%, query gateway denials spike, and datasource health failure. Partner SLA/callback-staleness alert thresholds require an approved partner contract and are not enabled by default.
+Internal alerts, subject to environment-specific routing, include dispatcher dead for 2 minutes, normal/high queue above 80% for 5 minutes, any sustained drops above 1% for 5 minutes, export failures for 5 minutes, Alloy rejection >0, callback trusted-context denials spike, outbound TLS failure spike, ACM/certificate renewal or expiry risk, correlation partial/conflict/query-limit spike, Prometheus remote-write failure, Loki compactor failure, storage above 70%, query gateway denials spike, and datasource health failure. Partner SLA/callback-staleness alert thresholds require an approved partner contract and are not enabled by default.

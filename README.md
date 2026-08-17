@@ -2,11 +2,11 @@
 
 Repository for a partner-isolated observability SDK and platform targeting Java 17, Spring Boot 2.7.x, Grafana Alloy, Loki, Prometheus, Grafana, Terraform, and AWS ECS.
 
-The revised **M1 architecture/specification** and the scoped M2/M3 SDK integration are ready for review. Core now provides schema-2 async/callback records and correlation, and the Spring Boot 2.7 starter instruments configured RestTemplate, WebClient, OkHttp, MVC callback, and safe WebFlux transport paths. Backend Alloy/Loki/Grafana, explicit encrypted-plaintext integration, and full-duration performance remain later milestones. See [PLANS.md](PLANS.md) and [the machine-readable state](.agent-state/status.json).
+The revised **M1 architecture/specification** is receiving a documentation-only HTTPS/TLS boundary update; the scoped M2/M3 SDK integration remains separately ready for review. Core provides schema-2 async/callback records and correlation, and the Spring Boot 2.7 starter instruments configured RestTemplate, WebClient, OkHttp, MVC callback, and safe WebFlux transport paths. Backend Alloy/Loki/Grafana, explicit encrypted-plaintext integration, transport-policy implementation evidence, and full-duration performance remain later milestones. See [PLANS.md](PLANS.md) and [the machine-readable state](.agent-state/status.json).
 
 ## Core promise
 
-Observability must never reduce business availability. Application traffic writes only to bounded in-process telemetry paths; saturation drops telemetry, backend failures are contained, and no request waits synchronously for Alloy, Loki, Prometheus, or Grafana. Sensitive content is removed or masked before telemetry queue admission, and partner isolation is enforced by trusted server-side identity with one Loki tenant per partner.
+Observability must never reduce business availability. Application traffic writes only to bounded in-process telemetry paths; saturation drops telemetry, backend failures are contained, and no request waits synchronously for Alloy, Loki, Prometheus, or Grafana. Sensitive content is removed or masked before telemetry queue admission, and partner isolation is enforced by trusted server-side identity with one Loki tenant per partner. External partner traffic is HTTPS-only; the starter never weakens or mutates host TLS configuration.
 
 ## Repository map
 
@@ -21,6 +21,7 @@ Observability must never reduce business availability. Application traffic write
 | `docker` | Docker Compose local integration environment |
 | `test` | Cross-component integration, security, performance, and synthetic fixtures |
 | `docs` | Product, architecture, security, telemetry, deployment, and acceptance contracts |
+| `docs/transport-security.md` | HTTPS-only client, ALB/ACM, certificate, secret, and TLS ownership contract |
 | `.agent-state` | Machine-readable autonomous-agent handoff state |
 
 ## Agent entry point

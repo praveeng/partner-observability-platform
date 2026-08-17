@@ -15,6 +15,7 @@ Capture mode is configured per market/service/partner/API/interaction-kind/leg a
 | Class | Action | Examples |
 | --- | --- | --- |
 | Credentials/secrets | Remove field/value completely | Password/passcode, Authorization, Bearer, Basic, OAuth/JWT, refresh/access token, session ID, client secret, API key, signing/private key, encryption key, secret answer |
+| Transport security secrets | Remove field/value completely | TLS/client private key, keystore/trust-store bytes or password, key-manager material, session ticket, certificate private material, URI credentials |
 | Cookies | Remove completely | `Cookie`, `Set-Cookie`, cookie values, CSRF/session tokens |
 | OTP | Remove completely | OTP, one-time code/password, verification code, PIN used as authentication |
 | Card data | Remove completely | PAN/card number, CVV/CVC/CID, PIN/PIN block, track data, magnetic stripe, expiry when associated with a card |
@@ -25,6 +26,7 @@ Capture mode is configured per market/service/partner/API/interaction-kind/leg a
 | Address | Mask | Replace whole value/object with `[MASKED_ADDRESS]`; no partial street/postcode retention |
 | Transaction IDs | Allow after typed validator | `applicationId`, `loanId`, `originalCorrelationId`, `partnerReferenceId`, `externalTransactionId`, `callbackReferenceId`, `requestId`; structured metadata, never label/auth input |
 | Approved business fields | Allow | Amount, currency, tenure, SKU/product, configured status/error codes, operation/journey metadata |
+| Transport security metadata | Allow only fixed enums | `TLS`, `ALB_TLS`, and the bounded TLS outcome/failure classes from `telemetry-contract.md`; never certificate/peer/exception details |
 | Binary/documents | Exclude entire value/body | `byte[]`, ByteBuffer, stream, multipart file, PDF, image, signature, archive, audio/video, protobuf/octet-stream |
 | Base64/encoded binary | Exclude entire value/body | Data URI, PEM, canonical padded Base64, long unpadded encoded blob |
 | Unknown | Omit | Unregistered key/type/content type or ambiguous opaque value |
@@ -36,9 +38,9 @@ Removal wins over masking and allowlisting. For example, a field configured as a
 The first-stage sanitizer combines:
 
 1. Canonical key normalization: Unicode NFKC, ASCII lower-case where possible, removal of `_`, `-`, `.`, and whitespace for alias comparison; original keys are never logged on failure.
-2. A non-overridable removal alias set covering authorization/auth, credential, password/passcode, secret, token/JWT, cookie/session, API key, private/signing/encryption key, OTP/verification/PIN, and card/CVV/track variants.
+2. A non-overridable removal alias set covering authorization/auth, credential, password/passcode, secret, token/JWT, cookie/session, API key, private/signing/encryption/client/TLS key, key manager, keystore/trust-store password or bytes, URI credential, OTP/verification/PIN, and card/CVV/track variants.
 3. Non-overridable masking aliases for phone/mobile, email, account/IBAN, national/government/tax identifier, and address variants.
-4. Value detectors for Bearer/Basic credentials, JWT shape, PEM blocks, key material, data URIs, canonical Base64, and payment-card candidates passing the Luhn check.
+4. Value detectors for Bearer/Basic credentials, JWT shape, PEM/private-key/certificate-block material, key/trust-store material, data URIs, canonical Base64, and payment-card candidates passing the Luhn check.
 5. A per-API path allowlist and expected type. Non-allowlisted paths are omitted even when their names appear harmless.
 
 Configuration can add removal/masking field-name aliases or remove/mask a reviewed nested path. A field-name rule cannot create a global allow rule, expected DTO types can only narrow capture, and no configuration can downgrade built-in removal/masking rules.
@@ -110,6 +112,12 @@ Alloy never forwards an unparsed original line on processor error. Security test
 The platform never decrypts for telemetry. Ciphertext is metadata-only because it is opaque/Base64/binary. Pre-encryption and post-decryption capture is permitted only where the host application already holds authorized plaintext, through the explicit scoped APIs described in `architecture.md`. Callback request capture occurs after existing authentication/decryption and before business processing; response capture occurs after processing and before existing encryption/serialization. The API sanitizes immediately and does not extend plaintext lifetime. Keys, IVs/nonces, ciphertext, algorithms tied to secrets, signature material, and crypto exceptions are removed.
 
 No unauthenticated callback body is classified as partner-safe. If signature verification needs the body, the host security component owns its bounded handling and the starter observes only the verified result and later authorized plaintext. An expected route or partner-looking identifier is not enough to choose a tenant or payload policy.
+
+## TLS and certificate boundaries
+
+TLS configuration and certificate handling are not payload capture sources. The starter never reads an SSL session, trust store, key store, key/trust manager, certificate chain, or client key to enrich a payload. Private keys, client keys, key/trust-store bytes/passwords/paths, URI credentials, session/signature material, and PEM content are removed completely.
+
+Certificate subject/issuer/SAN/serial/fingerprint/chain, peer URL/host/address, negotiated-session debug dumps, and TLS exception messages/stacks are internal-only and omitted from partner payloads. The only allowed partner-safe projection is the exact bounded `transportSecurity`/`transportFailureClass` enum contract plus already-approved operational metadata. Classification from an exception uses known types only and never its message. A TLS classifier failure omits the specific class; it does not serialize a throwable or fallback string.
 
 ## Logging and diagnostics
 

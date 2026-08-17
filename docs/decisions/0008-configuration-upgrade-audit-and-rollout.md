@@ -10,7 +10,7 @@ Markets, partners, services, APIs, capture policies, tenants, datasources, and c
 
 ## Decision
 
-Use one versioned non-secret manifest per market/environment as source of truth. It declares configured services/Cloud Map names, partners, opaque tenant/slot/org mappings, outbound/callback API and event schemas, callback trust-adapter IDs and route/filter ordering, typed correlation extractors/validators, per-leg capture/rate/sample policy, source authorizations, SLO inputs, local-user references, and secret ARNs. Validation enforces uniqueness, tombstones, hard caps, safe defaults, authenticated callback context, and no secret values. Generated artifacts have content digests and feed Alloy/gateway/journey-resolver/Grafana/Terraform.
+Use one versioned non-secret manifest per market/environment as source of truth. It declares configured services/Cloud Map names, partners, opaque tenant/slot/org mappings, outbound/callback API and event schemas, approved HTTPS endpoint and callback ALB/ACM ownership references, callback trust-adapter IDs and route/filter ordering, typed correlation extractors/validators, per-leg capture/rate/sample policy, source authorizations, SLO inputs, local-user references, and secret/certificate ARNs. Validation enforces uniqueness, tombstones, hard caps, safe defaults, HTTPS-only deployed endpoints/no port 80 or downgrade, authenticated callback context, and no secret/certificate values. Generated artifacts have content digests and feed Alloy/gateway/journey-resolver/Grafana/Terraform.
 
 Pin SDK/container/dependency versions and container digests. Promote identical artifacts DEV->STAGE->PROD. Alloy supports event schema N/N-1. Loki schema entries are append-only/future-dated. Stateless services roll/blue-green; stateful upgrades use compatibility/backup/maintenance steps. Kill switches reduce capture independently of rollback.
 
@@ -43,4 +43,4 @@ Golden and mutation manifest tests, collision/cap/unsafe-field rejection, determ
 
 ## References and supersession
 
-Normative details: `../architecture.md`, `../deployment-model.md`, `../acceptance-criteria.md`, and `../../PLANS.md`. No ADR is superseded.
+Normative details: `../architecture.md`, `../deployment-model.md`, `../transport-security.md`, `../acceptance-criteria.md`, and `../../PLANS.md`. No ADR is superseded.

@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-This is the revised M1 implementable architecture for the Partner Observability Platform. It defines contracts for M2-M10, including first-class asynchronous acknowledgements and callbacks/webhooks. Decisions are recorded in ADRs 0001-0010 under `decisions/`. The schema-2 core and scoped M3 Spring integration are now implemented; the backend, query, deployment, explicit encrypted-plaintext, and full performance portions remain later milestone work.
+This is the revised M1 implementable architecture for the Partner Observability Platform. It defines contracts for M2-M10, including first-class asynchronous acknowledgements, callbacks/webhooks, and HTTPS/TLS transport ownership. Decisions are recorded in ADRs 0001-0011 under `decisions/`. The schema-2 core and scoped M3 Spring integration are now implemented; the backend, query, deployment, explicit encrypted-plaintext, transport-policy evidence, and full performance portions remain later milestone work.
 
 The supported runtime is Java 17 and Spring Boot 2.7.x. The platform uses SLF4J/Logback, Grafana Alloy, Loki, Prometheus, Grafana, Docker Compose locally, and Terraform-managed AWS ECS. Kubernetes and Helm are prohibited.
 
@@ -26,6 +26,17 @@ The implementation must keep these classes distinct in types, routes, stores, ac
 | Internal-only information | Platform configuration, security/audit events, infrastructure details, stack traces, raw application logs, and operator telemetry | Internal CloudWatch/internal Grafana surfaces; never a partner tenant or partner datasource |
 
 “Full sanitized payload” means a complete safe projection of the allowlisted textual/scalar fields that fit the limits in `payload-policy.md`. It never means a byte-for-byte payload copy. Prohibited, unknown, binary, encoded-binary, and oversized content remains absent.
+
+Transport classification refines, but does not add a raw telemetry class:
+
+| Transport class | Examples | Treatment |
+| --- | --- | --- |
+| Partner exchange | HTTPS request/response/callback plaintext or ciphertext | Business process only; normal payload policy applies to any derived projection |
+| Partner-safe transport metadata | Configured API ID, `TLS`, bounded handshake/certificate/hostname failure class, duration | May be included in the existing partner-safe record after trusted context and sanitization |
+| Internal-only transport information | ALB request/target data, raw peer host/address, certificate subject/issuer/SAN/fingerprint/serial, renewal diagnostics | Internal operations only |
+| Transport security secrets | Private/client keys, keystore/trust-store bytes and passwords, session/signature material | Never telemetry, logs, metrics, dashboards, Git, manifests, or Terraform values |
+
+Detailed certificate identity is not required for partner-safe diagnosis. If a client cannot classify a TLS failure from structured exception types without reading an exception message, it emits a less-specific bounded TLS failure enum.
 
 ## Runtime topology
 
@@ -68,26 +79,44 @@ Grafana Alloy: validate schema, sanitize again, stamp fixed tenant route
 
 Application threads never perform the network hop. Alloy, Loki, Prometheus, Grafana, DNS, AWS APIs, and configuration services are not application readiness dependencies.
 
+## External HTTPS/TLS architecture
+
+HTTPS/TLS is a hard boundary for all external partner traffic in DEV, STAGE, and PROD. Synchronous calls, asynchronous initiations and acknowledgements, callbacks/webhooks, ECS DEV mock partners, and partner Grafana access never use plaintext HTTP. The sole exception is an isolated `LOCAL_SYNTHETIC` Docker/loopback fixture with synthetic data and no path to a deployed environment or real partner.
+
+```text
+Outbound: private ECS task -- service-owned validated HTTPS client --> partner API
+
+Inbound:  partner -- HTTPS :443 --> ALB + ACM
+                                  [approved external TLS termination]
+                                  --> private ECS callback target
+                                  --> host auth/signature/decryption
+                                  --> trusted callback interception
+```
+
+The host integration owns endpoint URI, redirect behavior, TLS versions/ciphers, `SSLContext`, trust manager, hostname verifier, custom CA, proxy, certificate pinning, and future client keys. The starter does not create, install, replace, mutate, relax, or inspect those settings. It uses the already-configured client and may classify only a structured terminal failure. It never retries a TLS handshake independently and never falls back or redirects from HTTPS to HTTP.
+
+External callback and Grafana ALBs expose an HTTPS listener on port 443 only, use an approved TLS-1.2-or-newer policy and ACM certificate, and expose no port-80 listener or ingress rule. The ALB is the approved external termination boundary; it is not callback authentication. Callback ECS tasks use private subnets, no public IP, and an inbound rule only from the ALB security group. Host-service infrastructure owns callback ALBs; the observability Terraform network module owns the Grafana ALB. Full certificate, custom trust, failure, rotation, local-fixture, and future-mTLS contracts are normative in `transport-security.md` and ADR 0011.
+
 ## Supported business interaction shapes
 
 Synchronous partner integration is one observed exchange:
 
 ```text
-Samsung/service -- OutboundApiRequestRecord --> Partner API
-Samsung/service <-- OutboundApiResponseRecord -- Partner API
+Samsung/service -- HTTPS + OutboundApiRequestRecord --> Partner API
+Samsung/service <-- HTTPS + OutboundApiResponseRecord -- Partner API
                   shared interactionId
 ```
 
 Asynchronous partner integration is a journey of separate facts, not one long HTTP span:
 
 ```text
-Samsung/service -- OutboundApiRequestRecord (ASYNC_REQUEST_SENT) --> Partner async API
-Samsung/service <-- AsyncAcknowledgementRecord (ASYNC_ACK_RECEIVED) -- acknowledgement
+Samsung/service -- HTTPS + OutboundApiRequestRecord (ASYNC_REQUEST_SENT) --> Partner async API
+Samsung/service <-- HTTPS + AsyncAcknowledgementRecord (ASYNC_ACK_RECEIVED) -- acknowledgement
                                   minutes or hours pass
-Partner -- CallbackRequestRecord (CALLBACK_RECEIVED/RETRY_RECEIVED) --> Samsung/service
+Partner -- HTTPS/ALB + CallbackRequestRecord (CALLBACK_RECEIVED/RETRY_RECEIVED) --> Samsung/service
            CallbackProcessingEventRecord: AUTHENTICATED / VALIDATED / STARTED
            CallbackProcessingEventRecord: PROCESSED or PROCESSING_FAILED
-Partner <-- CallbackResponseRecord (CALLBACK_RESPONSE_SENT) -------- Samsung/service
+Partner <-- HTTPS/ALB + CallbackResponseRecord (CALLBACK_RESPONSE_SENT) -------- Samsung/service
 ```
 
 `CALLBACK_RECEIVED` and `CALLBACK_PROCESSED` are always separate. A callback HTTP response may occur before background processing completes, and a successful business result may precede a failed response write. The event timestamps preserve those facts instead of forcing a single synchronous model.
@@ -171,9 +200,12 @@ Defaults are global disabled until a service is onboarded, metadata-only for new
 
 All interceptors create request metadata immediately, call business transport exactly once, and contain their own errors. A configured mapping declares `SYNC` or `ASYNC_INITIATION`. Sync calls emit an outbound request and outbound response. Async calls emit an outbound request with `ASYNC_REQUEST_SENT` and exactly one `AsyncAcknowledgementRecord` terminal fact; they do not double-count the acknowledgement as a generic response. Response/acknowledgement metadata is recorded from headers/status and monotonic duration. Payload observation follows downstream consumption and never consumes or closes a stream on behalf of business code.
 
+Every production-like mapping identifies an approved HTTPS endpoint. Manifest/CI checks reject HTTP and HTTPS-to-HTTP redirect policies; the starter neither rewrites nor blocks business requests because observability cannot become a behavior-changing policy enforcement point. Server certificate validation and hostname verification remain enabled in the service-owned client. A custom partner CA may only extend reviewed service-scoped trust and cannot enable trust-all, hostname bypass, expired certificates, or plaintext fallback.
+
 ### RestTemplate
 
 - A `ClientHttpRequestInterceptor` uses configured `apiId` mappings and the current trusted context.
+- It reuses the service-owned `ClientHttpRequestFactory` and never assigns an SSL context/socket factory, trust manager, hostname verifier, TLS strategy, connection manager, proxy, or redirect policy.
 - Request bytes are considered only for textual allowlisted content types and within the raw candidate cap; otherwise payload is omitted.
 - The response is wrapped with a tee input stream that copies at most the candidate cap while the application reads. It does not eagerly buffer the response or enable `BufferingClientHttpRequestFactory` globally.
 - If the body is not consumed, only response metadata is emitted. Streaming and multipart endpoints are forced to metadata-only/no-payload.
@@ -182,6 +214,7 @@ All interceptors create request metadata immediately, call business transport ex
 ### WebClient
 
 - An `ExchangeFilterFunction` obtains context with `Mono.deferContextual`; Reactor context, not ThreadLocal, is authoritative.
+- The filter reuses the service-owned connector/HTTP client and never replaces or configures its `SslProvider`, SSL context, trust manager, hostname verification, proxy, or redirect settings.
 - Request and response `DataBuffer` publishers are decorated to inspect supported textual chunks as they pass. The collector has a strict byte cap and releases its own copies; it never aggregates an unlimited body or changes demand.
 - Cancellation, error, empty, streaming, and multi-subscription behavior emits at most one response record using an atomic terminal guard.
 - Payload capture is opt-in. Metadata-only remains the default because body decoration is more invasive.
@@ -190,6 +223,7 @@ All interceptors create request metadata immediately, call business transport ex
 ### OkHttp
 
 - An application interceptor captures method, configured route/API, status, and duration.
+- It never calls or changes `sslSocketFactory`, `hostnameVerifier`, `certificatePinner`, `connectionSpecs`, DNS, proxy, or redirect builder settings; it calls `chain.proceed` exactly once.
 - It never calls `RequestBody.writeTo` merely for observability because bodies may be one-shot, duplex, encrypted, or side-effectful.
 - A response source wrapper can tee already-consumed supported textual bytes up to the cap; it never calls `peekBody` above a limit.
 - Full request plaintext requires the explicit API. Streaming/duplex bodies are metadata-only.
@@ -200,6 +234,8 @@ Interceptor ordering is documented per service. When an explicit observation alr
 ## Inbound callback/webhook interception
 
 Callbacks are enabled only for manifest-listed route templates and a named server-owned authentication/context adapter. They are never captured by a generic inbound access-log switch. Transport interception supplies receipt/response facts; an explicit semantic API supplies authentication, validation, processing, retry/deduplication, and background-completion facts that HTTP status cannot prove.
+
+The external callback request first reaches the host service's ALB HTTPS listener on 443. TLS terminates at the ALB/ACM trust boundary; port 80 is absent. The application trusts forwarded-protocol information only through its server-owned trusted-proxy configuration and private ALB-to-target security-group path, never from an arbitrary header. A successful TLS hop does not establish partner identity. TLS handshakes rejected at ALB remain internal-only and cannot create an expected-partner callback receipt.
 
 The trust/capture order is fixed:
 
@@ -332,6 +368,8 @@ There is one independent platform stack for each `(AWS account, market, environm
 
 Every stack is deployed into the same ECS cluster/VPC as its partner integration services but uses dedicated ECS services, task roles, security groups, Cloud Map names, storage prefixes, and secrets. No telemetry crosses market/environment boundaries.
 
+Partner integration services remain in private subnets with no public IP. Their external callback ALBs are service-owned and expose only 443/HTTPS with ACM; target security groups accept only the ALB security group. Outbound partner calls leave through controlled NAT or an approved egress proxy/firewall and retain end-server certificate and hostname verification. The observability stack does not create or mutate partner-service ingress/egress TLS.
+
 The initial cost-conscious topology is:
 
 | ECS service | PROD desired count | DEV/STAGE | State |
@@ -348,9 +386,9 @@ Loki objects use an encrypted S3 bucket per stack. Compactor retention is exactl
 
 ## Configuration-driven onboarding
 
-A versioned market manifest is the single non-secret source of truth. It contains market/environment, service principals and Cloud Map scrape names, partners, opaque tenant ID, `partner_slot`, Grafana organization, outbound and callback API IDs, interaction kind, server-owned route templates, callback trust-adapter ID, supported Spring stack, per-leg capture modes, field/path/type schemas, correlation profiles linking compatible APIs with the seven typed identifier validators/extractors and stable/weak/singleton rules, bounded outcome/stage mappings, rate/sample limits, local-user references, and secret ARNs. It never contains passwords, signature keys, tokens, or encryption material.
+A versioned market manifest is the single non-secret source of truth. It contains market/environment, service principals and Cloud Map scrape names, partners, opaque tenant ID, `partner_slot`, Grafana organization, outbound and callback API IDs, interaction kind, approved HTTPS endpoint/host/port references, server-owned route templates, callback ALB/DNS ownership reference, callback trust-adapter ID, supported Spring stack, per-leg capture modes, field/path/type schemas, correlation profiles linking compatible APIs with the seven typed identifier validators/extractors and stable/weak/singleton rules, bounded outcome/stage mappings, rate/sample limits, local-user references, and secret/certificate ARNs. It never contains URI credentials, passwords, signature keys, private/client keys, trust-store passwords or bytes, tokens, or encryption material.
 
-Validation enforces uniqueness, naming regexes, one tenant/slot/org per partner, no more than 64 partners, no more than 64 APIs per service, safe defaults, known record types/callback stages/capture modes/data classes, fixed retention, source-to-partner authorization, a trust adapter for every enabled callback, and no full callback capture without a reviewed schema/order test. A reviewed manifest change generates Alloy/gateway/journey-resolver/Grafana artifacts and Terraform inputs. Onboarding order is DEV with mocks, STAGE, then PROD; removal disables capture/query first, waits 16 days, then removes tenant configuration and credentials.
+Validation enforces uniqueness, naming regexes, one tenant/slot/org per partner, no more than 64 partners, no more than 64 APIs per service, safe defaults, known record types/callback stages/capture modes/data classes, fixed retention, source-to-partner authorization, HTTPS for every deployed partner endpoint, no port-80 listener or downgrade redirect, a trust adapter for every enabled callback, and no full callback capture without a reviewed schema/order test. A reviewed manifest change generates Alloy/gateway/journey-resolver/Grafana artifacts and Terraform inputs. Onboarding order is local synthetic HTTP only when explicitly isolated, then ECS DEV mocks over HTTPS, STAGE, and PROD; removal disables capture/query first, waits 16 days, then removes tenant configuration and credentials.
 
 ## Upgrade and compatibility strategy
 
@@ -376,6 +414,9 @@ Callback authentication decisions, idempotency decisions, and business completio
 | --- | --- | --- |
 | Alloy/Loki/Prometheus/Grafana/DNS unavailable | Business call/callback continues | Bounded queue then drops; internal fixed-dimension health only |
 | Sanitizer/extractor/model exception | Original business value/exception is preserved | Payload/event omitted; bounded reason without raw input |
+| Outbound TLS certificate/hostname/handshake failure | Original client failure is preserved; no HTTP fallback or SDK retry | Safe bounded TLS failure class when structured signal exists; no certificate/message/key material |
+| Inbound callback TLS handshake failure at ALB | Request never reaches the callback application | Internal-only ALB aggregate/evidence; no partner tenant assignment |
+| ACM renewal/listener certificate failure | Existing valid certificate remains or ingress becomes unavailable according to ALB behavior | Internal alarm and rollback; no private key reaches ECS or telemetry |
 | Queue count/byte/rate saturation | Producer returns immediately | Drop-newest; exact bounded counter |
 | Dispatcher death | No business-thread takeover | Alive gauge/alert; capped daemon restart or continued loss |
 | Async original times out, callback later arrives | Callback business handling is unchanged | Timeout acknowledgement fact and later callback joined by bridge identifiers when available |
@@ -399,7 +440,7 @@ Cost is controlled through 16-day retention, S3 single-store Loki, single statef
 
 ## Verification and rollout
 
-Testing is layered across unit/property/fuzz, framework contract, concurrency, Docker Compose, tenant security, dashboard/query, Terraform/static, failure injection, and performance suites. Async/callback suites include late/out-of-order callbacks, duplicate/retry attempts, acknowledgement bridges, missing/unknown/conflicting IDs, wrong partners, auth/signature/parsing/processing/write failures, accepted-before-complete, MVC async dispatch, WebFlux cancellation/backpressure, and bounded correlation queries. Exact gates are in `acceptance-criteria.md`.
+Testing is layered across unit/property/fuzz, framework contract, concurrency, Docker Compose, tenant security, dashboard/query, Terraform/static, failure injection, and performance suites. Async/callback suites include late/out-of-order callbacks, duplicate/retry attempts, acknowledgement bridges, missing/unknown/conflicting IDs, wrong partners, auth/signature/parsing/processing/write failures, accepted-before-complete, MVC async dispatch, WebFlux cancellation/backpressure, and bounded correlation queries. Transport suites use synthetic certificates to cover valid/untrusted/expired/hostname-mismatch chains, HTTPS-to-HTTP downgrade denial, unchanged RestTemplate/WebClient/OkHttp TLS settings, ALB 443-only/ACM/private-target policy, spoofed forwarding headers, secret absence, and local-HTTP isolation. Exact gates are in `acceptance-criteria.md`.
 
 Existing partner services roll out in phases: inventory outbound and callback routes/authentication/encryption/idempotency/completion semantics; deploy empty backends; add starter disabled; enable health metrics; enable metadata-only for one DEV mock synchronous API; enable one mock async acknowledgement/callback journey; validate tenant/correlation/timeline/dashboards; enable explicit plaintext/processing hooks where needed; approve full-sanitized fields per leg; expand partner-by-partner; retain kill-switch and rollback evidence. Callback capture remains disabled until its trusted resolver and filter/decryption ordering are tested. No phase enables production payload capture without security and service-owner approval.
 
@@ -469,6 +510,30 @@ This map is a completeness index; the linked contracts are normative and contain
 | 58 | Performance strategy | `acceptance-criteria.md` performance gates |
 | 59 | Existing-service rollout/migration | verification/rollout above; ADR 0008 |
 
+### Transport-security requirement map
+
+| # | Required transport design | Normative location |
+| ---: | --- | --- |
+| 1 | RestTemplate outbound HTTPS | outbound interception above; `transport-security.md` |
+| 2 | WebClient outbound HTTPS | outbound interception above; `transport-security.md` |
+| 3 | OkHttp outbound HTTPS | outbound interception above; `transport-security.md` |
+| 4 | Callback/webhook inbound HTTPS | inbound callback section; `transport-security.md` |
+| 5 | ALB HTTPS listener | external HTTPS section; `deployment-model.md` |
+| 6 | ACM attachment and rotation | `transport-security.md`; ADR 0011 |
+| 7 | TLS termination trust boundary | external HTTPS section; ADR 0011 |
+| 8 | Private ECS/security groups | `deployment-model.md`; `transport-security.md` |
+| 9 | Server certificate validation | `transport-security.md` outbound requirements |
+| 10 | Hostname verification | `transport-security.md` outbound requirements |
+| 11 | Custom CA trust stores | `transport-security.md` custom trust section |
+| 12 | Certificate-validation failure handling | `transport-security.md` failure classification |
+| 13 | Downgrade/fallback prevention | `transport-security.md` outbound requirements |
+| 14 | Port-80 decision | ADR 0011: absent, not redirect-only |
+| 15 | TLS ownership | `transport-security.md` ownership table |
+| 16 | No SDK TLS mutation | ADR 0011; client-specific sections above |
+| 17 | Certificate/key/trust-store secret protection | `payload-policy.md`; `transport-security.md` |
+| 18 | Future mTLS extensibility | `transport-security.md`; ADR 0011 |
+| 19 | Safe TLS failure metadata | `telemetry-contract.md`; `transport-security.md` |
+
 ## Scoped architecture review verdict
 
 | Gate | Status | Evidence |
@@ -476,6 +541,7 @@ This map is a completeness index; the linked contracts are normative and contain
 | Data-class and pre-queue safety boundary | PASS | Three data classes, capture lifecycle, `payload-policy.md`, ADR 0001 |
 | Business-thread availability and boundedness | PASS | Queue/dispatcher/kill-switch/failure sections, ADR 0002 |
 | Module/dependency direction and one-starter integration | PASS | Repository responsibilities and Spring integration contracts |
+| HTTPS-only partner transport, validation ownership, ALB/ACM/private-task boundary, and no SDK TLS mutation | PASS | External HTTPS section, `transport-security.md`, ADR 0011 |
 | Sync plus first-class async/callback semantics | PASS | Schema-2 contract, inbound/outbound interception, ADRs 0009-0010 |
 | Trusted identity, one-tenant routing, datasource and correlation isolation | PASS | `partner-isolation.md`, ADRs 0004-0005/0009 |
 | Low-cardinality logs/metrics and partner dashboards | PASS | Loki model, `metrics-sli.md`, query/dashboard contracts |

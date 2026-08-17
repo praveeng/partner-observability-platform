@@ -23,6 +23,14 @@ For callbacks, an expected route is not authenticated identity. The callback res
 
 Missing, ambiguous, stale, disabled, conflicting, or unmapped context produces no partner telemetry. It does not route to an internal or common tenant. Business processing continues.
 
+## Transport boundary and partner identity
+
+HTTPS is mandatory for every external partner interaction, but TLS server authentication and partner-tenant authentication are different controls. Outbound clients validate the partner server certificate and hostname; that result does not allow a payload/header to choose a tenant. Inbound callbacks first cross the 443-only ALB/ACM termination boundary and then must pass the host service's authentication/signature/decryption chain before `CallbackPartnerContextResolver` may establish partner context.
+
+The SDK never treats a raw URL, host, certificate subject/SAN/fingerprint, source IP, `Forwarded`/`X-Forwarded-Proto` header, ALB route, or expected callback path as partner identity. The host may use a future reviewed mTLS authentication result, but the resolver consumes only its already-verified opaque principal. Failed ALB handshakes and pre-authentication callback attempts remain internal-only and cannot be assigned to an expected tenant.
+
+Callback and Grafana ECS targets have no direct internet route/public IP and accept application traffic only from their ALB security group. Partner browser/callback ALBs expose 443 only with ACM; port 80 is absent. Outbound partner HTTPS uses controlled egress while preserving service-owned certificate and hostname verification. The starter cannot alter any TLS or redirect setting to change isolation behavior.
+
 ## Application enforcement
 
 - Each service has a startup allowlist of partners it may observe and APIs each partner may use.
@@ -54,7 +62,7 @@ Loki itself is not an authentication system. An authenticating proxy strips all 
 
 ## Grafana local authentication
 
-Initial authentication uses individual Grafana local accounts, never shared partner accounts. Account creation/reset is an operator workflow with partner approval, a temporary random password delivered out of band, forced password change on first login where supported, and immediate disable on offboarding. Minimum password length is 16 characters; login throttling, secure/HttpOnly/SameSite cookies, TLS, short sessions, and ALB/WAF rate controls are enabled. Anonymous access and self-signup are disabled.
+Initial authentication uses individual Grafana local accounts, never shared partner accounts. Account creation/reset is an operator workflow with partner approval, a temporary random password delivered out of band, forced password change on first login where supported, and immediate disable on offboarding. Minimum password length is 16 characters; login throttling, secure/HttpOnly/SameSite cookies, TLS on the 443-only ACM-backed ALB, short sessions, and ALB/WAF rate controls are enabled. Anonymous access, self-signup, and port-80 access are disabled.
 
 Each user belongs to exactly one partner organization with Viewer role. Partner users are never Grafana server admin, organization Admin, or Editor. Server administrators use separate named break-glass accounts that are not used for routine partner access. Whether local accounts satisfy production MFA/identity policy is unresolved and recorded in `decisions-needed.md`; the migration target is corporate OIDC/SAML without changing organization/tenant mappings.
 
@@ -97,6 +105,7 @@ Onboarding creates isolation in this order: secrets/identities, backend tenant/s
 - Loki query/write credentials cannot change or combine `X-Scope-OrgID`.
 - PromQL selectors and metadata endpoints cannot remove, regex-widen, or conflict with enforced `partner_slot`.
 - Direct backend/internal endpoint access is denied.
+- Direct callback/Grafana task access and spoofed forwarding-header transport claims are denied; TLS ingress alone never creates partner context.
 - Rotation, disabled mapping, stale config, and offboarding fail closed.
 - Internal operator access is separate and auditable.
 - Identical identifier values in two partners never correlate; within one tenant, weak/colliding/conflicting identifiers return explicit status and cannot exceed query bounds.

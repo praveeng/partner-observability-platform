@@ -8,7 +8,7 @@ M1 is ready for review when:
 - Both synchronous outbound exchanges and asynchronous initiation/acknowledgement/callback journeys are explicit. Callbacks are first-class record, integration, and dashboard types, not generic inbound logs.
 - Long-lived correlation uses every available typed identifier, acknowledgement bridge records, and a deterministic tenant-fixed bounded resolver; it does not depend solely on an HTTP correlation ID or add a business-path store.
 - The three data classes—partner exchange, partner-safe derived observability, internal-only—have distinct types/routes/access.
-- Every M0 security-critical decision has a concrete design and ADR; remaining questions are external policy/sizing inputs and do not permit unsafe implementation defaults.
+- Every M0 security-critical decision plus the HTTPS/TLS ownership and ingress boundary has a concrete design and ADR; remaining questions are external policy/sizing inputs and do not permit unsafe implementation defaults.
 - Queue/event/payload/cardinality/timeout/retention defaults and hard maxima agree across documents.
 - One Loki tenant and Grafana organization per partner plus server-side Loki/Prometheus query isolation are specified.
 - Java 17/Spring Boot 2.7, AWS ECS, Terraform, Docker Compose, no Kubernetes/Helm, and no production action remain explicit.
@@ -22,6 +22,7 @@ M1 approval authorizes implementation planning, not production deployment or pro
 - Core has no Spring dependency. Optional RestTemplate, WebClient, OkHttp, Logback, Reactor, Actuator, and Micrometer integrations are classpath/bean conditional.
 - Schema-2 outbound request/response, async acknowledgement, callback request/response/processing, business event, context, correlation identifiers, safe value, capture decision, and SLI models match `telemetry-contract.md`.
 - RestTemplate/WebClient/OkHttp execute business I/O exactly once and preserve response bytes, streaming, cancellation, and exception semantics.
+- RestTemplate/WebClient/OkHttp use the service-owned HTTPS transport unchanged. Starter activation does not create, install, replace, or mutate SSL contexts/socket factories, trust/hostname managers, WebClient connectors/SSL providers, OkHttp pinners/connection specifications, proxies, DNS, redirects, or TLS policies.
 - Async client mappings emit one outbound request and one acknowledgement terminal record without double-counting a generic response; accepted, rejected, timeout, cancellation, and transport failure mappings are tested.
 - Configured MVC/WebFlux callback interception preserves authentication/signature ordering, route mapping, body bytes, status, exceptions, async dispatch, backpressure, cancellation, and buffer ownership. Unconfigured inbound traffic emits no partner callback record.
 - Callback receipt/retry, authentication/validation, processing start/terminal, and response write are distinct facts. HTTP 2xx/202 is never treated as proof of business completion.
@@ -64,6 +65,21 @@ M1 approval authorizes implementation planning, not production deployment or pro
 - Concurrent thread/reactive/batch/retry/rotation/offboarding tests prove no partner leakage.
 - Tenant-fixed journey resolution cannot cross a tenant or configured correlation profile even when all seven identifier values collide. Weak IDs cannot merge incompatible stable branches; singleton conflicts, regex/malformed seeds, oversized ranges, more than eight profile candidates, excessive expansion, and direct resolver bypass fail closed or return explicit bounded partial/conflict status.
 
+## HTTPS/TLS transport gates
+
+- Every external partner API, acknowledgement/response, callback/webhook, ECS DEV mock, and partner Grafana connection is HTTPS/TLS. Configuration mutation tests reject HTTP in DEV/STAGE/PROD.
+- RestTemplate, WebClient, and OkHttp pass synthetic valid-chain tests and preserve their original unknown-CA, expired/not-yet-valid, incomplete-chain, and hostname-mismatch failures with the starter both disabled and enabled.
+- Trust-all `TrustManager`/SSL contexts and permissive `HostnameVerifier` implementations are absent from production code/configuration. Static checks cover client SSL/TLS setter methods in observability modules.
+- An HTTPS-to-HTTP redirect is rejected and no SDK retry, alternate client, trust bypass, or plaintext fallback occurs. The original business error/result is identical with instrumentation disabled/enabled.
+- Custom partner CA trust is service-scoped, read-only, security-reviewed, hostname-validating, and delivered through approved secret/artifact references. Invalid/missing/retired trust fails closed without changing global JVM trust or exposing material.
+- External callback and Grafana ALBs have only a 443 HTTPS listener, an ACM certificate ARN, a pinned approved TLS-1.2-or-newer policy, and no port-80 listener/security-group rule.
+- Callback/Grafana ECS tasks use private subnets, `assign_public_ip=false`, no internet-gateway route, and target ingress only from the owning ALB security group. Direct task connection attempts fail.
+- Callback tests prove spoofed forwarding headers cannot establish TLS or partner context and that ALB TLS does not replace signature/authentication/decryption.
+- ACM/custom-CA rotation attaches new trust/certificate before old removal, verifies hostname/chain, supports rollback, and never exposes a private key in ECS, Git, Terraform plan/output, logs, or telemetry.
+- Partner-safe failure records contain only the fixed TLS security/failure enums and allowed metadata. Certificate chain/subject/issuer/SAN/serial/fingerprint, peer URL/host/address, cipher debug, exception text/stack, trust-store path/bytes/password, client/private key, and signature/session material are absent at queue, wire, Loki, metrics, dashboards, and diagnostics.
+- ALB handshake failures before trusted callback context remain internal-only and create no partner record or expected-partner fallback.
+- The local HTTP exception works only under an isolated `LOCAL_SYNTHETIC` loopback/Docker profile with synthetic data and cannot be selected by any ECS environment manifest.
+
 ## Labels, metadata, metrics, and dashboards
 
 - Loki streams use no more than the fixed eight labels; identifier and tenant values are absent from labels.
@@ -78,6 +94,7 @@ M1 approval authorizes implementation planning, not production deployment or pro
 
 - Docker Compose provides a synthetic logical stack with the same security/sanitization/tenant shape before end-to-end acceptance.
 - Terraform modules match `deployment-model.md`, format/validate/static-security checks pass, and reviewed non-production plans contain no unexpected public exposure or plaintext secrets.
+- Terraform policy tests prove 443-only Grafana ALB/ACM attachment, approved TLS policy, private targets/no public task IP, exact ALB-to-target security-group edges, certificate ARN-only inputs, and no port-80 listener/rule. Callback ALB evidence remains owned by the host service and is an onboarding prerequisite.
 - PROD/STAGE/DEV stacks are independent; DEV fixtures/endpoints refer only to mocks.
 - Loki uses S3 TSDB v13, structured metadata, compactor retention 384h, two-hour delete delay, and an 18-day lifecycle backstop with telemetry versioning disabled.
 - A synthetic aged-data test proves data is inaccessible after the retention window plus deletion delay/backstop tolerance.
@@ -97,6 +114,7 @@ M1 approval authorizes implementation planning, not production deployment or pro
 
 - MPSC multi-producer/single-consumer races, queue byte accounting, priority fairness, independent callback-stage loss, shutdown, retry slot, dispatcher recovery, and exact drop accounting.
 - Spring context slices and synthetic MVC/WebFlux services for RestTemplate, WebClient, OkHttp, callback filters/advice/decorators, Logback, MDC, servlet async, `@Async`, Reactor, cancellation, one-shot/duplex/streaming bodies, authentication/signature/decryption ordering, explicit processing hooks, and disabled/missing optional dependencies.
+- Synthetic TLS servers/CAs for all three clients, covering valid/invalid chains, expiry, hostname mismatch, downgrade redirect, unchanged client configuration, structured type-only failure classification, and exception/message/secret absence.
 
 ### Integration/security/end-to-end tests
 
@@ -105,6 +123,7 @@ M1 approval authorizes implementation planning, not production deployment or pro
 - Backend fault injection for latency, reset, invalid response, auth denial, full disk/limits, component restart, and compactor failure.
 - Dashboard JSON/query linting and browser tests for typed search, bounded graph resolution, late/out-of-order/duplicate callback timeline, detail, SLI, and isolation.
 - Terraform format, validate, TFLint/Checkov-equivalent approved static checks, policy tests, and non-production plan assertions.
+- ALB/ACM/SG route policy, spoofed forwarded-header, direct-task denial, certificate/trust rotation, and isolated-local-HTTP end-to-end tests.
 
 ## Performance strategy and thresholds
 
@@ -126,7 +145,7 @@ If host variability makes a latency percentage statistically invalid, both absol
 
 ## Rollout and migration gates
 
-1. Inventory services, trusted partner identity source, clients, outbound and callback APIs/routes, authentication/signature/decryption/idempotency/202/background-completion semantics, payload schemas, current logs, and owners.
+1. Inventory services, trusted partner identity source, clients, outbound HTTPS endpoints/redirect/custom-CA policy, callback ALB/DNS/ACM/SG ownership, callback APIs/routes, authentication/signature/decryption/idempotency/202/background-completion semantics, payload schemas, current logs, and owners.
 2. Deploy/validate an empty market stack with synthetic tenants and no application traffic.
 3. Add starter with global disabled; prove no behavior/performance regression.
 4. Enable SDK health/metrics and metadata-only for one DEV mock synchronous API; then one async acknowledgement/callback journey; then STAGE.

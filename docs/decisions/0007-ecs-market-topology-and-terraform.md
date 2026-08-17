@@ -14,6 +14,8 @@ Deploy one independent stack for every account/market/environment/cluster. Use d
 
 Use encrypted S3 for Loki TSDB objects and encrypted EFS access points for Loki WAL/cache/work, Prometheus TSDB, and initial single-instance Grafana SQLite. Use Secrets Manager, least-privilege task roles, private service discovery/endpoints, TLS load balancers, security-group boundaries, CloudWatch internal telemetry, and AWS Backup for Grafana state.
 
+ADR 0011 refines external transport: the observability network module creates only the 443-only ACM-backed Grafana ALB, while host-service infrastructure owns callback ALBs. All targets are private/no-public-IP and accept only their ALB security group. Port 80 is absent. Outbound partner HTTPS and client trust remain host-service concerns, not observability Terraform or SDK behavior.
+
 Terraform modules are the exact boundaries in `deployment-model.md`, composed by `market-observability-stack`. Inputs reference an existing VPC/ECS cluster and immutable image/config digests. No module creates production credentials or automatically applies.
 
 ## Security and availability consequences
@@ -41,4 +43,4 @@ Terraform format/validate/lint/security/policy and non-production plan tests; SG
 
 ## References and supersession
 
-Normative details: `../deployment-model.md`. No ADR is superseded.
+Normative details: `../deployment-model.md`, `../transport-security.md`, and ADR 0011. No ADR is superseded.

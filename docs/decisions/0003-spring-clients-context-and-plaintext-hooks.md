@@ -12,6 +12,8 @@ Services use RestTemplate, WebClient, OkHttp, and inbound MVC/WebFlux callbacks 
 
 Provide conditional RestTemplate, WebClient, and OkHttp integrations. All capture business I/O exactly once, emit metadata by default, tee supported response bytes only as the application consumes them, and never eagerly buffer unlimited bodies. RestTemplate wraps response streams; WebClient decorates DataBuffer publishers without changing demand; OkHttp never invokes `RequestBody.writeTo` for observation. Streaming/multipart/duplex/unknown bodies are metadata-only.
 
+ADR 0011 fixes TLS ownership: every deployed partner endpoint is HTTPS, while the host service retains its existing request factory/connector/client, SSL context, trust manager, hostname verifier, certificate pinning, proxy, and redirect policy. Instrumentation does not invoke TLS setters, create a replacement client, retry a handshake, or permit HTTPS-to-HTTP fallback.
+
 Use immutable `PartnerContext`. Servlet scopes use a library ThreadLocal with `finally` restoration; configured executors use an opt-in `TaskDecorator`; Reactor Context is authoritative for reactive work and MDC is bridged per signal with restoration. `InheritableThreadLocal` and singleton mutable context are forbidden. Custom async work uses explicit snapshot wrappers.
 
 Provide a scoped `PartnerObservation` API for pre-encryption/post-decryption points where business code already has plaintext. It immediately builds a safe projection and never decrypts, retains domain objects, accepts bytes/streams, or propagates errors. Automatic interceptors reuse its interaction ID and avoid duplicate payload capture.
@@ -43,4 +45,4 @@ Byte-for-byte and behavior contract tests for status/body/errors/cancel/backpres
 
 ## References and supersession
 
-Normative details: `../architecture.md`, `../telemetry-contract.md`, `../payload-policy.md`, and ADR 0010. No ADR is superseded.
+Normative details: `../architecture.md`, `../telemetry-contract.md`, `../payload-policy.md`, ADR 0010, and ADR 0011. No ADR is superseded.

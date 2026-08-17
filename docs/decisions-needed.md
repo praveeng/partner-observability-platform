@@ -22,6 +22,8 @@ The security/availability architecture decisions previously listed as D001-D015 
 | D014 Spring clients/context | RestTemplate/WebClient/OkHttp plus scoped MVC/WebFlux callback, servlet/executor/Reactor/MDC, and explicit semantic hooks | ADR 0003/0010 |
 | D015 performance budgets | Workload profiles and quantitative gates | `acceptance-criteria.md` |
 
+The later HTTPS/TLS requirement is resolved by ADR 0011: external partner communication is HTTPS-only, external ALBs expose 443 only with ACM, host integrations retain TLS validation ownership, and observability never mutates TLS. The remaining certificate/domain questions below are deployment inputs, not permission to use HTTP or weaken validation.
+
 ## Unresolved organizational/deployment inputs
 
 These questions do not authorize unsafe defaults. Their affected production action remains blocked until an accountable owner answers them.
@@ -39,6 +41,9 @@ These questions do not authorize unsafe defaults. Their affected production acti
 | Q009 | What is the maximum callback/retry arrival horizon for each partner API, and must journeys remain searchable after the required 16-day telemetry retention? Product/legal owner | Correlate only inside retained telemetry; do not extend retention or create a second store | Before claiming callback completeness beyond 16 days |
 | Q010 | For each callback route, which host authentication/signature result is authoritative, what is the security/decryption filter order, and which business idempotency result classifies retry/duplicate? Service/security owner | Callback partner telemetry disabled; no expected-route fallback tenant | Before enabling that callback in any environment |
 | Q011 | For each callback API, what exact business point means `CALLBACK_PROCESSED`, can a 202 precede it, and which failures/exclusions are partner-visible? Service/product owner | Emit only transport receipt/response metadata; semantic processing events disabled | Before enabling processing SLIs or contractual dashboards |
+| Q012 | Which external callback and Grafana DNS names, ACM certificate ARNs/validation zones, approved ALB TLS policy, and certificate-expiry alert owners apply per market? Cloud platform/security owner | No external listener or production partner access; port 80 remains absent | Before M8 listener plan or any external environment access |
+| Q013 | Which partners require a private/custom CA, what approved trust-anchor distribution/revocation/rotation policy applies, and may trust be scoped per client without changing global JVM trust? Service/security/PKI owners | Default JVM trust only; integrations needing unknown custom trust remain disabled | Before enabling that outbound endpoint |
+| Q014 | Does any partner require inbound or outbound mTLS, and what certificate identity, issuance, revocation, rotation, ALB mode, and failure policy applies? Partner/security/PKI owners | mTLS not implemented; existing signature/authentication remains mandatory | Before an mTLS ADR or implementation |
 
 ## Explicit requirement challenges
 
@@ -49,5 +54,8 @@ These questions do not authorize unsafe defaults. Their affected production acti
 - Local Grafana accounts satisfy the stated initial mechanism but may not satisfy production MFA/audit policy; Q001 remains explicit.
 - Callback receipt cannot safely be emitted to an expected partner tenant before the host establishes authenticated partner context. The design preserves the ingress timestamp and emits the partner receipt fact only after trust succeeds; failed authentication is internal-only.
 - Sixteen-day telemetry retention bounds read-time journey correlation. Q009 must be answered before anyone promises completeness for later callbacks; the platform does not silently add a business-path correlation database.
+- Port-80 redirect was not selected. Even redirect-only accepts a plaintext first hop and may change callback POST/authentication behavior; external callback and Grafana listeners are 443-only.
+- The starter cannot enforce HTTPS by rewriting or blocking business requests because that would alter application behavior. Host configuration, onboarding/CI policy, deployment controls, and client TLS validation enforce the invariant; the starter safely declines TLS mutation and records only bounded outcomes.
+- TLS termination at ALB is not callback authentication and is not represented as end-to-end partner mTLS. Q014 requires a separate ADR before certificate identity can become a trusted callback adapter input.
 
 No unresolved question weakens `AGENTS.md`, permits production deployment, or permits a fallback shared tenant.

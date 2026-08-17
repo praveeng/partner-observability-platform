@@ -9,6 +9,7 @@ This STRIDE-oriented model covers outbound clients, inbound MVC/WebFlux callback
 - Partner isolation and authorization mappings.
 - Partner exchange data and partner-safe telemetry.
 - Credentials, cryptographic material, local accounts, datasource/source secrets, and AWS identities.
+- HTTPS endpoint integrity, server certificate/hostname validation, ACM listener configuration, and transport-secret confidentiality.
 - Business-service availability/latency and bounded JVM resources.
 - Telemetry integrity, SLI definitions, dashboards, and configuration provenance.
 - Callback authentication outcomes, lifecycle semantics, typed correlation graph, and confidence/coverage presentation.
@@ -36,6 +37,8 @@ This STRIDE-oriented model covers outbound clients, inbound MVC/WebFlux callback
 9. Grafana datasource credential to query gateway, fixed tenant/slot, and bounded journey resolver.
 10. ECS task roles/network to S3, EFS, Secrets Manager, KMS, and CloudWatch.
 11. Terraform/config pipeline to non-production AWS APIs and artifacts.
+12. Private ECS egress through controlled NAT/proxy to the partner's validated HTTPS endpoint.
+13. Partner callback/browser ingress through the 443-only ALB/ACM boundary to a private ECS target.
 
 ## Threats, controls, and verification
 
@@ -43,6 +46,13 @@ This STRIDE-oriented model covers outbound clients, inbound MVC/WebFlux callback
 | --- | --- | --- | --- |
 | Spoofed partner | Forge partner header/MDC/body/route key | Authenticated server resolver; source-partner gateway map; strip/overwrite tenant headers | Negative resolver, ingress, and cross-tenant tests |
 | Spoofed/wrong-partner callback | Use expected route, forged signature/header/body ID, or conflicting authenticated identity | Host auth result only; callback resolver after security chain; configured route-partner consistency; no fallback tenant | Signature/auth failure, wrong-partner, conflicting-route tests with queue absence |
+| TLS server impersonation | Untrusted/expired/wrong-host certificate, forged DNS/endpoint, private-CA misuse | Standard client chain and hostname validation; reviewed scoped custom CA; approved endpoint manifest | Synthetic unknown-CA, expired, chain, hostname, and DNS/endpoint tests for all three clients |
+| TLS downgrade or bypass | HTTP endpoint, HTTPS-to-HTTP redirect, trust-all manager, permissive hostname verifier | HTTPS-only validation; no port 80; redirect downgrade denial; source/static checks; SDK TLS immutability | Configuration mutation, redirect, trust-all source scan, and enabled/disabled behavior comparison |
+| TLS-setting mutation by instrumentation | Starter replaces client/connector/request factory or changes SSL/pinning/redirect behavior | Filter/interceptor-only ownership contract; exactly-once client reuse; no SSL setter calls | TLS configuration identity/effective behavior before and after starter activation |
+| Direct ECS ingress | Bypass ALB/WAF/TLS by reaching task ENI/public IP | Private subnets, no public IP, ALB-SG-only target ingress, no public task DNS/route | Terraform plan/reachability tests and external connection denial |
+| Callback forwarding-header spoof | Send `X-Forwarded-Proto=https` over an untrusted path | Trusted-proxy configuration plus ALB SG path; TLS not callback identity | Direct/spoofed header tests with no trusted receipt/tenant fallback |
+| TLS secret disclosure | Key/trust-store bytes/password/path, certificate chain/private material in config, error, telemetry, state | Secrets Manager/ACM, ARN references, pre-queue removal, no message/chain emission | Git/config/plan/queue/wire/Loki/metric/dashboard sentinel scans |
+| Certificate renewal/rotation failure | Expired ACM/custom CA, partial trust rollout, listener outage | ACM managed renewal, expiry alarms, attach-before-remove, bounded CA overlap, staged rollback | Synthetic ACM/custom-CA rotation and rollback drills |
 | Cross-tenant Grafana query | Switch org, datasource, header, Loki tenant, PromQL matcher | One org/datasource per partner; fixed credential mapping; Loki header injection; prom-label-proxy; SG denial | Browser/API/direct-backend/PromQL bypass tests |
 | Secret/PII disclosure | Nested aliases, values, exception text, rendered log | Path allowlist, removal/masking/value detectors, no arbitrary logs, Alloy second stage | Property/fuzz corpus at queue, wire, Loki, metrics, diagnostics |
 | Binary/Base64 evasion | MIME lie, byte type, data URI, padded/unpadded encoding, PDF signature | Type/content/magic/UTF-8/Base64 detection before queue; omit ambiguity | Adversarial candidate corpus and memory bounds |
@@ -69,7 +79,7 @@ This STRIDE-oriented model covers outbound clients, inbound MVC/WebFlux callback
 
 ## Abuse cases
 
-The design assumes an attacker can choose field case/separators/Unicode, JSON duplicate keys, nesting, size, content types, encodings, identifiers, callback ordering/replay/timing, routes, URLs, status bodies, exception-triggering input, concurrency, cancellations, and volume. It assumes signature/authentication can fail before a trusted context exists, a callback can arrive after timeout or before earlier telemetry is visible, and processing can finish after a 202 response. It assumes observability backends can be absent, slow, compromised, or return malformed data. It assumes a partner Viewer can issue arbitrary queries supported by its Grafana datasource.
+The design assumes an attacker can choose field case/separators/Unicode, JSON duplicate keys, nesting, size, content types, encodings, identifiers, callback ordering/replay/timing, routes, URLs, redirects, forwarding headers, status bodies, exception-triggering input, concurrency, cancellations, and volume. It assumes a network peer can present an untrusted, expired, incomplete, or wrong-host certificate and can try to induce HTTP downgrade or direct task access. It assumes signature/authentication can fail before a trusted context exists, a callback can arrive after timeout or before earlier telemetry is visible, and processing can finish after a 202 response. It assumes observability backends can be absent, slow, compromised, or return malformed data. It assumes a partner Viewer can issue arbitrary queries supported by its Grafana datasource.
 
 A fully compromised onboarded application can access its configured source credential and emit fabricated partner-safe events for partners that service is authorized to serve. The gateway limits blast radius to that allowlist but cannot prove business truth. Reducing this residual risk requires workload identity/attestation and domain-source signing beyond the initial scope.
 
@@ -82,5 +92,7 @@ A fully compromised onboarded application can access its configured source crede
 - Journey correlation is best-effort within the 16-day telemetry window. Missing bridge events, reused identifiers, or bound exhaustion yields explicit partial/weak/conflict results; it is not a business source of truth.
 - At-most-once export loses events; a single retry may duplicate. Telemetry is not financial/audit evidence.
 - A compromised internal operator/backend role can access data within its IAM/network permissions; least privilege, named access, and audit evidence reduce but do not eliminate this risk.
+- TLS terminates at the approved ALB boundary; traffic inside that private target boundary is not cryptographically end-to-end partner-authenticated unless the host service separately enables reviewed backend TLS/mTLS. Security groups, private routing, and host callback authentication remain mandatory.
+- Revocation behavior and private-CA availability depend on the approved corporate/partner PKI policy. No mTLS identity or revocation guarantee is claimed until a follow-up ADR resolves certificate lifecycle requirements.
 
 Unresolved organizational inputs and owners are listed in `decisions-needed.md`. None permits weakening the repository constitution.

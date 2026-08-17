@@ -5,7 +5,7 @@ Framework-neutral Java 17 primitives for producing already-safe telemetry and ha
 ## Packages
 
 - `context`: immutable, authenticated server-derived `PartnerContext` and resolver base class.
-- `model`: immutable request, response, partner-event, envelope, and high-cardinality transaction identifier models.
+- `model`: immutable schema-2 outbound request/response, async acknowledgement, callback request/response/processing, business-event, interaction, and seven-field correlation models. Schema-1 bodies remain accepted only in schema-1 envelopes during the documented N-1 migration window.
 - `payload`: reviewed nested-path and field-name schemas, registered type-aware DTO extractors, fail-closed sanitizer, safe closed-tree representation, configurable hard limits, and binary omission metadata with disabled-by-default bounded hashing.
 - `policy`: payload capture modes and monotonic runtime kill switches for all capture, payloads, logs, events, metrics, and export.
 - `dispatch`: fixed event/byte-capacity MPSC queues, non-blocking drop-newest admission, priority dispatch, one bounded retry slot, and bounded shutdown.
@@ -31,4 +31,4 @@ Run the module suite from the repository root:
 
 The suite uses synthetic values and covers the mandatory credential/PII/binary corpus, a 10 MB non-obvious Base64 candidate, registered DTO extraction, structural/string/output limits, unknown/malformed/encrypted input, the three capture modes, independent kill switches, server-owned context, pre-queue byte accounting, colliding identifiers across partners, queue exhaustion, publisher recovery/failure, multi-producer concurrency, partner-pure batches, and bounded shutdown.
 
-Spring Boot auto-configuration, client interceptors, wire encoding, Alloy/Loki defense in depth, Grafana authorization, and full-duration performance verification are intentionally later milestones.
+Spring Boot auto-configuration and client/callback adapters now live in the adjacent auto-configuration module. Wire encoding, Alloy/Loki defense in depth, Grafana authorization, and full-duration performance verification remain later milestones.

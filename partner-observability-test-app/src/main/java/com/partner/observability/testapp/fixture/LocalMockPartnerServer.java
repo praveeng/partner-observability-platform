@@ -149,19 +149,25 @@ public final class LocalMockPartnerServer implements SmartLifecycle {
         return Integer.MIN_VALUE;
     }
 
-    public URI partnerUri(SyntheticScenario scenario) {
+    public URI partnerUri(SyntheticScenario scenario, SyntheticPartner partner) {
+        return partnerUri(scenario, partner, 1);
+    }
+
+    public URI partnerUri(SyntheticScenario scenario, SyntheticPartner partner, int attempt) {
         if (scenario == SyntheticScenario.CONNECTION_FAILURE) {
-            return URI.create("http://127.0.0.1:" + unavailablePort + "/partner");
+            return URI.create("http://127.0.0.1:" + unavailablePort + "/partner/"
+                    + partner.name().toLowerCase(Locale.ROOT) + "?syntheticAttempt=" + attempt);
         }
-        return baseUri().resolve("/partner");
+        return baseUri().resolve("/partner/" + partner.name().toLowerCase(Locale.ROOT)
+                + "?syntheticAttempt=" + attempt);
     }
 
     public URI encryptedUri() {
         return baseUri().resolve("/encrypted");
     }
 
-    public URI asyncUri() {
-        return baseUri().resolve("/async");
+    public URI asyncUri(SyntheticPartner partner) {
+        return baseUri().resolve("/async/" + partner.name().toLowerCase(Locale.ROOT));
     }
 
     public URI baseUri() {

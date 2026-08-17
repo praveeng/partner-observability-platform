@@ -1,6 +1,6 @@
 # ADR 0010: Callback ingress trust and capture boundaries
 
-- Status: Accepted for revised M1 design; implementation pending
+- Status: Accepted; scoped MVC/WebFlux transport and semantic API implemented
 - Date: 2026-08-16
 - Decision owners: Application security and Spring integration architecture
 
@@ -40,7 +40,7 @@ The explicit callback observation API supplies the semantic facts automatic HTTP
 
 ## Implementation and migration
 
-M3 adds conditional MVC/WebFlux transport and context integrations with metadata-only defaults. M4 connects registered safe extractors and explicit callback observations. Onboarding remains disabled until the service owner specifies filter/security/decryption ordering and tests it in DEV mocks and STAGE. Unsupported callback stacks use only the explicit API.
+M3 now provides conditional MVC/WebFlux transport and context integrations with metadata-only defaults, registered correlation extractors, and explicit callback semantic observations. Full automatic WebFlux body decoration is intentionally not implemented because metadata-only degradation is the safe supported behavior. M4 still adds explicit encrypted-plaintext hooks and Alloy defense in depth. Onboarding remains disabled until the service owner specifies filter/security/decryption ordering and tests it in DEV mocks and STAGE. Unsupported callback stacks use only the explicit API.
 
 ## Verification evidence required
 

@@ -8,12 +8,14 @@ import com.partner.observability.core.dispatch.TelemetryPriority;
 import com.partner.observability.core.dispatch.TelemetrySubmission;
 import com.partner.observability.core.model.CaptureDecision;
 import com.partner.observability.core.model.Direction;
+import com.partner.observability.core.model.CorrelationIdentifiers;
+import com.partner.observability.core.model.InteractionContext;
+import com.partner.observability.core.model.InteractionKind;
 import com.partner.observability.core.model.Outcome;
-import com.partner.observability.core.model.PartnerEvent;
+import com.partner.observability.core.model.PartnerBusinessEventRecord;
 import com.partner.observability.core.model.ServiceIdentity;
 import com.partner.observability.core.model.Severity;
 import com.partner.observability.core.model.TelemetryEnvelope;
-import com.partner.observability.core.model.TransactionIdentifiers;
 import com.partner.observability.core.payload.PayloadStatus;
 import com.partner.observability.core.payload.SanitizationResult;
 import com.partner.observability.core.policy.PayloadCaptureMode;
@@ -43,7 +45,7 @@ public final class TestFixtures {
             SanitizationResult attributes,
             PayloadCaptureMode captureMode,
             PayloadStatus payloadStatus) {
-        PartnerEvent body = new PartnerEvent(
+        PartnerBusinessEventRecord body = new PartnerBusinessEventRecord(
                 "application_submitted",
                 "APPLICATION",
                 Outcome.SUCCESS,
@@ -54,27 +56,30 @@ public final class TestFixtures {
                 Optional.empty(),
                 Optional.of("SKU-1"),
                 Optional.of("LOAN"),
-                attributes,
-                new TransactionIdentifiers(
+                attributes);
+        CorrelationIdentifiers identifiers = new CorrelationIdentifiers(
                         Optional.of("APP-SHARED-1"),
                         Optional.empty(),
                         Optional.of("CORR-1"),
-                        Optional.of(UUID.randomUUID().toString()),
-                        Optional.empty()));
-        TelemetryEnvelope<PartnerEvent> envelope = new TelemetryEnvelope<>(
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.of(UUID.randomUUID().toString()));
+        TelemetryEnvelope<PartnerBusinessEventRecord> envelope = new TelemetryEnvelope<>(
                 TelemetryEnvelope.CURRENT_SCHEMA_VERSION,
                 UUID.randomUUID(),
                 Instant.parse("2026-08-16T12:00:00Z"),
                 Instant.parse("2026-08-16T12:00:00.001Z"),
                 new ServiceIdentity("fixture-service", "1.0.0"),
                 context,
-                Direction.OUTBOUND_TO_PARTNER,
-                UUID.randomUUID(),
-                1,
+                new InteractionContext(
+                        InteractionKind.SYNC_OUTBOUND, Direction.OUTBOUND_TO_PARTNER,
+                        UUID.randomUUID(), 1, Optional.empty(), "test-profile", identifiers, Optional.empty()),
                 new CaptureDecision(
                         captureMode, captureMode, "test-v1"),
                 payloadStatus,
                 Severity.INFO,
+                Outcome.SUCCESS,
                 body);
         return new TelemetrySubmission(envelope, bytes, TelemetryPriority.NORMAL, TelemetryChannel.EVENT);
     }

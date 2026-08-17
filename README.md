@@ -2,7 +2,7 @@
 
 Repository for a partner-isolated observability SDK and platform targeting Java 17, Spring Boot 2.7.x, Grafana Alloy, Loki, Prometheus, Grafana, Terraform, and AWS ECS.
 
-The revised **M1 architecture/specification** is ready for review. The safe framework-neutral M2 pre-queue payload/dispatcher baseline exists, but the schema-2 async acknowledgement and callback model, Spring interception, and backend platform remain later implementation milestones. See [PLANS.md](PLANS.md) and [the machine-readable state](.agent-state/status.json).
+The revised **M1 architecture/specification** and the scoped M2/M3 SDK integration are ready for review. Core now provides schema-2 async/callback records and correlation, and the Spring Boot 2.7 starter instruments configured RestTemplate, WebClient, OkHttp, MVC callback, and safe WebFlux transport paths. Backend Alloy/Loki/Grafana, explicit encrypted-plaintext integration, and full-duration performance remain later milestones. See [PLANS.md](PLANS.md) and [the machine-readable state](.agent-state/status.json).
 
 ## Core promise
 

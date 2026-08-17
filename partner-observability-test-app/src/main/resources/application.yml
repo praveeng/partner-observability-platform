@@ -11,3 +11,109 @@ logging:
   level:
     root: WARN
     com.partner.observability.testapp: INFO
+
+partner-observability:
+  enabled: true
+  payloads-enabled: true
+  logs-enabled: true
+  events-enabled: true
+  metrics-enabled: true
+  export-enabled: true
+  callbacks-enabled: true
+  service-name: partner-observability-test-app
+  service-version: 0.1.0
+  market: synthetic
+  environment: DEV
+  policy-version: synthetic-v1
+  partners:
+    - key: partner-alpha-fixture
+      tenant-route-id: synthetic-alpha
+      slot: p001
+      subject-source: synthetic-host-auth
+    - key: partner-beta-fixture
+      tenant-route-id: synthetic-beta
+      slot: p002
+      subject-source: synthetic-host-auth
+  outbound:
+    - name: PARTNER_ALPHA_SYNC
+      path: /partner/alpha
+      method: POST
+      partner: partner-alpha-fixture
+      correlation-profile: SYNTHETIC_SYNC
+      capture-mode: FULL_SANITIZED
+      safe-fields: [applicationId, amount, tenureMonths, product, fixtureClassification, partnerLane, scenario, outcome, statusCode, errorCode]
+      correlation:
+        application-id-path: $.applicationId
+    - name: PARTNER_BETA_SYNC
+      path: /partner/beta
+      method: POST
+      partner: partner-beta-fixture
+      correlation-profile: SYNTHETIC_SYNC
+      capture-mode: FULL_SANITIZED
+      safe-fields: [applicationId, amount, tenureMonths, product, fixtureClassification, partnerLane, scenario, outcome, statusCode, errorCode]
+      correlation:
+        application-id-path: $.applicationId
+    - name: PARTNER_ALPHA_ASYNC
+      path: /async/alpha
+      method: POST
+      partner: partner-alpha-fixture
+      exchange-mode: ASYNC_INITIATION
+      correlation-profile: SYNTHETIC_ASYNC
+      capture-mode: FULL_SANITIZED
+      safe-fields: [runId, acknowledgement, fixtureClassification]
+      correlation:
+        application-id-path: $.identifiers.applicationId
+        loan-id-path: $.identifiers.loanId
+        original-correlation-id-path: $.identifiers.originalCorrelationId
+        partner-reference-id-path: $.partnerReferenceId
+        external-transaction-id-path: $.externalTransactionId
+    - name: PARTNER_BETA_ASYNC
+      path: /async/beta
+      method: POST
+      partner: partner-beta-fixture
+      exchange-mode: ASYNC_INITIATION
+      correlation-profile: SYNTHETIC_ASYNC
+      capture-mode: FULL_SANITIZED
+      safe-fields: [runId, acknowledgement, fixtureClassification]
+      correlation:
+        application-id-path: $.identifiers.applicationId
+        loan-id-path: $.identifiers.loanId
+        original-correlation-id-path: $.identifiers.originalCorrelationId
+        partner-reference-id-path: $.partnerReferenceId
+        external-transaction-id-path: $.externalTransactionId
+  callbacks:
+    - name: CREDIT_DECISION_CALLBACK_ALPHA
+      path: /fixture/callback/alpha
+      method: POST
+      partner: partner-alpha-fixture
+      correlation-profile: SYNTHETIC_ASYNC
+      capture-mode: FULL_SANITIZED
+      processing-events-enabled: true
+      safe-fields: [fixtureClassification, callbackSequence, outcome]
+      correlation:
+        application-id-path: $.applicationId
+        loan-id-path: $.loanId
+        original-correlation-id-path: $.originalCorrelationId
+        partner-reference-id-path: $.partnerReferenceId
+        callback-reference-id-path: $.callbackReferenceId
+        external-transaction-id-path: $.externalTransactionId
+    - name: CREDIT_DECISION_CALLBACK_BETA
+      path: /fixture/callback/beta
+      method: POST
+      partner: partner-beta-fixture
+      correlation-profile: SYNTHETIC_ASYNC
+      capture-mode: FULL_SANITIZED
+      processing-events-enabled: true
+      safe-fields: [fixtureClassification, callbackSequence, outcome]
+      correlation:
+        application-id-path: $.applicationId
+        loan-id-path: $.loanId
+        original-correlation-id-path: $.originalCorrelationId
+        partner-reference-id-path: $.partnerReferenceId
+        callback-reference-id-path: $.callbackReferenceId
+        external-transaction-id-path: $.externalTransactionId
+
+management:
+  endpoint:
+    health:
+      show-details: always

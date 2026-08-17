@@ -12,8 +12,23 @@ dependencyManagement {
 dependencies {
     api project(':partner-observability-core')
     implementation 'org.springframework.boot:spring-boot-autoconfigure'
+    implementation 'org.springframework:spring-context'
+    implementation 'org.slf4j:slf4j-api'
+
+    compileOnly 'org.springframework:spring-web'
+    compileOnly 'org.springframework:spring-webmvc'
+    compileOnly 'org.springframework:spring-webflux'
+    compileOnly 'com.squareup.okhttp3:okhttp'
+    compileOnly 'com.fasterxml.jackson.core:jackson-databind'
+    compileOnly 'io.micrometer:micrometer-core'
+    compileOnly 'org.springframework.boot:spring-boot-actuator'
+    compileOnly 'javax.servlet:javax.servlet-api'
 
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-web'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webflux'
+    testImplementation 'org.springframework.boot:spring-boot-starter-actuator'
+    testImplementation 'com.squareup.okhttp3:okhttp'
 }

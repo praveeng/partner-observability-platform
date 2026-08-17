@@ -12,13 +12,13 @@
     ],
     "currentState": "READY_FOR_REVIEW"
   },
-  "milestone": "M3 test-app fixture",
-  "summary": "The Java 17 / Spring Boot 2.7 synthetic partner integration fixture is ready for review. All 51 requested outbound and async/callback scenarios are implemented with loopback-only traffic, fixed synthetic partners, bounded executors/state, trusted callback denial, six-field correlation, hostile payloads, and deterministic control endpoints. The uncached async lifecycle suite, complete 26-test fixture suite, clean repository build, implemented repository tests, M2 core security gate, JSON/diff/static architecture checks all pass. The aggregate verifier correctly remains non-zero because downstream Alloy/Loki/Grafana security and exact full-duration performance gates are still NOT IMPLEMENTED for M4-M9; no production SDK or later-milestone acceptance is claimed.",
+  "milestone": "M2 schema 2 and M3 Spring Boot integration",
+  "summary": "READY_FOR_REVIEW for the scoped Java 17 / Spring Boot 2.7 schema-2 M2/M3 SDK slice. The canonical test and clean-build scripts pass; 84 core, auto-configuration, WebFlux, MVC, and synthetic application tests have zero failures/skips, and the implemented pre-queue security gate passes. Evidence covers three outbound clients, HTTP/timeout/transport classification, retry and async acknowledgement, trusted callback receipt/processing/response/correlation, Reactor/MDC/task context, large-document omission, partner conflict, dispatcher failure, and saturation without business behavior changes. Whole-platform security and the six exact-duration M9 performance profiles remain explicitly NOT IMPLEMENTED and are not claimed.",
   "blockers": [],
   "nextActions": [
-    "Review the scoped synthetic fixture and its explicit non-production trust adapter/lifecycle ledger.",
-    "Implement the M2 schema-2 production record/correlation/lifecycle model before accepting M3 production interception.",
-    "Implement and run the intentionally outstanding downstream isolation and exact full-duration performance gates in M4-M9."
+    "Perform human review of the scoped M2/M3 schema, trusted callback boundary, conditional auto-configuration, and compatibility fixture.",
+    "Implement M4 explicit pre-encryption/post-decryption capture and Alloy schema-2 defense-in-depth tests.",
+    "Complete M5-M9 backend isolation and all six exact-duration performance profiles before making any whole-platform security, performance, or release claim."
   ],
-  "lastUpdated": "2026-08-17T00:48:16Z"
+  "lastUpdated": "2026-08-17T02:46:53Z"
 }

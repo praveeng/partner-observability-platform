@@ -2,7 +2,7 @@
 
 ## Status and vocabulary
 
-This revised M1 contract is normative for M2-M7. It specifies target wire schema version 2; the current schema-1 core implementation is a safe but incomplete baseline and does not yet implement the async/callback types below. A queued object is always partner-safe derived observability. Partner exchange data and internal-only information are different data classes and cannot implement `TelemetryRecord`.
+This revised M1 contract is normative for M2-M7. Wire schema version 2 and its async/callback core types are implemented. Schema-1 bodies remain accepted only inside schema-1 envelopes for the bounded N-1 migration window; new Spring integrations produce schema 2. A queued object is always partner-safe derived observability. Partner exchange data and internal-only information are different data classes and cannot implement `TelemetryRecord`.
 
 All record types are immutable Java 17 records or final value classes. Collections are defensive, insertion-ordered, and bounded. Required values are non-null. Enums serialize as the exact uppercase names shown here unless a wire value is explicitly given. Time is UTC RFC 3339 with nanoseconds when available. Log durations are non-negative integer milliseconds; Micrometer durations are seconds from a monotonic clock.
 

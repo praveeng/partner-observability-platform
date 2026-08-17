@@ -1,0 +1,142 @@
+package com.partner.observability.autoconfigure;
+
+import com.partner.observability.core.context.DeploymentEnvironment;
+import com.partner.observability.core.model.ExchangeMode;
+import com.partner.observability.core.policy.PayloadCaptureMode;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+
+/** Closed, startup-validated manifest subset used by the Spring integrations. */
+@ConfigurationProperties("partner-observability")
+public class PartnerObservabilityProperties {
+
+    private boolean enabled;
+    private boolean payloadsEnabled;
+    private boolean logsEnabled = true;
+    private boolean eventsEnabled = true;
+    private boolean metricsEnabled = true;
+    private boolean exportEnabled = true;
+    private boolean callbacksEnabled = true;
+    private String serviceName = "application";
+    private String serviceVersion = "unknown";
+    private String market = "local";
+    private DeploymentEnvironment environment = DeploymentEnvironment.DEV;
+    private String policyVersion = "default-v1";
+    private final List<Partner> partners = new ArrayList<>();
+    private final List<OutboundApi> outbound = new ArrayList<>();
+    private final List<Callback> callbacks = new ArrayList<>();
+
+    public boolean isEnabled() { return enabled; }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
+    public boolean isPayloadsEnabled() { return payloadsEnabled; }
+    public void setPayloadsEnabled(boolean value) { payloadsEnabled = value; }
+    public boolean isLogsEnabled() { return logsEnabled; }
+    public void setLogsEnabled(boolean value) { logsEnabled = value; }
+    public boolean isEventsEnabled() { return eventsEnabled; }
+    public void setEventsEnabled(boolean value) { eventsEnabled = value; }
+    public boolean isMetricsEnabled() { return metricsEnabled; }
+    public void setMetricsEnabled(boolean value) { metricsEnabled = value; }
+    public boolean isExportEnabled() { return exportEnabled; }
+    public void setExportEnabled(boolean value) { exportEnabled = value; }
+    public boolean isCallbacksEnabled() { return callbacksEnabled; }
+    public void setCallbacksEnabled(boolean value) { callbacksEnabled = value; }
+    public String getServiceName() { return serviceName; }
+    public void setServiceName(String value) { serviceName = value; }
+    public String getServiceVersion() { return serviceVersion; }
+    public void setServiceVersion(String value) { serviceVersion = value; }
+    public String getMarket() { return market; }
+    public void setMarket(String value) { market = value; }
+    public DeploymentEnvironment getEnvironment() { return environment; }
+    public void setEnvironment(DeploymentEnvironment value) { environment = value; }
+    public String getPolicyVersion() { return policyVersion; }
+    public void setPolicyVersion(String value) { policyVersion = value; }
+    public List<Partner> getPartners() { return partners; }
+    public List<OutboundApi> getOutbound() { return outbound; }
+    public List<Callback> getCallbacks() { return callbacks; }
+
+    public static class Partner {
+        private String key;
+        private String tenantRouteId;
+        private String slot;
+        private String subjectSource = "configured-integration";
+
+        public String getKey() { return key; }
+        public void setKey(String value) { key = value; }
+        public String getTenantRouteId() { return tenantRouteId; }
+        public void setTenantRouteId(String value) { tenantRouteId = value; }
+        public String getSlot() { return slot; }
+        public void setSlot(String value) { slot = value; }
+        public String getSubjectSource() { return subjectSource; }
+        public void setSubjectSource(String value) { subjectSource = value; }
+    }
+
+    public static class OutboundApi extends PayloadDefinition {
+        private ExchangeMode exchangeMode = ExchangeMode.SYNC;
+
+        public ExchangeMode getExchangeMode() { return exchangeMode; }
+        public void setExchangeMode(ExchangeMode value) { exchangeMode = value; }
+    }
+
+    public static class Callback extends PayloadDefinition {
+        private boolean processingEventsEnabled;
+        private String authenticatedPrincipal;
+
+        public boolean isProcessingEventsEnabled() { return processingEventsEnabled; }
+        public void setProcessingEventsEnabled(boolean value) { processingEventsEnabled = value; }
+        public String getAuthenticatedPrincipal() { return authenticatedPrincipal; }
+        public void setAuthenticatedPrincipal(String value) { authenticatedPrincipal = value; }
+    }
+
+    public abstract static class PayloadDefinition {
+        private String name;
+        private String path;
+        private String method = "POST";
+        private String partner;
+        private String correlationProfile = "default-profile";
+        private PayloadCaptureMode captureMode = PayloadCaptureMode.METADATA_ONLY;
+        private final List<String> safeFields = new ArrayList<>();
+        private final Correlation correlation = new Correlation();
+
+        public String getName() { return name; }
+        public void setName(String value) { name = value; }
+        public String getPath() { return path; }
+        public void setPath(String value) { path = value; }
+        public String getMethod() { return method; }
+        public void setMethod(String value) { method = value == null ? null : value.toUpperCase(Locale.ROOT); }
+        public String getPartner() { return partner; }
+        public void setPartner(String value) { partner = value; }
+        public String getCorrelationProfile() { return correlationProfile; }
+        public void setCorrelationProfile(String value) { correlationProfile = value; }
+        public PayloadCaptureMode getCaptureMode() { return captureMode; }
+        public void setCaptureMode(PayloadCaptureMode value) { captureMode = value; }
+        public List<String> getSafeFields() { return safeFields; }
+        public Correlation getCorrelation() { return correlation; }
+    }
+
+    public static class Correlation {
+        private String applicationIdPath;
+        private String loanIdPath;
+        private String originalCorrelationIdPath;
+        private String partnerReferenceIdPath;
+        private String externalTransactionIdPath;
+        private String callbackReferenceIdPath;
+        private String requestIdPath;
+
+        public String getApplicationIdPath() { return applicationIdPath; }
+        public void setApplicationIdPath(String value) { applicationIdPath = value; }
+        public String getLoanIdPath() { return loanIdPath; }
+        public void setLoanIdPath(String value) { loanIdPath = value; }
+        public String getOriginalCorrelationIdPath() { return originalCorrelationIdPath; }
+        public void setOriginalCorrelationIdPath(String value) { originalCorrelationIdPath = value; }
+        public String getPartnerReferenceIdPath() { return partnerReferenceIdPath; }
+        public void setPartnerReferenceIdPath(String value) { partnerReferenceIdPath = value; }
+        public String getExternalTransactionIdPath() { return externalTransactionIdPath; }
+        public void setExternalTransactionIdPath(String value) { externalTransactionIdPath = value; }
+        public String getCallbackReferenceIdPath() { return callbackReferenceIdPath; }
+        public void setCallbackReferenceIdPath(String value) { callbackReferenceIdPath = value; }
+        public String getRequestIdPath() { return requestIdPath; }
+        public void setRequestIdPath(String value) { requestIdPath = value; }
+    }
+}

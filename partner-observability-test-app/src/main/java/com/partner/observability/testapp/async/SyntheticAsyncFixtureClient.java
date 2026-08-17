@@ -49,7 +49,7 @@ public final class SyntheticAsyncFixtureClient {
         headers.set(LocalMockPartnerServer.CALLBACK_ROOT_HEADER, callbackRoot.toString());
         try {
             ResponseEntity<SyntheticAsyncAcknowledgement> response = restTemplate.exchange(
-                    mockServer.asyncUri(),
+                    mockServer.asyncUri(partner),
                     HttpMethod.POST,
                     new HttpEntity<>(request, headers),
                     SyntheticAsyncAcknowledgement.class);

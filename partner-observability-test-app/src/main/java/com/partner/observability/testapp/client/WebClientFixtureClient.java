@@ -31,7 +31,7 @@ public final class WebClientFixtureClient {
         SyntheticPartnerRequest request = SyntheticPartnerRequest.standard(partner, applicationId);
         return webClient
                 .post()
-                .uri(mockServer.partnerUri(scenario))
+                .uri(mockServer.partnerUri(scenario, partner))
                 .contentType(MediaType.APPLICATION_JSON)
                 .header(LocalMockPartnerServer.PARTNER_HEADER, partner.name())
                 .header(LocalMockPartnerServer.SCENARIO_HEADER, scenario.name())

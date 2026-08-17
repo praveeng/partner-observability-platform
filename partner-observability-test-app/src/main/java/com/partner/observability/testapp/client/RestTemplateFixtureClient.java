@@ -50,7 +50,7 @@ public final class RestTemplateFixtureClient {
 
     private ResponseEntity<String> executeOnce(
             SyntheticScenario scenario, SyntheticPartner partner, String applicationId, int attempt) {
-        URI endpoint = mockServer.partnerUri(scenario);
+        URI endpoint = mockServer.partnerUri(scenario, partner, attempt);
         HttpHeaders headers = fixtureHeaders(scenario, partner, attempt);
         SyntheticPartnerRequest request = SyntheticPartnerRequest.standard(partner, applicationId);
         return restTemplate.exchange(endpoint, HttpMethod.POST, new HttpEntity<>(request, headers), String.class);

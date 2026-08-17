@@ -47,4 +47,18 @@ final class ModelValidation {
         }
         return value;
     }
+
+    static long duration(long value, String name) {
+        if (value < 0) {
+            throw new IllegalArgumentException(name + " cannot be negative");
+        }
+        return value;
+    }
+
+    static int httpStatus(int value) {
+        if (value < 100 || value > 599) {
+            throw new IllegalArgumentException("httpStatus is invalid");
+        }
+        return value;
+    }
 }

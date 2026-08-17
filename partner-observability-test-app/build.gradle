@@ -7,6 +7,7 @@ dependencies {
     implementation project(':partner-observability-spring-boot-starter')
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'com.squareup.okhttp3:okhttp'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

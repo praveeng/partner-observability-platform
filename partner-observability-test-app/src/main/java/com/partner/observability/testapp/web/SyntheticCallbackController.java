@@ -11,6 +11,14 @@ import com.partner.observability.testapp.fixture.LocalMockPartnerServer;
 import com.partner.observability.testapp.model.SyntheticAsyncScenario;
 import com.partner.observability.testapp.model.SyntheticCorrelationIdentifiers;
 import com.partner.observability.testapp.model.SyntheticPartner;
+import com.partner.observability.autoconfigure.CallbackObservation;
+import com.partner.observability.autoconfigure.callback.CallbackObservations;
+import com.partner.observability.core.model.CorrelationIdentifiers;
+import com.partner.observability.core.model.DeliveryClassification;
+import com.partner.observability.core.model.ParsingStatus;
+import com.partner.observability.core.model.ProcessingMode;
+import com.partner.observability.core.model.ProcessingPhase;
+import com.partner.observability.core.model.TransportOutcome;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,18 +52,21 @@ public final class SyntheticCallbackController {
     private final SyntheticCallbackSecurityCounters securityCounters;
     private final SyntheticAsyncLifecycleStore lifecycleStore;
     private final Executor processingExecutor;
+    private final Optional<CallbackObservations> callbackObservations;
 
     public SyntheticCallbackController(
             ObjectMapper objectMapper,
             SyntheticCallbackAuthenticator authenticator,
             SyntheticCallbackSecurityCounters securityCounters,
             SyntheticAsyncLifecycleStore lifecycleStore,
-            @Qualifier("syntheticCallbackProcessingExecutor") Executor processingExecutor) {
+            @Qualifier("syntheticCallbackProcessingExecutor") Executor processingExecutor,
+            Optional<CallbackObservations> callbackObservations) {
         this.objectMapper = objectMapper;
         this.authenticator = authenticator;
         this.securityCounters = securityCounters;
         this.lifecycleStore = lifecycleStore;
         this.processingExecutor = processingExecutor;
+        this.callbackObservations = callbackObservations;
     }
 
     @PostMapping(path = "/{partner}", consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -81,6 +92,7 @@ public final class SyntheticCallbackController {
             securityCounters.increment(DenialReason.WRONG_PARTNER);
             return fixedResponse(HttpStatus.FORBIDDEN, "SYNTHETIC_CALLBACK_PARTNER_CONFLICT");
         }
+        Optional<CallbackObservation> observation = callbackObservations.flatMap(value -> value.current(request));
 
         byte[] body;
         try {
@@ -106,6 +118,11 @@ public final class SyntheticCallbackController {
                     null,
                     body.length,
                     "MALFORMED_JSON");
+            observation.ifPresent(value -> {
+                value.received(null, CorrelationIdentifiers.empty(), DeliveryClassification.UNKNOWN, ParsingStatus.MALFORMED);
+                value.authenticated();
+                value.processingFailed(ProcessingMode.INLINE, ProcessingPhase.PARSING, "PARSING_FAILED", false);
+            });
             lifecycleStore.processingFailed(handle, "PARSING_FAILED");
             lifecycleStore.responseSent(handle, 400);
             return fixedResponse(HttpStatus.BAD_REQUEST, "SYNTHETIC_CALLBACK_MALFORMED");
@@ -122,6 +139,11 @@ public final class SyntheticCallbackController {
                     null,
                     body.length,
                     "INVALID_IDENTIFIERS");
+            observation.ifPresent(value -> {
+                value.received(null, CorrelationIdentifiers.empty(), DeliveryClassification.UNKNOWN, ParsingStatus.PARSED);
+                value.authenticated();
+                value.processingFailed(ProcessingMode.INLINE, ProcessingPhase.VALIDATION, "VALIDATION_FAILED", false);
+            });
             lifecycleStore.processingFailed(handle, "VALIDATION_FAILED");
             lifecycleStore.responseSent(handle, 422);
             return fixedResponse(HttpStatus.UNPROCESSABLE_ENTITY, "SYNTHETIC_CALLBACK_INVALID");
@@ -134,35 +156,63 @@ public final class SyntheticCallbackController {
                 integerOrNull(callback, "callbackSequence"),
                 body.length,
                 payloadCategory(scenario.get()));
-        return process(handle);
+        observation.ifPresent(value -> {
+            value.received(
+                    callback,
+                    telemetryIdentifiers(identifiers),
+                    deliveryClassification(handle),
+                    ParsingStatus.PARSED);
+            value.authenticated();
+            value.validated();
+        });
+        return process(handle, observation);
     }
 
-    private ResponseEntity<?> process(CallbackHandle handle) {
+    private ResponseEntity<?> process(CallbackHandle handle, Optional<CallbackObservation> observation) {
         SyntheticAsyncScenario scenario = handle.scenario();
         if (scenario == SyntheticAsyncScenario.ACCEPTED_THEN_DOWNSTREAM_FAILURE) {
             lifecycleStore.responseSent(handle, 202);
             try {
                 processingExecutor.execute(() -> {
+                    observation.ifPresent(value -> value.processingStarted(ProcessingMode.BACKGROUND));
                     lifecycleStore.processingStarted(handle);
                     lifecycleStore.processingFailed(handle, "DOWNSTREAM_FAILED");
+                    observation.ifPresent(value -> value.processingFailed(
+                            ProcessingMode.BACKGROUND,
+                            ProcessingPhase.DOWNSTREAM_PROCESSING,
+                            "DOWNSTREAM_FAILED",
+                            true));
                 });
             } catch (RejectedExecutionException exception) {
                 lifecycleStore.processingFailed(handle, "DOWNSTREAM_EXECUTOR_SATURATED");
+                observation.ifPresent(value -> value.processingFailed(
+                        ProcessingMode.BACKGROUND,
+                        ProcessingPhase.DOWNSTREAM_PROCESSING,
+                        "DOWNSTREAM_EXECUTOR_SATURATED",
+                        true));
             }
             return fixedResponse(HttpStatus.ACCEPTED, "SYNTHETIC_CALLBACK_ACCEPTED");
         }
 
+        observation.ifPresent(value -> value.processingStarted(ProcessingMode.INLINE));
         lifecycleStore.processingStarted(handle);
         if (scenario == SyntheticAsyncScenario.CALLBACK_PROCESSING_FAILURE
                 || (scenario == SyntheticAsyncScenario.CALLBACK_RETRY && handle.attemptNumber() == 1)) {
             lifecycleStore.processingFailed(handle, "BUSINESS_PROCESSING_FAILED");
+            observation.ifPresent(value -> value.processingFailed(
+                    ProcessingMode.INLINE,
+                    ProcessingPhase.BUSINESS_PROCESSING,
+                    "BUSINESS_PROCESSING_FAILED",
+                    false));
             lifecycleStore.responseSent(handle, 500);
             return fixedResponse(HttpStatus.INTERNAL_SERVER_ERROR, "SYNTHETIC_CALLBACK_PROCESSING_FAILED");
         }
 
         lifecycleStore.processingSucceeded(handle);
+        observation.ifPresent(value -> value.processingSucceeded(ProcessingMode.INLINE, false));
         if (scenario == SyntheticAsyncScenario.RESPONSE_TRANSMISSION_FAILURE) {
             lifecycleStore.responseWriteFailed(handle, 200);
+            observation.ifPresent(value -> value.response(200, TransportOutcome.WRITE_FAILED));
             StreamingResponseBody body = output -> {
                 throw new IOException("SYNTHETIC_RESPONSE_WRITE_FAILURE");
             };
@@ -181,6 +231,26 @@ public final class SyntheticCallbackController {
                 textOrNull(callback, "partnerReferenceId"),
                 textOrNull(callback, "callbackReferenceId"),
                 textOrNull(callback, "externalTransactionId"));
+    }
+
+    private CorrelationIdentifiers telemetryIdentifiers(SyntheticCorrelationIdentifiers identifiers) {
+        return new CorrelationIdentifiers(
+                Optional.ofNullable(identifiers.applicationId()),
+                Optional.ofNullable(identifiers.loanId()),
+                Optional.ofNullable(identifiers.originalCorrelationId()),
+                Optional.ofNullable(identifiers.partnerReferenceId()),
+                Optional.ofNullable(identifiers.externalTransactionId()),
+                Optional.ofNullable(identifiers.callbackReferenceId()),
+                Optional.empty());
+    }
+
+    private DeliveryClassification deliveryClassification(CallbackHandle handle) {
+        if (handle.attemptNumber() == 1) return DeliveryClassification.INITIAL;
+        return switch (handle.scenario()) {
+            case CALLBACK_RETRY -> DeliveryClassification.RETRY;
+            case DUPLICATE_CALLBACK -> DeliveryClassification.DUPLICATE;
+            default -> DeliveryClassification.INITIAL;
+        };
     }
 
     private SyntheticCorrelationIdentifiers emptyIdentifiers() {

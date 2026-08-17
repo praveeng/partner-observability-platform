@@ -1,5 +1,33 @@
-# Spring Boot starter module
+# Spring Boot starter
 
-The future single dependency for normal consumer integration. This module should contain dependency wiring and metadata only; implementation belongs in core or auto-configuration.
+The ordinary Java 17 / Spring Boot 2.7 consumer entry point. This module contains dependency wiring only; implementation remains in core and auto-configuration.
 
-M0 intentionally contains no Java sources.
+```groovy
+dependencies {
+    implementation 'com.partner.observability:partner-observability-spring-boot-starter:0.1.0-SNAPSHOT'
+}
+```
+
+Minimal metadata-only outbound configuration:
+
+```yaml
+partner-observability:
+  enabled: true
+  service-name: credit-service
+  service-version: 1.0.0
+  market: uk
+  environment: DEV
+  partners:
+    - key: PARTNER_A
+      tenant-route-id: opaque-tenant-a
+      slot: p001
+  outbound:
+    - name: CREDIT_SUBMISSION
+      path: /partner-api/applications
+      method: POST
+      partner: PARTNER_A
+      correlation-profile: CREDIT_ASYNC
+      capture-mode: METADATA_ONLY
+```
+
+Full sanitized capture additionally requires an exact `safe-fields` allowlist. Callback entries use the same partner/profile model plus a fixed callback path and either an authenticated principal mapping or a host-provided trusted resolver. See the auto-configuration README for the capture and trust boundaries.

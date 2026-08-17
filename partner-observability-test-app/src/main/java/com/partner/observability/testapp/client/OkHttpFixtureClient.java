@@ -39,7 +39,7 @@ public final class OkHttpFixtureClient {
             SyntheticScenario scenario, SyntheticPartner partner, String applicationId) throws IOException {
         byte[] json = objectMapper.writeValueAsBytes(SyntheticPartnerRequest.standard(partner, applicationId));
         Request request = new Request.Builder()
-                .url(mockServer.partnerUri(scenario).toURL())
+                .url(mockServer.partnerUri(scenario, partner).toURL())
                 .header(LocalMockPartnerServer.PARTNER_HEADER, partner.name())
                 .header(LocalMockPartnerServer.SCENARIO_HEADER, scenario.name())
                 .header(LocalMockPartnerServer.ATTEMPT_HEADER, "1")

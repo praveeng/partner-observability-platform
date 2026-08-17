@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-This is the revised M1 implementable architecture for the Partner Observability Platform. It defines contracts for M2-M10, including first-class asynchronous acknowledgements and callbacks/webhooks; it does not claim that the expanded product functionality exists. Decisions are recorded in ADRs 0001-0010 under `decisions/`. The existing schema-1 core is a safe implementation baseline, while the target async/callback contract is wire schema 2 and remains implementation work.
+This is the revised M1 implementable architecture for the Partner Observability Platform. It defines contracts for M2-M10, including first-class asynchronous acknowledgements and callbacks/webhooks. Decisions are recorded in ADRs 0001-0010 under `decisions/`. The schema-2 core and scoped M3 Spring integration are now implemented; the backend, query, deployment, explicit encrypted-plaintext, and full performance portions remain later milestone work.
 
 The supported runtime is Java 17 and Spring Boot 2.7.x. The platform uses SLF4J/Logback, Grafana Alloy, Loki, Prometheus, Grafana, Docker Compose locally, and Terraform-managed AWS ECS. Kubernetes and Helm are prohibited.
 
@@ -481,6 +481,7 @@ This map is a completeness index; the linked contracts are normative and contain
 | Low-cardinality logs/metrics and partner dashboards | PASS | Loki model, `metrics-sli.md`, query/dashboard contracts |
 | ECS/Terraform/retention/no-Helm deployment design | PASS | Market topology, `deployment-model.md`, ADR 0007 |
 | Threat, failure, test, performance, rollout, and unresolved-input treatment | PASS | `threat-model.md`, `acceptance-criteria.md`, `decisions-needed.md`, ADR 0008 |
-| Expanded schema-2/runtime/backend implementation | NOT APPLICABLE to this specification task | Explicitly pending M2 extension and M3-M9; whole-platform security/performance checks remain `NOT IMPLEMENTED` |
+| Schema-2 core and scoped Spring runtime | IMPLEMENTED / separately verified | Seven schema-2 record types, immutable correlation, bounded dispatcher, three outbound adapters, configured callback transport/semantic API, synthetic integration tests |
+| Backend/query/deployment/full performance implementation | NOT APPLICABLE to this architecture verdict | Explicitly pending M4-M9; whole-platform security/performance checks remain `NOT IMPLEMENTED` |
 
 Overall verdict: **PASS for the M1 architecture/specification scope**. This is not a runtime, security-integration, release, or production-readiness verdict.

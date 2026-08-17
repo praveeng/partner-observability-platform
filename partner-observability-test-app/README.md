@@ -34,9 +34,9 @@ The `alpha` and `beta` path segments on the control endpoints select fixed local
 | `unknown-large-base64`, `base64-document-array` | Opaque Base64 under a non-obvious key and multiple encoded documents in an array |
 | `nested-sensitive`, `credentials`, `otp`, `card-data`, `restricted-pii` | Nested secrets, auth/JWT/cookie/API-key values, OTP, card data, and mask-required PII |
 
-Tests additionally execute two synthetic partners with the same application ID, bounded concurrent RestTemplate traffic, concurrent reactive WebClient traffic, and DTO -> JSON -> AES-GCM -> RestTemplate -> decrypt -> DTO behavior.
+Tests additionally execute two synthetic partners with the same application ID, bounded concurrent RestTemplate traffic, concurrent reactive WebClient traffic, and DTO -> JSON -> AES-GCM -> RestTemplate -> decrypt -> DTO behavior. The starter instruments the fixed mock paths; RestTemplate proves bounded safe JSON capture while WebClient and OkHttp prove metadata-only degradation without body re-subscription or replay.
 
-The encryption flow has an intentionally fixture-local `FixturePlaintextObservationPort`. It marks the exact pre-encryption and post-decryption seams that a future production SDK observation API must integrate with; its default implementation is a no-op and no production SDK behavior is implemented here.
+The encryption flow retains its fixture-local `FixturePlaintextObservationPort` to mark pre-encryption and post-decryption seams. The automatic HTTP interceptor correctly treats ciphertext as unsupported/binary metadata; a later M4 explicit plaintext API will connect those seams without moving decryption into the SDK.
 
 ## Async and callback scenarios
 
@@ -79,4 +79,4 @@ Run the module tests with:
 ./gradlew :partner-observability-test-app:test
 ```
 
-The module suite includes lifecycle assertions for all 24 async/callback scenarios. These are compatibility fixtures and smoke/concurrency evidence; they do not replace the full-duration M9 performance profiles or implement production SDK interception.
+The module suite includes lifecycle assertions for all 24 async/callback scenarios plus enabled/disabled starter behavior, all three outbound adapters, retry attempts, async acknowledgement bridging, callback request/processing/response facts, duplicate/retry attempts, large-document omission, cross-partner denial, publisher failure, and queue saturation. These remain compatibility/integration evidence and do not replace Alloy/Loki defense-in-depth or the full-duration M9 performance profiles.

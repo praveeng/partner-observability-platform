@@ -33,7 +33,7 @@ Use preallocated per-partner and global token buckets, deterministic sampling, a
 
 ## Implementation and migration
 
-Core provides record/correlation models, queue/byte accounting/dispatcher/transport SPI. Autoconfiguration owns lifecycle. Services can lower limits; hard maxima cannot be raised by configuration. The schema-1 core remains a safe baseline but must be extended to schema 2 before callback milestones are accepted. SDK schema N/N-1 coexist at Alloy during rolling upgrades.
+Core now provides schema-2 record/correlation models, queue/byte accounting/dispatcher/transport SPI. Autoconfiguration owns lifecycle. Services can lower limits; hard maxima cannot be raised by configuration. Schema-1 bodies remain N-1 migration inputs only and cannot enter schema-2 envelopes or represent callback facts. SDK schema N/N-1 must coexist at Alloy during rolling upgrades.
 
 ## Verification evidence required
 

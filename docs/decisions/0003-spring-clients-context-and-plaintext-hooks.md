@@ -35,7 +35,7 @@ ADR 0010 adds configured post-authentication MVC/WebFlux callback transport inte
 
 ## Implementation and migration
 
-M3 implements metadata interceptors/context and opt-in body teeing. M4 adds safe extractors/explicit hooks. Existing services inventory interceptor/encryption ordering before enablement. Missing optional libraries do not prevent Spring context startup.
+M3 now implements metadata interceptors/context, bounded RestTemplate teeing, trusted callback transport, and explicit callback semantic observations. WebClient/OkHttp and WebFlux bodies remain metadata-only where automatic capture cannot preserve one-shot/backpressure semantics. M4 adds explicit pre-encryption/post-decryption hooks and Alloy defense in depth. Existing services inventory interceptor/encryption ordering before enablement. Missing optional libraries do not prevent Spring context startup.
 
 ## Verification evidence required
 

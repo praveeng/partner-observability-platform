@@ -1,6 +1,6 @@
 # ADR 0009: Async/callback records and deterministic correlation
 
-- Status: Accepted for revised M1 design; implementation pending
+- Status: Accepted; schema-2 SDK model and Spring producer slice implemented
 - Date: 2026-08-16
 - Decision owners: SDK, query, and partner-integration architecture
 

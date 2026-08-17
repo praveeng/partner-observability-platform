@@ -170,7 +170,7 @@ class BoundedAsyncDispatcherTest {
         assertEquals(1, queued.normalQueueEvents());
         assertEquals(384, queued.normalQueueBytes());
         assertTrue(source.length() > queued.normalQueueBytes() * 20_000);
-        assertTrue(((com.partner.observability.core.model.PartnerEvent) submission.envelope().body())
+        assertTrue(((com.partner.observability.core.model.PartnerBusinessEventRecord) submission.envelope().body())
                 .attributes().payload().isEmpty());
 
         release.countDown();

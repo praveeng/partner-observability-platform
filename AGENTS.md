@@ -30,12 +30,13 @@ The project supplies partner-isolated application observability for Java 17 / Sp
 12. Binary values are excluded before entering any telemetry queue.
 13. `applicationId`, `loanId`, `correlationId`, and `requestId` are not normal Loki labels because of cardinality.
 14. High-cardinality transaction identifiers use Loki structured metadata or an equivalent appropriate mechanism, subject to the telemetry and payload contracts.
-15. Normal Spring Boot integration requires one starter dependency plus configuration.
-16. Java 17 and Spring Boot 2.7 compatibility is mandatory.
-17. Helm is prohibited. This repository has no Kubernetes deployment model.
-18. Terraform is required for provisioned infrastructure.
-19. Production deployment and production credentials are prohibited from agent activity in this repository.
-20. Codex agents may commit locally but must not push or merge.
+15. All external partner-facing inbound and outbound traffic must use HTTPS/TLS.
+16. Normal Spring Boot integration requires one starter dependency plus configuration.
+17. Java 17 and Spring Boot 2.7 compatibility is mandatory.
+18. Helm is prohibited. This repository has no Kubernetes deployment model.
+19. Terraform is required for provisioned infrastructure.
+20. Production deployment and production credentials are prohibited from agent activity in this repository.
+21. Codex agents may commit locally but must not push or merge.
 
 These invariants are acceptance gates. Tests that contradict them are defective; an agent must not relax an invariant merely to make a check pass.
 

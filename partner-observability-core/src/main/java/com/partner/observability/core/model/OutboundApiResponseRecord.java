@@ -13,6 +13,8 @@ public record OutboundApiResponseRecord(
         Outcome outcome,
         long durationMs,
         Optional<String> errorCode,
+        Optional<TransportSecurity> transportSecurity,
+        Optional<TransportFailureClass> transportFailureClass,
         Optional<String> contentType,
         OptionalLong declaredSizeBytes,
         SanitizationResult headers,
@@ -26,6 +28,11 @@ public record OutboundApiResponseRecord(
         Objects.requireNonNull(outcome, "outcome");
         durationMs = ModelValidation.duration(durationMs, "durationMs");
         errorCode = ModelValidation.optionalToken(errorCode, 64, "errorCode");
+        transportSecurity = transportSecurity == null ? Optional.empty() : transportSecurity;
+        transportFailureClass = transportFailureClass == null ? Optional.empty() : transportFailureClass;
+        if (transportFailureClass.isPresent() && transportSecurity.orElse(null) != TransportSecurity.TLS) {
+            throw new IllegalArgumentException("transportFailureClass requires TLS transportSecurity");
+        }
         contentType = ModelValidation.contentType(contentType);
         declaredSizeBytes = ModelValidation.size(declaredSizeBytes);
         headers = RecordPayloads.safe(headers, "headers");

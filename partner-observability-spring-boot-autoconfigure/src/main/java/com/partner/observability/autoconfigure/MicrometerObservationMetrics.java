@@ -7,6 +7,7 @@ import com.partner.observability.core.model.ProcessingMode;
 import com.partner.observability.core.model.ProcessingPhase;
 import com.partner.observability.core.model.StatusClass;
 import com.partner.observability.core.model.TelemetryRecordType;
+import com.partner.observability.core.model.TransportFailureClass;
 import com.partner.observability.core.model.TransportOutcome;
 import com.partner.observability.core.dispatch.TelemetryPriority;
 import io.micrometer.core.instrument.Counter;
@@ -110,6 +111,18 @@ final class MicrometerObservationMetrics implements ObservationMetrics {
     public void callbackDenied(String reason) {
         Counter.builder("partner_observability_callback_ingress_denied_total")
                 .tags("service", service, "reason", reason)
+                .register(registry).increment();
+    }
+
+    @Override
+    public void transportSecurityFailure(
+            ObservationDefinition definition, TransportFailureClass failureClass) {
+        Counter.builder("partner_observability_transport_security_failures_total")
+                .tags("service", service, "api", definition.name(), "direction", "outbound",
+                        "interaction_kind", definition.exchangeMode()
+                                == com.partner.observability.core.model.ExchangeMode.SYNC
+                                ? "sync_outbound" : "async_initiation",
+                        "transport_failure_class", value(failureClass))
                 .register(registry).increment();
     }
 

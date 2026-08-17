@@ -147,11 +147,11 @@ A TLS failure must preserve the host client's original exception/error and busin
 Where the client exposes a structured/type-safe signal, an outbound response/acknowledgement terminal may record:
 
 - `transportSecurity=TLS`;
-- `transportOutcome=TLS_FAILURE`;
+- `outcome=TECHNICAL_FAILURE` and `statusClass=IO_ERROR`;
 - `transportFailureClass` from `TLS_HANDSHAKE`, `TLS_CERTIFICATE_VALIDATION`, `TLS_HOSTNAME_VERIFICATION`, `TLS_PROTOCOL_NEGOTIATION`, `TLS_CONFIGURATION`, or `UNKNOWN_TLS`;
 - configured `apiId`, attempt, monotonic duration, and normal safe correlation identifiers.
 
-Classification inspects a bounded exception-cause chain by known types only. It never reads or emits an exception message, certificate, subject, issuer, SAN, serial number, fingerprint, cipher debug dump, trust-store path, peer address, request URL, header, response body, key material, or stack trace. If a client cannot distinguish certificate and hostname failures without parsing text, it emits `TLS_HANDSHAKE` or `UNKNOWN_TLS` rather than guessing.
+Classification inspects a bounded exception-cause chain by known types only. It never reads or emits an exception message, certificate, subject, issuer, SAN, serial number, fingerprint, cipher debug dump, trust-store path, peer address, request URL, header, response body, key material, or stack trace. If a client cannot distinguish certificate and hostname failures without parsing text, it emits the broader certificate/handshake classification rather than guessing; the hostname-specific value is reserved for an unambiguous structured signal.
 
 Inbound TLS handshake failures terminate at ALB and are internal-only aggregate metrics/logs. They cannot be assigned to a partner tenant from an untrusted network attempt. After trusted callback context exists, transport metadata may state that the configured ingress boundary was `ALB_TLS`; it does not include a certificate identity.
 
@@ -181,5 +181,7 @@ Required evidence includes:
 - secret scans covering Git, generated config, Terraform plan JSON, logs, telemetry, metrics, dashboards, and test reports;
 - certificate renewal/rotation and custom-CA overlap/rollback drills using synthetic certificates;
 - isolated local HTTP fixture checks proving no ECS/non-local profile can enable the exception.
+
+The M3 starter slice now provides the first evidence subset: runtime-generated trusted, untrusted, and wrong-host certificates exercise RestTemplate, Reactor Netty WebClient, and OkHttp with instrumentation disabled and enabled; outcomes are identical, the service-owned RestTemplate request factory and WebClient connector are demonstrably used, OkHttp retains its socket factory, trust manager, hostname verifier, certificate pinner, and connection specifications, and telemetry contains no synthetic certificate sentinel or secret-shaped material. A production-source static test rejects TLS context/trust/hostname setters, trust-all/permissive implementations, and HTTPS-to-HTTP rewrite literals in the starter modules. Expired/not-yet-valid and incomplete-chain cases, redirect/downgrade policy, callback/ALB policy, rotation, Terraform, and end-to-end sink scans remain M8/M9 evidence and are not claimed by M3.
 
 Failures in observability classification or export remain bounded telemetry loss. Failures in the business client's TLS validation remain business transport failures exactly as they were without the starter.

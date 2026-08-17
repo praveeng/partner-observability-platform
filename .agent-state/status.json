@@ -10,15 +10,15 @@
       "READY_FOR_REVIEW",
       "COMPLETE"
     ],
-    "currentState": "READY_FOR_REVIEW"
+    "currentState": "IN_PROGRESS"
   },
-  "milestone": "M1 transport-security architecture revision",
-  "summary": "READY_FOR_REVIEW for the documentation-only M1 HTTPS/TLS architecture revision. ADR 0011 and the normative transport contract now cover all three outbound clients, callback/Grafana 443-only ALB/ACM ingress, private ECS targets, TLS ownership and immutability, custom CA handling, bounded failure metadata, secret exclusion, downgrade prevention, local synthetic HTTP isolation, and future mTLS extension. Documentation/static checks, Gradle project discovery, build, tests, and the implemented M2 core security gate pass. Aggregate verification remains intentionally non-zero because downstream Alloy/Loki/Grafana security and exact M9 performance/TLS evidence are NOT IMPLEMENTED; no runtime transport-readiness claim is made.",
+  "milestone": "M3 Spring Boot TLS-safe instrumentation",
+  "summary": "The scoped Java 17 / Spring Boot 2.7 M3 implementation and tests pass: enabled/disabled RestTemplate, WebClient, and OkHttp preserve trusted, untrusted, and wrong-host TLS behavior; client-owned TLS settings remain intact; bounded type-only failure telemetry, callbacks, correlation, payload safety, dispatch, metrics, and health tests are green. The task is still IN_PROGRESS because mandatory skill verification found the repository-wide M4-M9 Alloy/Loki/Grafana security boundaries and all six full-duration performance profiles NOT IMPLEMENTED, so aggregate verification is not green and the requested conditional commit has not been created.",
   "blockers": [],
   "nextActions": [
-    "Review ADR 0011, especially the 443-only/no-port-80 decision, ALB termination boundary, callback-ALB ownership, and custom CA policy.",
-    "Add M3 synthetic TLS and client-configuration immutability evidence without changing host TLS behavior.",
-    "Implement and validate the M8 ALB/ACM/private-target Terraform controls and M9 downgrade, rotation, secret-leak, and direct-access tests before any transport-readiness claim."
+    "Implement and pass the M4-M9 downstream Alloy/Loki/Grafana payload/isolation security checks required by the payload-safety and architecture-review Skills.",
+    "Implement and run the six exact acceptance performance profiles: disabled overhead, metadata throughput, full-sanitized throughput, backend saturation, mixed soak, and reactive concurrency/cancellation.",
+    "Rerun scripts/verify-all.sh; set READY_FOR_REVIEW and create the requested local commit only when aggregate verification is green."
   ],
-  "lastUpdated": "2026-08-17T03:17:10Z"
+  "lastUpdated": "2026-08-17T04:38:53Z"
 }

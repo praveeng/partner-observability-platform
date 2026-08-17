@@ -73,9 +73,15 @@ class CoreTelemetryModelTest {
                 PayloadSchema.builder().allow("status").build(), PayloadCaptureMode.FULL_SANITIZED);
         OutboundApiResponseRecord body = new OutboundApiResponseRecord(
                 "submit", OptionalInt.of(200), StatusClass.TWO_XX, Outcome.SUCCESS, 1,
-                Optional.empty(), Optional.of("application/json"), OptionalLong.empty(), omitted, captured);
+                Optional.empty(), Optional.of(TransportSecurity.TLS), Optional.empty(),
+                Optional.of("application/json"), OptionalLong.empty(), omitted, captured);
         assertThrows(IllegalArgumentException.class, () -> envelope(
                 context, synchronous, PayloadCaptureMode.METADATA_ONLY, PayloadStatus.CAPTURED, body));
+
+        assertThrows(IllegalArgumentException.class, () -> new OutboundApiResponseRecord(
+                "submit", OptionalInt.empty(), StatusClass.IO_ERROR, Outcome.TECHNICAL_FAILURE, 1,
+                Optional.of("tls_handshake"), Optional.empty(), Optional.of(TransportFailureClass.TLS_HANDSHAKE),
+                Optional.empty(), OptionalLong.empty(), omitted, omitted));
     }
 
     @Test
@@ -121,13 +127,14 @@ class CoreTelemetryModelTest {
         return new OutboundApiRequestRecord(
                 "submit", "/v1/applications/{id}", ExchangeMode.SYNC, PartnerHttpMethod.POST, 1,
                 Optional.of("application/json"), OptionalLong.of(128), omitted, omitted, omitted,
-                TransportState.DELEGATED);
+                TransportState.DELEGATED, Optional.of(TransportSecurity.TLS));
     }
 
     private OutboundApiResponseRecord response() {
         return new OutboundApiResponseRecord(
                 "submit", OptionalInt.of(200), StatusClass.TWO_XX, Outcome.SUCCESS, 12,
-                Optional.empty(), Optional.of("application/json"), OptionalLong.of(64), omitted, omitted);
+                Optional.empty(), Optional.of(TransportSecurity.TLS), Optional.empty(),
+                Optional.of("application/json"), OptionalLong.of(64), omitted, omitted);
     }
 
     private AsyncAcknowledgementRecord acknowledgement() {
@@ -135,14 +142,15 @@ class CoreTelemetryModelTest {
                 "submit_async", OptionalInt.of(202), StatusClass.TWO_XX,
                 AcknowledgementOutcome.ACCEPTED, Outcome.SUCCESS, 12,
                 ProcessingDisposition.PARTNER_PROCESSING_EXPECTED, Optional.empty(),
-                Optional.of("application/json"), OptionalLong.of(64), omitted, omitted);
+                Optional.of(TransportSecurity.TLS), Optional.empty(), Optional.of("application/json"),
+                OptionalLong.of(64), omitted, omitted);
     }
 
     private CallbackRequestRecord callbackRequest() {
         return new CallbackRequestRecord(
                 "decision_callback", "/callbacks/decision", PartnerHttpMethod.POST,
                 DeliveryClassification.INITIAL, Optional.of("application/json"), OptionalLong.of(64),
-                omitted, omitted, ParsingStatus.PARSED, Instant.now());
+                omitted, omitted, ParsingStatus.PARSED, Instant.now(), Optional.of(TransportSecurity.ALB_TLS));
     }
 
     private CallbackResponseRecord callbackResponse() {

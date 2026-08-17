@@ -103,7 +103,8 @@ public final class CallbackObservation {
             CallbackRequestRecord record = new CallbackRequestRecord(
                     definition.name(), definition.path(), method, classification,
                     PartnerObservationEngine.normalizedContentType(contentType), declaredSize,
-                    NO_VALUES, PartnerObservationEngine.safeResult(captured.payload()), parsingStatus, receivedAt);
+                    NO_VALUES, PartnerObservationEngine.safeResult(captured.payload()), parsingStatus, receivedAt,
+                    Optional.empty());
             engine.submit(definition, engine.envelope(
                     definition, receivedAt, interaction, mode, captured.payload().status(), Outcome.UNKNOWN, record));
             engine.metrics().callbackReceived(definition, classification);

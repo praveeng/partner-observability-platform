@@ -16,7 +16,8 @@ public record OutboundApiRequestRecord(
         SanitizationResult headers,
         SanitizationResult query,
         SanitizationResult payload,
-        TransportState transportState) implements TelemetryRecord {
+        TransportState transportState,
+        Optional<TransportSecurity> transportSecurity) implements TelemetryRecord {
 
     public OutboundApiRequestRecord {
         apiId = ModelValidation.token(apiId, 63, "apiId");
@@ -32,6 +33,7 @@ public record OutboundApiRequestRecord(
         query = RecordPayloads.safe(query, "query");
         payload = RecordPayloads.safe(payload, "payload");
         Objects.requireNonNull(transportState, "transportState");
+        transportSecurity = transportSecurity == null ? Optional.empty() : transportSecurity;
     }
 
     @Override

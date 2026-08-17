@@ -16,7 +16,8 @@ public record CallbackRequestRecord(
         SanitizationResult headers,
         SanitizationResult payload,
         ParsingStatus parsingStatus,
-        Instant receivedAt) implements TelemetryRecord {
+        Instant receivedAt,
+        Optional<TransportSecurity> transportSecurity) implements TelemetryRecord {
 
     public CallbackRequestRecord {
         callbackApiId = ModelValidation.token(callbackApiId, 63, "callbackApiId");
@@ -29,6 +30,7 @@ public record CallbackRequestRecord(
         payload = RecordPayloads.safe(payload, "payload");
         Objects.requireNonNull(parsingStatus, "parsingStatus");
         Objects.requireNonNull(receivedAt, "receivedAt");
+        transportSecurity = transportSecurity == null ? Optional.empty() : transportSecurity;
     }
 
     @Override

@@ -113,7 +113,7 @@ External partner traffic is HTTPS/TLS under `transport-security.md` and ADR 0011
 
 `transportSecurity` is `TLS` for an outbound HTTPS client exchange and `ALB_TLS` for a callback that reached the application through its trusted ALB/private-target boundary. It is absent when the adapter cannot establish that fact from server-owned configuration. An arbitrary `Forwarded`/`X-Forwarded-Proto` header cannot populate it. Local synthetic HTTP fixtures do not emit a production-like TLS value.
 
-`transportFailureClass` is absent on success and otherwise one of `TLS_HANDSHAKE`, `TLS_CERTIFICATE_VALIDATION`, `TLS_HOSTNAME_VERIFICATION`, `TLS_PROTOCOL_NEGOTIATION`, `TLS_CONFIGURATION`, or `UNKNOWN_TLS`. A client adapter selects a specific value only from known exception types or a structured client signal while traversing a bounded cause depth. It does not parse error messages. When exact cause is unavailable, it uses the broader `TLS_HANDSHAKE`/`UNKNOWN_TLS` value.
+`transportFailureClass` is absent on success and otherwise one of `TLS_HANDSHAKE`, `TLS_CERTIFICATE_VALIDATION`, `TLS_HOSTNAME_VERIFICATION`, `TLS_PROTOCOL_NEGOTIATION`, `TLS_CONFIGURATION`, or `UNKNOWN_TLS`. A client adapter selects a specific value only from known exception types or a structured client signal while traversing a bounded cause depth. It does not parse error messages. Ambiguous peer-verification exceptions map to the broader certificate-validation class rather than guessing hostname failure; `TLS_HOSTNAME_VERIFICATION` is used only when a client exposes an unambiguous structured signal. When no TLS failure is established, the field is absent.
 
 Safe TLS failure metadata may co-occur with configured `apiId`, attempt, duration, outcome, and validated correlation identifiers. Certificate subject, issuer, SAN, serial, fingerprint, chain, peer hostname/address, request URL, negotiated-session debug details, exception class/message/stack, trust-store/keystore path or bytes, passwords, private/client keys, and signature/session secrets are prohibited from every envelope. Inbound handshakes rejected at ALB occur before trusted callback context and therefore create no partner record.
 
@@ -172,7 +172,7 @@ Records are sorted by `occurredAt`, then `observedAt`, then `eventId`. Late and 
 | `headers` / `query` | safe object or absent | Full-sanitized allowlists only; never raw strings |
 | `payload` | bounded safe value or absent | Full-sanitized only |
 | `transportState` | `DELEGATED` | Means the call was handed to the business client, not partner receipt |
-| `transportSecurity` | `TLS` | Fixed by the approved HTTPS client mapping, not the request URI at runtime |
+| `transportSecurity` | `TLS` or absent | `TLS` only when the actual matched outbound URI has the HTTPS scheme; observation does not enforce or rewrite it |
 
 For `ASYNC_INITIATION`, `timelineStage` is `ASYNC_REQUEST_SENT`. This wording means delegated to the configured HTTP client; the later acknowledgement record tells whether an acknowledgement was observed. The record is built before the client call from an already-safe projection and its existence does not promise a response.
 
@@ -188,6 +188,7 @@ For `ASYNC_INITIATION`, `timelineStage` is `ASYNC_REQUEST_SENT`. This wording me
 | `outcome` | bounded enum | `SUCCESS`, `BUSINESS_REJECTED`, `TECHNICAL_FAILURE`, `CANCELLED`, `UNKNOWN` |
 | `durationMs` | non-negative integer | Monotonic elapsed time |
 | `errorCode` | configured/validated token <=64 | Never exception text or remote message |
+| `transportSecurity` | `TLS` or absent | Copied from the initiating outbound observation |
 | `transportFailureClass` | bounded TLS enum or absent | Present only for type-safe TLS terminal classification |
 | content/header/payload fields | same policy as request | `Set-Cookie` always removed |
 
@@ -206,6 +207,7 @@ Outcome mapping is configured per API. Defaults treat 2xx as success, explicitly
 | `durationMs` | non-negative integer | Request-to-terminal acknowledgement observation |
 | `processingDisposition` | enum | `PARTNER_PROCESSING_EXPECTED`, `TERMINAL_REJECTION`, `UNKNOWN` |
 | `errorCode` | safe token or absent | Never free text |
+| `transportSecurity` | `TLS` or absent | Copied from the initiating outbound observation |
 | `transportFailureClass` | bounded TLS enum or absent | May describe why an acknowledgement was not received |
 | acknowledgement payload | safe value or absent | Separate `ASYNC_ACK` leg policy |
 | correlation identifiers | all newly available | Must bridge original and partner IDs when present |

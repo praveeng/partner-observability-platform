@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-This is the revised M1 implementable architecture for the Partner Observability Platform. It defines contracts for M2-M10, including first-class asynchronous acknowledgements, callbacks/webhooks, and HTTPS/TLS transport ownership. Decisions are recorded in ADRs 0001-0011 under `decisions/`. The schema-2 core and scoped M3 Spring integration are now implemented; the backend, query, deployment, explicit encrypted-plaintext, transport-policy evidence, and full performance portions remain later milestone work.
+This is the revised M1 implementable architecture for the Partner Observability Platform. It defines contracts for M2-M10, including first-class asynchronous acknowledgements, callbacks/webhooks, and HTTPS/TLS transport ownership. Decisions are recorded in ADRs 0001-0011 under `decisions/`. The schema-2 core and scoped M3 Spring integration are now implemented, including type-only TLS failure metadata and client-preservation tests; the backend, query, deployment, explicit encrypted-plaintext, remaining transport-policy evidence, and full performance portions remain later milestone work.
 
 The supported runtime is Java 17 and Spring Boot 2.7.x. The platform uses SLF4J/Logback, Grafana Alloy, Loki, Prometheus, Grafana, Docker Compose locally, and Terraform-managed AWS ECS. Kubernetes and Helm are prohibited.
 

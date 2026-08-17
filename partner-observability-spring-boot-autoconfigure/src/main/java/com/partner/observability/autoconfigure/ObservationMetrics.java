@@ -7,6 +7,7 @@ import com.partner.observability.core.model.ProcessingMode;
 import com.partner.observability.core.model.ProcessingPhase;
 import com.partner.observability.core.model.StatusClass;
 import com.partner.observability.core.model.TelemetryRecordType;
+import com.partner.observability.core.model.TransportFailureClass;
 import com.partner.observability.core.model.TransportOutcome;
 import com.partner.observability.core.dispatch.TelemetryPriority;
 
@@ -26,6 +27,7 @@ public interface ObservationMetrics {
     void callbackResponded(
             ObservationDefinition definition, Outcome outcome, StatusClass status, TransportOutcome transport);
     void callbackDenied(String reason);
+    void transportSecurityFailure(ObservationDefinition definition, TransportFailureClass failureClass);
 
     ObservationMetrics NONE = new ObservationMetrics() {
         public void submitted(ObservationDefinition d, TelemetryRecordType t, boolean a, TelemetryPriority p) {}
@@ -35,5 +37,6 @@ public interface ObservationMetrics {
                 ObservationDefinition d, Outcome o, long ms, ProcessingMode m, ProcessingPhase p) {}
         public void callbackResponded(ObservationDefinition d, Outcome o, StatusClass s, TransportOutcome t) {}
         public void callbackDenied(String reason) {}
+        public void transportSecurityFailure(ObservationDefinition d, TransportFailureClass f) {}
     };
 }

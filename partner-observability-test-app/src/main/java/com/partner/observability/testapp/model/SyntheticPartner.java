@@ -23,6 +23,10 @@ public enum SyntheticPartner {
         return partnerSlot;
     }
 
+    public SyntheticPartner other() {
+        return this == ALPHA ? BETA : ALPHA;
+    }
+
     public static SyntheticPartner fromFixturePath(String value) {
         return valueOf(value.replace('-', '_').toUpperCase(Locale.ROOT));
     }

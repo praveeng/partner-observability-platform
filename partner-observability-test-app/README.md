@@ -11,15 +11,18 @@ POST /fixture/rest/{alpha|beta}/{scenario}
 POST /fixture/webclient/{alpha|beta}/{scenario}
 POST /fixture/okhttp/{alpha|beta}/{scenario}
 POST /fixture/encrypted-rest/{alpha|beta}
+POST /fixture/async/{alpha|beta}/{async-scenario}
+GET  /fixture/async/runs/{runId}
+GET  /fixture/async/security-counters
 ```
 
 `scenario` is a kebab-case or enum-form value from `SyntheticScenario`. Responses are bounded summaries containing status, byte length, and digest; large or sensitive fixture bodies are not returned by the control plane.
 
-The `alpha` and `beta` path segments select fixed local test lanes. They deliberately do not model authentication and must never become a production `PartnerContextResolver`. Future SDK integration must install partner context from a server-trusted fixture adapter.
+The `alpha` and `beta` path segments on the control endpoints select fixed local test lanes. They deliberately do not model production authentication and must never become a production `PartnerContextResolver`. Callback ingress uses a separate fixture-only fixed route/signature adapter so tests can prove that invalid signatures and wrong-partner delivery create no trusted callback lifecycle facts.
 
 ## Mock behavior
 
-`LocalMockPartnerServer` is a separate loopback HTTP server with a bounded executor. It provides normal JSON, success, 4xx/5xx, timeout, slow, connection failure, retry, malformed JSON, large textual JSON, generated Base64 document/image/opaque payloads, nested sensitive values, and encrypted byte echo behavior. No external partner endpoint is contacted.
+`LocalMockPartnerServer` is a separate loopback HTTP server with a bounded executor. It provides normal JSON, success, 4xx/5xx, timeout, slow, connection failure, retry, malformed JSON, large textual JSON, generated Base64 document/image/opaque payloads, nested sensitive values, encrypted byte echo behavior, HTTP 202 acknowledgements, and delayed/retried/concurrent callbacks into the test application. No external partner endpoint is contacted.
 
 | Scenario | Fixture behavior |
 | --- | --- |
@@ -35,8 +38,45 @@ Tests additionally execute two synthetic partners with the same application ID, 
 
 The encryption flow has an intentionally fixture-local `FixturePlaintextObservationPort`. It marks the exact pre-encryption and post-decryption seams that a future production SDK observation API must integrate with; its default implementation is a no-op and no production SDK behavior is implemented here.
 
+## Async and callback scenarios
+
+The async control endpoint accepts these kebab-case values from `SyntheticAsyncScenario`:
+
+| Scenario | Deterministic behavior |
+| --- | --- |
+| `acknowledgement-only` | Mock accepts the initiation with HTTP 202 and no callback |
+| `ack-with-partner-reference` | HTTP 202 acknowledgement bridges a partner reference and external transaction ID |
+| `callback-with-application-id` | Callback carries only `applicationId` as its correlation field |
+| `callback-with-partner-reference-only` | Callback carries only `partnerReferenceId` |
+| `callback-with-callback-reference` | Callback carries `callbackReferenceId` |
+| `callback-success` | Callback processing succeeds and returns 200 |
+| `callback-processing-failure` | Processing fails and returns 500 |
+| `callback-retry` | First delivery returns 500; the mock retries and receives 200 |
+| `duplicate-callback` | The same callback reference is delivered twice after a successful first delivery |
+| `callback-out-of-order` | Logical callback sequence 2 arrives before sequence 1 |
+| `callback-after-outbound-timeout` | Initiation acknowledgement times out, then a valid callback arrives |
+| `unknown-partner-reference` | Authenticated callback carries an unknown synthetic partner reference |
+| `wrong-partner` | Callback is authenticated for the other lane and is denied without trusted callback facts |
+| `authentication-failure` | Invalid fixed signature returns 401 without reading/capturing the body as a trusted callback |
+| `malformed-callback` | Authenticated malformed JSON returns 400 and records parsing failure metadata only |
+| `callback-pdf-base64-5-mb` | Callback contains a generated Base64-encoded 5 MiB PDF candidate |
+| `callback-image-base64` | Callback contains a generated Base64-encoded 8 MiB JPEG candidate |
+| `callback-sensitive-pii` | Callback contains synthetic phone, email, account, national ID, and address values |
+| `callback-credentials` | Callback body/header contains synthetic credentials and Authorization-like content |
+| `accepted-then-downstream-failure` | Callback returns 202 before bounded background processing fails |
+| `response-transmission-failure` | Processing succeeds and the response body write is deliberately failed |
+| `cross-partner-callback-reference` | Both lanes may use the same callback reference without sharing lifecycle state |
+| `high-concurrency-callbacks` | One initiation produces 32 concurrent callback deliveries through bounded executors |
+| `multiple-callbacks` | One initiation produces three separately identified callbacks |
+
+The mock initiation request, acknowledgement, and callback projection collectively exercise `applicationId`, `loanId`, `originalCorrelationId`, `partnerReferenceId`, `callbackReferenceId`, and `externalTransactionId`. `GET /fixture/async/runs/{runId}` returns only identifiers, sizes, fixed categories, statuses, and lifecycle outcomes; callback bodies and headers are never retained in that ledger.
+
+Fixture state is deliberately bounded to 256 journeys, 256 lifecycle events per journey, 128 callback attempts and deliveries per journey, a 64-entry mock work queue, and a 16 MiB callback request cap. Eldest journey eviction and fixed-limit failure are test-control behavior, not production SDK semantics.
+
 Run the module tests with:
 
 ```bash
 ./gradlew :partner-observability-test-app:test
 ```
+
+The module suite includes lifecycle assertions for all 24 async/callback scenarios. These are compatibility fixtures and smoke/concurrency evidence; they do not replace the full-duration M9 performance profiles or implement production SDK interception.

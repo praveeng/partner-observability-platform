@@ -3,13 +3,23 @@ package com.partner.observability.testapp.web;
 import com.partner.observability.testapp.client.OkHttpFixtureClient;
 import com.partner.observability.testapp.client.RestTemplateFixtureClient;
 import com.partner.observability.testapp.client.WebClientFixtureClient;
+import com.partner.observability.testapp.async.SyntheticAsyncFixtureClient;
+import com.partner.observability.testapp.async.SyntheticAsyncLifecycleStore;
+import com.partner.observability.testapp.async.SyntheticCallbackSecurityCounters;
 import com.partner.observability.testapp.crypto.EncryptedRestTemplateFixture;
 import com.partner.observability.testapp.crypto.EncryptedRoundTrip;
+import com.partner.observability.testapp.model.AsyncInitiationSummary;
 import com.partner.observability.testapp.model.ScenarioSummary;
+import com.partner.observability.testapp.model.SyntheticAsyncJourneySnapshot;
+import com.partner.observability.testapp.model.SyntheticAsyncScenario;
 import com.partner.observability.testapp.model.SyntheticPartner;
 import com.partner.observability.testapp.model.SyntheticPartnerRequest;
 import com.partner.observability.testapp.model.SyntheticScenario;
 import java.io.IOException;
+import java.net.URI;
+import java.util.Map;
+import javax.servlet.http.HttpServletRequest;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,16 +38,25 @@ public final class FixtureScenarioController {
     private final WebClientFixtureClient webClient;
     private final OkHttpFixtureClient okHttpClient;
     private final EncryptedRestTemplateFixture encryptedFixture;
+    private final SyntheticAsyncFixtureClient asyncFixtureClient;
+    private final SyntheticAsyncLifecycleStore asyncLifecycleStore;
+    private final SyntheticCallbackSecurityCounters callbackSecurityCounters;
 
     public FixtureScenarioController(
             RestTemplateFixtureClient restTemplateClient,
             WebClientFixtureClient webClient,
             OkHttpFixtureClient okHttpClient,
-            EncryptedRestTemplateFixture encryptedFixture) {
+            EncryptedRestTemplateFixture encryptedFixture,
+            SyntheticAsyncFixtureClient asyncFixtureClient,
+            SyntheticAsyncLifecycleStore asyncLifecycleStore,
+            SyntheticCallbackSecurityCounters callbackSecurityCounters) {
         this.restTemplateClient = restTemplateClient;
         this.webClient = webClient;
         this.okHttpClient = okHttpClient;
         this.encryptedFixture = encryptedFixture;
+        this.asyncFixtureClient = asyncFixtureClient;
+        this.asyncLifecycleStore = asyncLifecycleStore;
+        this.callbackSecurityCounters = callbackSecurityCounters;
     }
 
     @PostMapping("/rest/{partner}/{scenario}")
@@ -93,5 +112,27 @@ public final class FixtureScenarioController {
                 result.responseCiphertextBytes(),
                 null,
                 null);
+    }
+
+    @PostMapping("/async/{partner}/{scenario}")
+    public AsyncInitiationSummary async(
+            @PathVariable String partner,
+            @PathVariable String scenario,
+            HttpServletRequest request) {
+        SyntheticPartner partnerLane = SyntheticPartner.fromFixturePath(partner);
+        SyntheticAsyncScenario selectedScenario = SyntheticAsyncScenario.fromFixturePath(scenario);
+        URI callbackRoot = URI.create(
+                "http://127.0.0.1:" + request.getLocalPort() + request.getContextPath() + "/fixture/callback/");
+        return asyncFixtureClient.initiate(selectedScenario, partnerLane, callbackRoot);
+    }
+
+    @GetMapping("/async/runs/{runId}")
+    public SyntheticAsyncJourneySnapshot asyncRun(@PathVariable String runId) {
+        return asyncLifecycleStore.snapshot(runId);
+    }
+
+    @GetMapping("/async/security-counters")
+    public Map<SyntheticCallbackSecurityCounters.DenialReason, Long> callbackSecurityCounters() {
+        return callbackSecurityCounters.snapshot();
     }
 }

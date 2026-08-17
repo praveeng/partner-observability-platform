@@ -12,13 +12,13 @@
     ],
     "currentState": "READY_FOR_REVIEW"
   },
-  "milestone": "M1",
-  "summary": "The revised M1 architecture/specification is ready for review. Schema 2 defines first-class synchronous, async acknowledgement, callback request/response/processing, and business records; authenticated callback capture boundaries; profile-scoped tenant-fixed bounded long-lived correlation; callback-aware metrics/dashboards; and aligned ECS/Terraform, threat, test, performance, and rollout contracts. Documentation/static checks, the clean Gradle build/test suite, and the implemented M2 core security gate pass. Whole-platform security and performance checks correctly remain NOT IMPLEMENTED for M4-M9. No application functionality changed.",
+  "milestone": "M3 test-app fixture",
+  "summary": "The Java 17 / Spring Boot 2.7 synthetic partner integration fixture is ready for review. All 51 requested outbound and async/callback scenarios are implemented with loopback-only traffic, fixed synthetic partners, bounded executors/state, trusted callback denial, six-field correlation, hostile payloads, and deterministic control endpoints. The uncached async lifecycle suite, complete 26-test fixture suite, clean repository build, implemented repository tests, M2 core security gate, JSON/diff/static architecture checks all pass. The aggregate verifier correctly remains non-zero because downstream Alloy/Loki/Grafana security and exact full-duration performance gates are still NOT IMPLEMENTED for M4-M9; no production SDK or later-milestone acceptance is claimed.",
   "blockers": [],
   "nextActions": [
-    "Review ADRs 0009-0010 and resolve accountable production/callback inputs Q001-Q011 without weakening safe defaults.",
-    "Implement the M2 schema-2 async/callback record, correlation-profile, and lifecycle extension before accepting M3 inbound/outbound interception.",
-    "Implement and pass the intentionally outstanding Alloy/Loki/Grafana isolation and full-duration performance gates in M4-M9."
+    "Review the scoped synthetic fixture and its explicit non-production trust adapter/lifecycle ledger.",
+    "Implement the M2 schema-2 production record/correlation/lifecycle model before accepting M3 production interception.",
+    "Implement and run the intentionally outstanding downstream isolation and exact full-duration performance gates in M4-M9."
   ],
-  "lastUpdated": "2026-08-16T15:37:48Z"
+  "lastUpdated": "2026-08-17T00:48:16Z"
 }

@@ -32,13 +32,13 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 ### M3 — Spring Boot auto-configuration and outbound/inbound interceptors
 
 - Implement conditional Spring Boot 2.7 auto-configuration, outbound RestTemplate/WebClient/OkHttp interception, and configured inbound Spring MVC/WebFlux callback transport/context interception with one-starter integration.
-- Preparatory fixture complete: `partner-observability-test-app` provides executable RestTemplate, WebClient, OkHttp, local mock-partner, transport failure, retry, encryption-boundary, multi-partner, and concurrency scenarios without implementing production interceptors.
+- Preparatory fixture complete: `partner-observability-test-app` provides executable RestTemplate, WebClient, OkHttp, local mock-partner, transport failure, retry, encryption-boundary, multi-partner, bounded concurrency, HTTP 202 acknowledgement, delayed/retried/duplicate/out-of-order callback, trusted callback-denial, processing/write-failure, and correlation scenarios without implementing production interceptors.
 - Acceptance: opt-in configuration, compatibility, authentication/filter ordering, request/response semantic preservation, async/reactive context, request-path isolation, and disabled-mode tests pass.
 
 ### M4 — Payload/semantic integration, second-stage safety, and encrypted support
 
 - Integrate the M2 fail-closed first-stage classifier with outbound/callback interceptors and explicit plaintext/callback-processing hooks, then implement Alloy schema-2 defense in depth without weakening application authentication or encryption.
-- Preparatory fixture complete: generated PDF/JPEG/opaque/document-array Base64 candidates and synthetic nested credential, OTP, card, and mask-required PII payloads are available for future sanitizer assertions.
+- Preparatory fixture complete: generated PDF/JPEG/opaque/document-array Base64 candidates and synthetic nested credential, OTP, card, and mask-required PII payloads are available on both outbound and callback paths for future sanitizer assertions. The fixture lifecycle ledger retains only bounded identifier/outcome projections, not hostile callback bodies.
 - Acceptance: prohibited classes are absent before queue admission and from every sink, including error paths and malformed inputs.
 
 ### M5 — Alloy and Loki
@@ -64,7 +64,7 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 ### M9 — Security, performance, and end-to-end verification
 
 - Complete adversarial disclosure, tenant isolation, backend failure, saturation, throughput, latency, and Docker Compose end-to-end suites.
-- Preparatory fixture complete: two partner lanes, colliding application IDs, bounded synchronous concurrency, and reactive concurrency are covered by test-app integration tests. This does not claim the M9 duration/throughput gates.
+- Preparatory fixture complete: two partner lanes, colliding application and callback-reference IDs, bounded synchronous/reactive/callback concurrency, multiple callbacks, and async lifecycle failure modes are covered by test-app integration tests. This does not claim the M9 duration/throughput gates.
 - Acceptance: explicit thresholds in `docs/acceptance-criteria.md` pass with retained test evidence and no real data.
 
 ### M10 — Release documentation and package readiness
@@ -74,4 +74,4 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 
 ## Current focus
 
-The revised M1 architecture is ready for review; this task changed no application functionality. The hardened M2 first-stage payload/queue boundary remains valid and previously passed 41 core plus 16 synthetic test-app tests, but its schema-1 three-record model is now explicitly incomplete for the expanded async/callback contract. The clean Gradle build/test suite and implemented M2 core security gate pass in the current worktree. Whole-platform security and performance checks remain intentionally non-zero (`NOT IMPLEMENTED`) until M4-M9 and are not misreported as M1 failures or successes. After architecture review, the next implementation slice is the M2 schema-2 record/correlation-profile/lifecycle extension, followed by M3 outbound and callback interception. Later milestones must preserve the proven pre-queue safety boundary, implement downstream defense in depth/isolation and the bounded tenant-fixed query resolver, and run exact performance gates rather than silently changing numeric contracts.
+The revised M1 architecture remains ready for review. The hardened M2 first-stage payload/queue boundary remains valid, but its schema-1 three-record model is explicitly incomplete for the expanded async/callback contract. The M3/M4/M9 preparatory test application now supplies all 51 requested synthetic outbound and async/callback scenarios, including 26 test-app tests; this is fixture evidence, not production interceptor, downstream sanitization/isolation, or full-duration performance acceptance. Whole-platform security and performance checks remain intentionally non-zero (`NOT IMPLEMENTED`) until M4-M9. The next production implementation slice is the M2 schema-2 record/correlation-profile/lifecycle extension, followed by M3 outbound and callback interception. Later milestones must preserve the proven pre-queue safety boundary, implement downstream defense in depth/isolation and the bounded tenant-fixed query resolver, and run exact performance gates rather than silently changing numeric contracts.

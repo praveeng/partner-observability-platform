@@ -2,6 +2,7 @@ package com.partner.observability.autoconfigure;
 
 import com.partner.observability.core.model.AcknowledgementOutcome;
 import com.partner.observability.core.model.DeliveryClassification;
+import com.partner.observability.core.model.HttpResult;
 import com.partner.observability.core.model.Outcome;
 import com.partner.observability.core.model.ProcessingMode;
 import com.partner.observability.core.model.ProcessingPhase;
@@ -14,9 +15,11 @@ import com.partner.observability.core.dispatch.TelemetryPriority;
 public interface ObservationMetrics {
     void submitted(
             ObservationDefinition definition, TelemetryRecordType type, boolean accepted, TelemetryPriority priority);
+    void outboundStarted(ObservationDefinition definition, int attempt);
     void outboundCompleted(
             ObservationDefinition definition, Outcome outcome, StatusClass status, long durationMs,
-            AcknowledgementOutcome acknowledgement);
+            AcknowledgementOutcome acknowledgement, HttpResult result);
+    void callbackStarted(ObservationDefinition definition);
     void callbackReceived(ObservationDefinition definition, DeliveryClassification classification);
     void callbackProcessed(
             ObservationDefinition definition,
@@ -31,7 +34,11 @@ public interface ObservationMetrics {
 
     ObservationMetrics NONE = new ObservationMetrics() {
         public void submitted(ObservationDefinition d, TelemetryRecordType t, boolean a, TelemetryPriority p) {}
-        public void outboundCompleted(ObservationDefinition d, Outcome o, StatusClass s, long ms, AcknowledgementOutcome a) {}
+        public void outboundStarted(ObservationDefinition d, int attempt) {}
+        public void outboundCompleted(
+                ObservationDefinition d, Outcome o, StatusClass s, long ms,
+                AcknowledgementOutcome a, HttpResult r) {}
+        public void callbackStarted(ObservationDefinition d) {}
         public void callbackReceived(ObservationDefinition d, DeliveryClassification c) {}
         public void callbackProcessed(
                 ObservationDefinition d, Outcome o, long ms, ProcessingMode m, ProcessingPhase p) {}

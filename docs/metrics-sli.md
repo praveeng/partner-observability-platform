@@ -31,19 +31,22 @@ All label values must come from startup configuration or bounded enums:
 | `transport_failure_class` | `tls_handshake`, `tls_certificate_validation`, `tls_hostname_verification`, `tls_protocol_negotiation`, `tls_configuration`, `unknown_tls` |
 | `queue` | `high`, `normal`, `retry` |
 | `record_type` | `outbound_api_request`, `outbound_api_response`, `async_acknowledgement`, `callback_request`, `callback_response`, `callback_processing_event`, `partner_business_event` |
-| `result` | Metric-specific documented enum; never raw backend text |
+| `result` | HTTP: `http_1xx|http_2xx|http_3xx|http_4xx|http_5xx|timeout|connection_failure|cancelled|unknown`; callback response: `write_completed|write_failed|cancelled|unknown` |
 | `action` / `data_class` | Sanitizer enums defined by payload policy |
 | `version` | Exactly one active manifest-generated policy version per service |
 
 The meter registry pre-registers only manifest-defined partner/API combinations. Unknown runtime values map to `unknown` only for an existing meter and do not create a new tag value. Alloy overwrites market/environment/service labels, validates `partner_slot` against the configured source-service set, and drops metrics/labels outside this contract. `honor_labels` is false.
 
+HTTP method is intentionally not a label in the initial manifest because each configured `api` already has one startup-fixed method; duplicating it adds series without improving a query. A future API that legitimately permits several methods may add the bounded method enum only after the series calculator and recording rules are updated.
+
 ## Application SLI metrics
 
 | Metric | Type | Labels | Meaning |
 | --- | --- | --- | --- |
-| `partner_observability_http_interactions_total` | Counter | market, environment, service, partner_slot, api, interaction_kind, direction, outcome, status_class | Completed sync responses, async acknowledgement terminals, or callback response writes |
+| `partner_observability_http_interactions_total` | Counter | market, environment, service, partner_slot, api, interaction_kind, direction, outcome, status_class, result | Completed sync responses and async acknowledgement terminals; `result` separates timeouts and connection failures without exception-derived labels |
 | `partner_observability_http_duration_seconds` | Histogram | service, partner_slot, api, interaction_kind, direction, outcome | Monotonic duration of one HTTP observation, not an entire async journey |
 | `partner_observability_http_in_flight` | Gauge | service, partner_slot, api, interaction_kind, direction | Current observed HTTP interactions; bounded registrations |
+| `partner_observability_outbound_retries_total` | Counter | service, partner_slot, api, interaction_kind, direction | Attempts whose trusted host `OutboundAttemptResolver` reports as attempt 2-10; the SDK never performs a business retry |
 | `partner_observability_async_acknowledgements_total` | Counter | service, partner_slot, api, ack_outcome, status_class | Async initiation terminal acknowledgement outcomes, including no-ack failures |
 | `partner_observability_async_acknowledgement_duration_seconds` | Histogram | service, partner_slot, api, ack_outcome | Initiation-to-terminal acknowledgement observation |
 | `partner_observability_callback_deliveries_total` | Counter | service, partner_slot, api, delivery_class | Authenticated callback deliveries; unauthenticated attempts stay internal-only |
@@ -107,7 +110,7 @@ Default evaluation windows are 5 minutes for operational panels, 1 hour and 24 h
 
 Per application instance, the SDK must expose no more than 10,000 `partner_observability_*` active series. The generated manifest validator calculates the exact upper bound before deployment and rejects a configuration above that number. The market Prometheus target is at most 100,000 active partner-observability series initially; exceeding 70% for 15 minutes blocks onboarding and triggers a capacity review.
 
-The calculation includes histogram buckets plus `_sum`/`_count`, every valid configured partner/API/interaction/outcome/stage combination, and health metrics. It counts only legal combinations from the manifest state machine rather than registering a full Cartesian product, but it still rejects the configuration if the exact total exceeds the cap. Optional event and callback-delivery-age metrics are disabled unless their precomputed series fit. Meters expire only on process restart because the registry is configuration-fixed.
+The calculation includes the nine finite histogram buckets, `+Inf`, `_sum`, `_count`, and Micrometer's `_max`, every valid configured partner/API/interaction/outcome/stage combination, and health metrics. It counts only legal combinations from the manifest state machine rather than registering a full Cartesian product, but it still rejects the configuration if the exact total exceeds the cap. Optional event and callback-delivery-age metrics are disabled unless their precomputed series fit. Meters expire only on process restart because the registry is configuration-fixed.
 
 ## Collection and storage
 
@@ -116,6 +119,8 @@ The calculation includes histogram buckets plus `_sum`/`_count`, every valid con
 - Alloy scrapes every 30 seconds with a 10-second timeout, applies allowlist/relabel/drop rules, and remote-writes to Prometheus.
 - Prometheus enables only the remote-write receiver needed for Alloy, binds it privately, disables admin/lifecycle APIs, and applies 16-day time retention plus a storage-size cap.
 - Recording rules precompute dashboard rates and quantiles without adding transaction identifiers.
+
+The LOCAL_SYNTHETIC Compose profile uses the same scrape/relabel/remote-write shape with a fixed synthetic endpoint, a five-second test scrape interval, `16d` retention, and a `1GB` volume cap. Production uses Cloud Map discovery, the contractual 30-second/10-second scrape settings, private network paths, EFS-backed state, and an environment-sized cap. The local fixture is evidence for pipeline shape, not a production durability or capacity claim.
 
 Missing Alloy/Prometheus never affects business recording; Micrometer updates stay in process. A scrape or write outage causes metric gaps rather than application retries.
 

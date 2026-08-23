@@ -169,6 +169,7 @@ public final class PartnerObservation implements AutoCloseable {
         CapturedBody safeRequest = request == null ? omitted(PayloadStatus.NOT_REQUESTED) : request;
         engine.emitExplicitRequest(
                 definition, interactionId, startedAt, safeRequest, transportSecurity, 1);
+        engine.metrics().outboundStarted(definition, 1);
     }
 
     private void completeIfReady() {

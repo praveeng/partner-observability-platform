@@ -12,6 +12,6 @@ dependencyManagement {
 dependencies {
     api project(':partner-observability-spring-boot-autoconfigure')
     api 'org.springframework.boot:spring-boot-starter'
-
-    compileOnly 'org.springframework.boot:spring-boot-starter-actuator'
+    api 'org.springframework.boot:spring-boot-starter-actuator'
+    api 'io.micrometer:micrometer-registry-prometheus'
 }

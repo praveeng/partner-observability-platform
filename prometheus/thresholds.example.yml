@@ -1,0 +1,13 @@
+# Optional deployment-owned alerts. This file is deliberately not loaded and
+# defines no contractual SLA defaults. Copy an approved rule into an
+# environment-owned file, replace every REQUIRED_APPROVED_* token, then add it
+# to rule_files.
+#
+# groups:
+#   - name: approved-partner-sli-thresholds
+#     rules:
+#       - alert: PartnerOutboundAvailabilityBelowApprovedThreshold
+#         expr: partner_observability:outbound_availability:ratio5m < REQUIRED_APPROVED_RATIO
+#         for: REQUIRED_APPROVED_DURATION
+#         labels:
+#           severity: REQUIRED_APPROVED_SEVERITY

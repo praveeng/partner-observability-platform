@@ -31,3 +31,5 @@ partner-observability:
 ```
 
 Full sanitized capture additionally requires an exact `safe-fields` allowlist. Callback entries use the same partner/profile model plus a fixed callback path and either an authenticated principal mapping or a host-provided trusted resolver. See the auto-configuration README for the capture and trust boundaries.
+
+The starter also brings Spring Boot Actuator and the Prometheus Micrometer registry. Expose `health,prometheus` only on the private management network. Meter combinations are fixed from the configured partner/API manifest, use opaque `partner_slot`, and are rejected at startup above the 10,000-series budget; no transaction identifier becomes a metric label.

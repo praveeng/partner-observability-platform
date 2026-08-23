@@ -343,3 +343,113 @@ otelcol.exporter.otlphttp "partner_c" {
     wait_for_result = false
   }
 }
+
+// LOCAL_SYNTHETIC metrics plane. The target list and partner slots are trusted
+// configuration. Target-provided deployment labels are overwritten and all
+// unknown metrics, slots, values, and label names are removed before remote write.
+prometheus.scrape "synthetic_sdk" {
+  targets = [{ "__address__" = "metrics-fixture:8080" }]
+  metrics_path    = "/actuator/prometheus"
+  scrape_interval = "5s"
+  scrape_timeout  = "2s"
+  body_size_limit = "1MiB"
+  honor_labels    = false
+  forward_to      = [prometheus.relabel.synthetic_sdk_contract.receiver]
+}
+
+prometheus.relabel "synthetic_sdk_contract" {
+  forward_to     = [prometheus.remote_write.local_prometheus.receiver]
+  max_cache_size = 10000
+
+  rule {
+    source_labels = ["__name__"]
+    regex         = "partner_observability_(http_interactions_total|outbound_retries_total|http_in_flight|http_duration_seconds_(bucket|count|sum|max)|async_acknowledgements_total|async_acknowledgement_duration_seconds_(bucket|count|sum|max)|callback_deliveries_total|callback_processing_total|callback_processing_duration_seconds_(bucket|count|sum|max)|callback_response_total)"
+    action        = "keep"
+  }
+  rule {
+    source_labels = ["partner_slot"]
+    regex         = "p00[1-3]"
+    action        = "keep"
+  }
+  rule {
+    source_labels = ["api"]
+    regex         = "[A-Za-z0-9][A-Za-z0-9._-]{0,62}"
+    action        = "keep"
+  }
+  rule {
+    source_labels = ["interaction_kind"]
+    regex         = "(|sync_outbound|async_initiation|callback)"
+    action        = "keep"
+  }
+  rule {
+    source_labels = ["direction"]
+    regex         = "(|inbound|outbound)"
+    action        = "keep"
+  }
+  rule {
+    source_labels = ["outcome"]
+    regex         = "(|success|business_rejected|technical_failure|cancelled|unknown)"
+    action        = "keep"
+  }
+  rule {
+    source_labels = ["status_class"]
+    regex         = "(|1xx|2xx|3xx|4xx|5xx|io_error|cancelled|unknown)"
+    action        = "keep"
+  }
+  rule {
+    source_labels = ["ack_outcome"]
+    regex         = "(|accepted|rejected|no_ack_timeout|transport_failure|cancelled|unknown)"
+    action        = "keep"
+  }
+  rule {
+    source_labels = ["delivery_class"]
+    regex         = "(|initial|retry|duplicate|unknown)"
+    action        = "keep"
+  }
+  rule {
+    source_labels = ["processing_mode"]
+    regex         = "(|inline|background)"
+    action        = "keep"
+  }
+  rule {
+    source_labels = ["processing_phase"]
+    regex         = "(|authentication|parsing|validation|business_processing|downstream_processing|response_write|unknown)"
+    action        = "keep"
+  }
+  rule {
+    source_labels = ["result"]
+    regex         = "(|http_1xx|http_2xx|http_3xx|http_4xx|http_5xx|timeout|connection_failure|cancelled|unknown|write_completed|write_failed)"
+    action        = "keep"
+  }
+  rule {
+    action = "labelkeep"
+    regex  = "(__name__|le|service|partner_slot|api|interaction_kind|direction|outcome|status_class|result|ack_outcome|delivery_class|processing_mode|processing_phase)"
+  }
+  rule {
+    target_label = "market"
+    replacement  = "LOCAL"
+  }
+  rule {
+    target_label = "environment"
+    replacement  = "LOCAL_SYNTHETIC"
+  }
+  rule {
+    target_label = "service"
+    replacement  = "synthetic-partner-service"
+  }
+}
+
+prometheus.remote_write "local_prometheus" {
+  endpoint {
+    url            = "http://prometheus:9090/api/v1/write"
+    remote_timeout = "2s"
+
+    queue_config {
+      capacity             = 1000
+      min_shards           = 1
+      max_shards           = 1
+      max_samples_per_send = 200
+      batch_send_deadline  = "1s"
+    }
+  }
+}

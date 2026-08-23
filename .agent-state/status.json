@@ -12,13 +12,13 @@
     ],
     "currentState": "READY_FOR_REVIEW"
   },
-  "milestone": "M5 local Alloy and Loki data plane",
-  "summary": "M5 LOCAL_SYNTHETIC Alloy/Loki is ready for review: clean Gradle build/tests and the real-container A/B/C tenant, spoofing, payload-safety, schema N/N-1, structured-metadata, label, journey, and self-metric checks pass. Aggregate verification remains honestly non-zero for deferred M7-M9 security and performance suites.",
+  "milestone": "M6 Prometheus metrics and SLIs",
+  "summary": "M6 is ready for review: startup-fixed Micrometer outbound/callback metrics, exact series-budget rejection, Alloy scrape safety, local Prometheus scrape/remote-write/retention, and recording rules passed unit, build, security-core, M5 regression, and real-container M6 checks.",
   "blockers": [],
   "nextActions": [
-    "Review the M5 fixed-route gateway, duplicated generated-style Alloy pipelines, and local-only synthetic credentials.",
-    "Implement Grafana/Prometheus authorization and deployed-network attack rows in M6-M8 before claiming whole-platform partner-security readiness.",
-    "Implement the exact M9 performance profiles before aggregate verification can pass."
+    "Review the M6 fixed meter manifest, Alloy metric contract, recording rules, and acceptance evidence.",
+    "Implement M7 partner-authorized query access and Grafana dashboards without weakening the M6 scrape boundary.",
+    "Complete the deferred M8 deployment and M9 performance milestones; aggregate verification remains intentionally non-zero until those gates exist."
   ],
-  "lastUpdated": "2026-08-23T06:40:41Z"
+  "lastUpdated": "2026-08-23T09:11:59Z"
 }

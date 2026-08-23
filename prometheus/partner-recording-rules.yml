@@ -1,0 +1,52 @@
+groups:
+  - name: partner-observability-outbound
+    interval: 30s
+    rules:
+      - record: partner_observability:outbound_throughput_per_second:rate5m
+        expr: sum by (market, environment, service, partner_slot, api, interaction_kind, direction) (rate(partner_observability_http_interactions_total{direction="outbound"}[5m]))
+      - record: partner_observability:outbound_success_rate:ratio5m
+        expr: sum by (market, environment, service, partner_slot, api, interaction_kind, direction) (rate(partner_observability_http_interactions_total{direction="outbound",outcome="success"}[5m])) / sum by (market, environment, service, partner_slot, api, interaction_kind, direction) (rate(partner_observability_http_interactions_total{direction="outbound"}[5m]))
+      - record: partner_observability:outbound_availability:ratio5m
+        expr: sum by (market, environment, service, partner_slot, api, interaction_kind, direction) (rate(partner_observability_http_interactions_total{direction="outbound",outcome="success"}[5m])) / sum by (market, environment, service, partner_slot, api, interaction_kind, direction) (rate(partner_observability_http_interactions_total{direction="outbound",outcome!="business_rejected"}[5m]))
+      - record: partner_observability:outbound_error_rate:ratio5m
+        expr: sum by (market, environment, service, partner_slot, api, interaction_kind, direction) (rate(partner_observability_http_interactions_total{direction="outbound",outcome="technical_failure"}[5m])) / sum by (market, environment, service, partner_slot, api, interaction_kind, direction) (rate(partner_observability_http_interactions_total{direction="outbound"}[5m]))
+      - record: partner_observability:outbound_timeout_rate:ratio5m
+        expr: sum by (market, environment, service, partner_slot, api, interaction_kind, direction) (rate(partner_observability_http_interactions_total{direction="outbound",result="timeout"}[5m])) / sum by (market, environment, service, partner_slot, api, interaction_kind, direction) (rate(partner_observability_http_interactions_total{direction="outbound"}[5m]))
+      - record: partner_observability:outbound_retry_rate:ratio5m
+        expr: sum by (market, environment, service, partner_slot, api, interaction_kind, direction) (rate(partner_observability_outbound_retries_total[5m])) / sum by (market, environment, service, partner_slot, api, interaction_kind, direction) (rate(partner_observability_http_interactions_total{direction="outbound"}[5m]))
+      - record: partner_observability:outbound_latency_seconds:p50_5m
+        expr: histogram_quantile(0.50, sum by (market, environment, service, partner_slot, api, interaction_kind, direction, le) (rate(partner_observability_http_duration_seconds_bucket{direction="outbound"}[5m])))
+      - record: partner_observability:outbound_latency_seconds:p95_5m
+        expr: histogram_quantile(0.95, sum by (market, environment, service, partner_slot, api, interaction_kind, direction, le) (rate(partner_observability_http_duration_seconds_bucket{direction="outbound"}[5m])))
+      - record: partner_observability:outbound_latency_seconds:p99_5m
+        expr: histogram_quantile(0.99, sum by (market, environment, service, partner_slot, api, interaction_kind, direction, le) (rate(partner_observability_http_duration_seconds_bucket{direction="outbound"}[5m])))
+      - record: partner_observability:async_ack_acceptance:ratio5m
+        expr: sum by (market, environment, service, partner_slot, api) (rate(partner_observability_async_acknowledgements_total{ack_outcome="accepted"}[5m])) / sum by (market, environment, service, partner_slot, api) (rate(partner_observability_async_acknowledgements_total[5m]))
+
+  - name: partner-observability-callback
+    interval: 30s
+    rules:
+      - record: partner_observability:callback_throughput_per_second:rate5m
+        expr: sum by (market, environment, service, partner_slot, api) (rate(partner_observability_callback_deliveries_total[5m]))
+      - record: partner_observability:callback_processing_success:ratio5m
+        expr: sum by (market, environment, service, partner_slot, api, processing_mode) (rate(partner_observability_callback_processing_total{processing_phase="business_processing",outcome="success"}[5m])) / sum by (market, environment, service, partner_slot, api, processing_mode) (rate(partner_observability_callback_processing_total{processing_phase="business_processing",outcome=~"success|technical_failure"}[5m]))
+      - record: partner_observability:callback_processing_failure:ratio5m
+        expr: sum by (market, environment, service, partner_slot, api, processing_mode) (rate(partner_observability_callback_processing_total{outcome="technical_failure"}[5m])) / sum by (market, environment, service, partner_slot, api, processing_mode) (rate(partner_observability_callback_processing_total[5m]))
+      - record: partner_observability:callback_invalid_or_rejected:rate5m
+        expr: sum by (market, environment, service, partner_slot, api) (rate(partner_observability_callback_processing_total{processing_phase=~"parsing|validation",outcome="technical_failure"}[5m]))
+      - record: partner_observability:callback_retry:rate5m
+        expr: sum by (market, environment, service, partner_slot, api) (rate(partner_observability_callback_deliveries_total{delivery_class="retry"}[5m]))
+      - record: partner_observability:callback_duplicate:rate5m
+        expr: sum by (market, environment, service, partner_slot, api) (rate(partner_observability_callback_deliveries_total{delivery_class="duplicate"}[5m]))
+      - record: partner_observability:callback_response_2xx:ratio5m
+        expr: sum by (market, environment, service, partner_slot, api) (rate(partner_observability_callback_response_total{status_class="2xx"}[5m])) / sum by (market, environment, service, partner_slot, api) (rate(partner_observability_callback_response_total[5m]))
+      - record: partner_observability:callback_response_4xx:ratio5m
+        expr: sum by (market, environment, service, partner_slot, api) (rate(partner_observability_callback_response_total{status_class="4xx"}[5m])) / sum by (market, environment, service, partner_slot, api) (rate(partner_observability_callback_response_total[5m]))
+      - record: partner_observability:callback_response_5xx:ratio5m
+        expr: sum by (market, environment, service, partner_slot, api) (rate(partner_observability_callback_response_total{status_class="5xx"}[5m])) / sum by (market, environment, service, partner_slot, api) (rate(partner_observability_callback_response_total[5m]))
+      - record: partner_observability:callback_processing_latency_seconds:p50_5m
+        expr: histogram_quantile(0.50, sum by (market, environment, service, partner_slot, api, processing_mode, le) (rate(partner_observability_callback_processing_duration_seconds_bucket[5m])))
+      - record: partner_observability:callback_processing_latency_seconds:p95_5m
+        expr: histogram_quantile(0.95, sum by (market, environment, service, partner_slot, api, processing_mode, le) (rate(partner_observability_callback_processing_duration_seconds_bucket[5m])))
+      - record: partner_observability:callback_processing_latency_seconds:p99_5m
+        expr: histogram_quantile(0.99, sum by (market, environment, service, partner_slot, api, processing_mode, le) (rate(partner_observability_callback_processing_duration_seconds_bucket[5m])))

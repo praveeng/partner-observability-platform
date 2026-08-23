@@ -58,7 +58,7 @@ class PartnerObservabilityAutoConfigurationTest {
     }
 
     @Test
-    void noPayloadModeStopsBeforeCreatingAnObservation() {
+    void noPayloadModeCreatesMetricsObservationWithoutPartnerRecordCapture() {
         String[] properties = validProperties();
         properties[properties.length - 1] = "partner-observability.outbound[0].capture-mode=NO_PAYLOAD";
         runner.withBean(ObjectMapper.class, ObjectMapper::new)
@@ -68,7 +68,7 @@ class PartnerObservabilityAutoConfigurationTest {
                     PartnerObservationEngine engine = context.getBean(PartnerObservationEngine.class);
                     assertThat(engine.startOutbound(
                             URI.create("http://127.0.0.1/partner/a"), "POST", null, false,
-                            "application/json", java.util.OptionalLong.empty(), 1)).isEmpty();
+                            "application/json", java.util.OptionalLong.empty(), 1)).isPresent();
                 });
     }
 

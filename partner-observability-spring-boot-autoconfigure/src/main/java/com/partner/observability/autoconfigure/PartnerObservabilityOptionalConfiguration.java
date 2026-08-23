@@ -25,9 +25,12 @@ public class PartnerObservabilityOptionalConfiguration {
         @Bean
         @ConditionalOnMissingBean(ObservationMetrics.class)
         ObservationMetrics micrometerPartnerObservationMetrics(
-                MeterRegistry registry, PartnerObservabilityProperties properties) {
+                MeterRegistry registry,
+                PartnerObservabilityProperties properties,
+                ConfiguredObservationRegistry observationRegistry) {
             return properties.isMetricsEnabled()
-                    ? new MicrometerObservationMetrics(registry, properties.getServiceName())
+                    ? new MicrometerObservationMetrics(
+                            registry, properties.getServiceName(), observationRegistry)
                     : ObservationMetrics.NONE;
         }
     }

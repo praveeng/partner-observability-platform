@@ -30,6 +30,7 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-web'
     testImplementation 'org.springframework.boot:spring-boot-starter-webflux'
     testImplementation 'org.springframework.boot:spring-boot-starter-actuator'
+    testImplementation 'io.micrometer:micrometer-registry-prometheus'
     testImplementation 'com.squareup.okhttp3:okhttp'
     testImplementation 'com.squareup.okhttp3:mockwebserver'
     testImplementation 'com.squareup.okhttp3:okhttp-tls'

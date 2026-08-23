@@ -31,6 +31,44 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  prometheus:
+    image: prom/prometheus:v3.12.0@sha256:69f5241418838263316593f7274a304b095c40bcf22e57272865da91bd60a8ac
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=16d
+      - --storage.tsdb.retention.size=1GB
+      - --web.enable-remote-write-receiver
+    volumes:
+      - ../prometheus/local-config.yml:/etc/prometheus/prometheus.yml:ro
+      - ../prometheus/partner-recording-rules.yml:/etc/prometheus/partner-recording-rules.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:${LOCAL_PROMETHEUS_PORT:-19090}:9090"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9090/-/ready"]
+      interval: 5s
+      timeout: 2s
+      retries: 20
+      start_period: 5s
+    restart: unless-stopped
+
+  metrics-fixture:
+    image: nginx:1.28.0-alpine@sha256:30f1c0d78e0ad60901648be663a710bdadf19e4c10ac6782c235200619158284
+    volumes:
+      - ./nginx/local-metrics-fixture.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/local-metrics.prom:/usr/share/nginx/html/local-metrics.prom:ro
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/actuator/prometheus"]
+      interval: 5s
+      timeout: 2s
+      retries: 20
+    restart: unless-stopped
+
   alloy:
     image: grafana/alloy:v1.18.0@sha256:491b0578c04983fd54fe99b587b6fab4404dc46d0dc16677bd6b00cc1140b308
     command:
@@ -48,6 +86,10 @@ services:
       - edge
     depends_on:
       loki:
+        condition: service_healthy
+      prometheus:
+        condition: service_healthy
+      metrics-fixture:
         condition: service_healthy
     restart: unless-stopped
 
@@ -79,3 +121,4 @@ networks:
 volumes:
   alloy-data: {}
   loki-data: {}
+  prometheus-data: {}

@@ -1,0 +1,33 @@
+# TYPE partner_observability_http_interactions_total counter
+partner_observability_http_interactions_total{service="spoofed-service",partner_slot="p001",api="CREDIT_SUBMIT",interaction_kind="sync_outbound",direction="outbound",outcome="success",status_class="2xx",result="http_2xx",applicationId="must-drop"} 4
+partner_observability_http_interactions_total{service="spoofed-service",partner_slot="p002",api="CREDIT_SUBMIT",interaction_kind="sync_outbound",direction="outbound",outcome="technical_failure",status_class="io_error",result="timeout"} 1
+partner_observability_http_interactions_total{service="spoofed-service",partner_slot="p999",api="CREDIT_SUBMIT",interaction_kind="sync_outbound",direction="outbound",outcome="success",status_class="2xx",result="http_2xx"} 999
+# TYPE partner_observability_outbound_retries_total counter
+partner_observability_outbound_retries_total{service="spoofed-service",partner_slot="p001",api="CREDIT_SUBMIT",interaction_kind="sync_outbound",direction="outbound"} 1
+# TYPE partner_observability_http_duration_seconds histogram
+partner_observability_http_duration_seconds_bucket{service="spoofed-service",partner_slot="p001",api="CREDIT_SUBMIT",interaction_kind="sync_outbound",direction="outbound",outcome="success",le="0.05"} 1
+partner_observability_http_duration_seconds_bucket{service="spoofed-service",partner_slot="p001",api="CREDIT_SUBMIT",interaction_kind="sync_outbound",direction="outbound",outcome="success",le="0.1"} 2
+partner_observability_http_duration_seconds_bucket{service="spoofed-service",partner_slot="p001",api="CREDIT_SUBMIT",interaction_kind="sync_outbound",direction="outbound",outcome="success",le="0.25"} 3
+partner_observability_http_duration_seconds_bucket{service="spoofed-service",partner_slot="p001",api="CREDIT_SUBMIT",interaction_kind="sync_outbound",direction="outbound",outcome="success",le="0.5"} 4
+partner_observability_http_duration_seconds_bucket{service="spoofed-service",partner_slot="p001",api="CREDIT_SUBMIT",interaction_kind="sync_outbound",direction="outbound",outcome="success",le="1.0"} 4
+partner_observability_http_duration_seconds_bucket{service="spoofed-service",partner_slot="p001",api="CREDIT_SUBMIT",interaction_kind="sync_outbound",direction="outbound",outcome="success",le="2.0"} 4
+partner_observability_http_duration_seconds_bucket{service="spoofed-service",partner_slot="p001",api="CREDIT_SUBMIT",interaction_kind="sync_outbound",direction="outbound",outcome="success",le="5.0"} 4
+partner_observability_http_duration_seconds_bucket{service="spoofed-service",partner_slot="p001",api="CREDIT_SUBMIT",interaction_kind="sync_outbound",direction="outbound",outcome="success",le="10.0"} 4
+partner_observability_http_duration_seconds_bucket{service="spoofed-service",partner_slot="p001",api="CREDIT_SUBMIT",interaction_kind="sync_outbound",direction="outbound",outcome="success",le="30.0"} 4
+partner_observability_http_duration_seconds_bucket{service="spoofed-service",partner_slot="p001",api="CREDIT_SUBMIT",interaction_kind="sync_outbound",direction="outbound",outcome="success",le="+Inf"} 4
+partner_observability_http_duration_seconds_count{service="spoofed-service",partner_slot="p001",api="CREDIT_SUBMIT",interaction_kind="sync_outbound",direction="outbound",outcome="success"} 4
+partner_observability_http_duration_seconds_sum{service="spoofed-service",partner_slot="p001",api="CREDIT_SUBMIT",interaction_kind="sync_outbound",direction="outbound",outcome="success"} 0.65
+# TYPE partner_observability_callback_deliveries_total counter
+partner_observability_callback_deliveries_total{service="spoofed-service",partner_slot="p001",api="CREDIT_CALLBACK",delivery_class="initial"} 100
+partner_observability_callback_deliveries_total{service="spoofed-service",partner_slot="p001",api="CREDIT_CALLBACK",delivery_class="retry"} 7
+partner_observability_callback_deliveries_total{service="spoofed-service",partner_slot="p002",api="CREDIT_CALLBACK",delivery_class="duplicate"} 2
+partner_observability_callback_deliveries_total{service="spoofed-service",partner_slot="p003",api="CREDIT_CALLBACK",delivery_class="initial"} 3
+# TYPE partner_observability_callback_processing_total counter
+partner_observability_callback_processing_total{service="spoofed-service",partner_slot="p001",api="CREDIT_CALLBACK",processing_mode="inline",processing_phase="business_processing",outcome="success"} 95
+partner_observability_callback_processing_total{service="spoofed-service",partner_slot="p001",api="CREDIT_CALLBACK",processing_mode="inline",processing_phase="business_processing",outcome="technical_failure"} 5
+# TYPE partner_observability_callback_response_total counter
+partner_observability_callback_response_total{service="spoofed-service",partner_slot="p001",api="CREDIT_CALLBACK",outcome="success",status_class="2xx",result="write_completed"} 95
+partner_observability_callback_response_total{service="spoofed-service",partner_slot="p001",api="CREDIT_CALLBACK",outcome="business_rejected",status_class="4xx",result="write_completed"} 3
+partner_observability_callback_response_total{service="spoofed-service",partner_slot="p001",api="CREDIT_CALLBACK",outcome="technical_failure",status_class="5xx",result="write_completed"} 2
+# TYPE unsafe_metric counter
+unsafe_metric{partner_slot="p001",credential="synthetic-secret"} 1

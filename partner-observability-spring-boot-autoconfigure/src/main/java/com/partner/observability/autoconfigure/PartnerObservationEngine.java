@@ -12,6 +12,7 @@ import com.partner.observability.core.model.Direction;
 import com.partner.observability.core.model.ExchangeMode;
 import com.partner.observability.core.model.InteractionContext;
 import com.partner.observability.core.model.InteractionKind;
+import com.partner.observability.core.model.HttpResult;
 import com.partner.observability.core.model.Outcome;
 import com.partner.observability.core.model.OutboundApiRequestRecord;
 import com.partner.observability.core.model.OutboundApiResponseRecord;
@@ -77,7 +78,7 @@ public final class PartnerObservationEngine {
             String contentType,
             OptionalLong declaredSize,
             int attempt) {
-        if (!properties.isEnabled() || !properties.isEventsEnabled()) {
+        if (!properties.isEnabled() || (!properties.isEventsEnabled() && !properties.isMetricsEnabled())) {
             return Optional.empty();
         }
         Optional<ObservationDefinition> matched = registry.outbound(method, uri);
@@ -87,39 +88,40 @@ public final class PartnerObservationEngine {
         ObservationDefinition definition = matched.get();
         Optional<PartnerObservation> explicit = PartnerObservations.current(definition);
         if (explicit.isPresent()) {
-            return explicit.get().transportStarted(uri, attempt);
+            Optional<OutboundObservation> observation = explicit.get().transportStarted(uri, attempt);
+            observation.ifPresent(ignored -> metrics.outboundStarted(definition, attempt));
+            return observation;
         }
         try {
             PayloadCaptureMode mode = effectiveMode(definition);
-            if (mode == PayloadCaptureMode.NO_PAYLOAD) {
-                return Optional.empty();
-            }
-            CapturedBody captured = capture(
-                    definition, ObservationLeg.OUTBOUND_REQUEST, body, bodySupported,
-                    contentType, declaredSize, mode);
+            boolean emitEvent = properties.isEventsEnabled() && mode != PayloadCaptureMode.NO_PAYLOAD;
+            CapturedBody captured = emitEvent
+                    ? capture(definition, ObservationLeg.OUTBOUND_REQUEST, body, bodySupported,
+                            contentType, declaredSize, mode)
+                    : new CapturedBody(NO_VALUES, CorrelationIdentifiers.empty());
             UUID interactionId = UUID.randomUUID();
             Instant now = Instant.now();
             Optional<TransportSecurity> security = transportSecurity(uri);
-            InteractionKind kind = definition.exchangeMode() == ExchangeMode.ASYNC_INITIATION
-                    ? InteractionKind.ASYNC_INITIATION
-                    : InteractionKind.SYNC_OUTBOUND;
-            InteractionContext interaction = new InteractionContext(
-                    kind, Direction.OUTBOUND_TO_PARTNER, interactionId, 0, Optional.empty(),
-                    definition.correlationProfile(), captured.identifiers(),
-                    kind == InteractionKind.ASYNC_INITIATION
-                            ? Optional.of(TimelineStage.ASYNC_REQUEST_SENT)
-                            : Optional.empty());
-            OutboundApiRequestRecord request = new OutboundApiRequestRecord(
-                    definition.name(), definition.path(), definition.exchangeMode(), method(method),
-                    Math.max(1, Math.min(10, attempt)), normalizedContentType(contentType), declaredSize,
-                    NO_VALUES, NO_VALUES, safeResult(captured.payload()), TransportState.DELEGATED,
-
-                    security);
-            submit(definition, envelope(
-                    definition, now, interaction, mode, captured.payload().status(), Outcome.UNKNOWN, request));
-            return Optional.of(new OutboundObservation(
+            if (emitEvent) {
+                InteractionKind kind = definition.exchangeMode() == ExchangeMode.ASYNC_INITIATION
+                        ? InteractionKind.ASYNC_INITIATION : InteractionKind.SYNC_OUTBOUND;
+                InteractionContext interaction = new InteractionContext(
+                        kind, Direction.OUTBOUND_TO_PARTNER, interactionId, 0, Optional.empty(),
+                        definition.correlationProfile(), captured.identifiers(),
+                        kind == InteractionKind.ASYNC_INITIATION
+                                ? Optional.of(TimelineStage.ASYNC_REQUEST_SENT) : Optional.empty());
+                OutboundApiRequestRecord request = new OutboundApiRequestRecord(
+                        definition.name(), definition.path(), definition.exchangeMode(), method(method),
+                        Math.max(1, Math.min(10, attempt)), normalizedContentType(contentType), declaredSize,
+                        NO_VALUES, NO_VALUES, safeResult(captured.payload()), TransportState.DELEGATED, security);
+                submit(definition, envelope(
+                        definition, now, interaction, mode, captured.payload().status(), Outcome.UNKNOWN, request));
+            }
+            OutboundObservation observation = new OutboundObservation(
                     this, definition, interactionId, now, System.nanoTime(), captured.identifiers(),
-                    security));
+                    security);
+            metrics.outboundStarted(definition, attempt);
+            return Optional.of(observation);
         } catch (RuntimeException exception) {
             return Optional.empty();
         }
@@ -134,7 +136,7 @@ public final class PartnerObservationEngine {
             int attempt) {
         try {
             PayloadCaptureMode mode = effectiveMode(definition);
-            if (mode == PayloadCaptureMode.NO_PAYLOAD) return;
+            if (!properties.isEventsEnabled() || mode == PayloadCaptureMode.NO_PAYLOAD) return;
             CapturedBody effective = forMode(captured, mode);
             InteractionKind kind = definition.exchangeMode() == ExchangeMode.ASYNC_INITIATION
                     ? InteractionKind.ASYNC_INITIATION : InteractionKind.SYNC_OUTBOUND;
@@ -164,14 +166,20 @@ public final class PartnerObservationEngine {
             Optional<TransportSecurity> transportSecurity,
             int status,
             CapturedBody captured) {
+        long duration = elapsedMillis(startedNanos);
+        StatusClass statusClass = statusClass(status);
+        Outcome outcome = outcome(statusClass);
+        AcknowledgementOutcome acknowledgement = definition.exchangeMode() == ExchangeMode.ASYNC_INITIATION
+                ? status >= 200 && status < 300
+                        ? AcknowledgementOutcome.ACCEPTED : AcknowledgementOutcome.REJECTED
+                : null;
+        recordOutboundCompletion(
+                definition, outcome, statusClass, duration, acknowledgement, httpResult(statusClass));
         try {
             PayloadCaptureMode mode = effectiveMode(definition);
-            if (mode == PayloadCaptureMode.NO_PAYLOAD) return;
+            if (!properties.isEventsEnabled() || mode == PayloadCaptureMode.NO_PAYLOAD) return;
             CapturedBody effective = forMode(captured, mode);
             CorrelationIdentifiers identifiers = requestIdentifiers.merge(effective.identifiers());
-            long duration = elapsedMillis(startedNanos);
-            StatusClass statusClass = statusClass(status);
-            Outcome outcome = outcome(statusClass);
             InteractionKind kind = definition.exchangeMode() == ExchangeMode.ASYNC_INITIATION
                     ? InteractionKind.ASYNC_INITIATION : InteractionKind.SYNC_OUTBOUND;
             InteractionContext interaction = new InteractionContext(
@@ -180,10 +188,7 @@ public final class PartnerObservationEngine {
                     kind == InteractionKind.ASYNC_INITIATION
                             ? Optional.of(TimelineStage.ASYNC_ACK_RECEIVED) : Optional.empty());
             TelemetryRecord record;
-            AcknowledgementOutcome acknowledgement = null;
             if (kind == InteractionKind.ASYNC_INITIATION) {
-                acknowledgement = status >= 200 && status < 300
-                        ? AcknowledgementOutcome.ACCEPTED : AcknowledgementOutcome.REJECTED;
                 record = new AsyncAcknowledgementRecord(
                         definition.name(), OptionalInt.of(status), statusClass, acknowledgement, outcome,
                         duration, acknowledgement == AcknowledgementOutcome.ACCEPTED
@@ -199,7 +204,6 @@ public final class PartnerObservationEngine {
             }
             submit(definition, envelope(
                     definition, Instant.now(), interaction, mode, effective.payload().status(), outcome, record));
-            metrics.outboundCompleted(definition, outcome, statusClass, duration, acknowledgement);
         } catch (RuntimeException ignored) {
             // Explicit capture cannot alter decryption or the business result.
         }
@@ -232,19 +236,23 @@ public final class PartnerObservationEngine {
             boolean bodySupported,
             String contentType,
             OptionalLong declaredSize) {
+        long duration = elapsedMillis(startedNanos);
+        StatusClass statusClass = statusClass(status);
+        Outcome outcome = outcome(statusClass);
+        AcknowledgementOutcome acknowledgement = definition.exchangeMode() == ExchangeMode.ASYNC_INITIATION
+                ? status >= 200 && status < 300
+                        ? AcknowledgementOutcome.ACCEPTED : AcknowledgementOutcome.REJECTED
+                : null;
+        recordOutboundCompletion(
+                definition, outcome, statusClass, duration, acknowledgement, httpResult(statusClass));
         try {
             PayloadCaptureMode mode = effectiveMode(definition);
-            if (mode == PayloadCaptureMode.NO_PAYLOAD) {
-                return;
-            }
+            if (!properties.isEventsEnabled() || mode == PayloadCaptureMode.NO_PAYLOAD) return;
             ObservationLeg leg = definition.exchangeMode() == ExchangeMode.ASYNC_INITIATION
                     ? ObservationLeg.ASYNC_ACKNOWLEDGEMENT
                     : ObservationLeg.OUTBOUND_RESPONSE;
             CapturedBody captured = capture(definition, leg, body, bodySupported, contentType, declaredSize, mode);
             CorrelationIdentifiers identifiers = requestIdentifiers.merge(captured.identifiers());
-            long duration = elapsedMillis(startedNanos);
-            StatusClass statusClass = statusClass(status);
-            Outcome outcome = outcome(statusClass);
             InteractionKind kind = definition.exchangeMode() == ExchangeMode.ASYNC_INITIATION
                     ? InteractionKind.ASYNC_INITIATION
                     : InteractionKind.SYNC_OUTBOUND;
@@ -255,11 +263,7 @@ public final class PartnerObservationEngine {
                     kind, Direction.OUTBOUND_TO_PARTNER, interactionId, 1, Optional.empty(),
                     definition.correlationProfile(), identifiers, stage);
             TelemetryRecord record;
-            AcknowledgementOutcome acknowledgement = null;
             if (kind == InteractionKind.ASYNC_INITIATION) {
-                acknowledgement = status >= 200 && status < 300
-                        ? AcknowledgementOutcome.ACCEPTED
-                        : AcknowledgementOutcome.REJECTED;
                 record = new AsyncAcknowledgementRecord(
                         definition.name(), OptionalInt.of(status), statusClass, acknowledgement, outcome,
                         duration, acknowledgement == AcknowledgementOutcome.ACCEPTED
@@ -277,7 +281,6 @@ public final class PartnerObservationEngine {
             }
             submit(definition, envelope(
                     definition, Instant.now(), interaction, mode, captured.payload().status(), outcome, record));
-            metrics.outboundCompleted(definition, outcome, statusClass, duration, acknowledgement);
         } catch (RuntimeException ignored) {
             // Observation cannot alter the HTTP client's result.
         }
@@ -291,20 +294,35 @@ public final class PartnerObservationEngine {
             CorrelationIdentifiers identifiers,
             Optional<TransportSecurity> transportSecurity,
             Throwable failure) {
+        boolean cancelled = failure instanceof CancellationException || failure instanceof InterruptedException;
+        boolean timeout = failure instanceof SocketTimeoutException || failure instanceof TimeoutException
+                || failure.getClass().getSimpleName().toLowerCase(java.util.Locale.ROOT).contains("timeout");
+        StatusClass statusClass = cancelled ? StatusClass.CANCELLED : StatusClass.IO_ERROR;
+        Outcome outcome = cancelled ? Outcome.CANCELLED : Outcome.TECHNICAL_FAILURE;
+        long duration = elapsedMillis(startedNanos);
+        AcknowledgementOutcome acknowledgement = definition.exchangeMode() == ExchangeMode.ASYNC_INITIATION
+                ? cancelled
+                        ? AcknowledgementOutcome.CANCELLED
+                        : timeout ? AcknowledgementOutcome.NO_ACK_TIMEOUT
+                                : AcknowledgementOutcome.TRANSPORT_FAILURE
+                : null;
+        recordOutboundCompletion(
+                definition, outcome, statusClass, duration, acknowledgement,
+                cancelled ? HttpResult.CANCELLED
+                        : timeout ? HttpResult.TIMEOUT : HttpResult.CONNECTION_FAILURE);
+        Optional<TransportFailureClass> transportFailure = transportSecurity.isPresent()
+                ? TransportFailureClassifier.classify(failure) : Optional.empty();
+        transportFailure.ifPresent(value -> {
+            try {
+                metrics.transportSecurityFailure(definition, value);
+            } catch (RuntimeException ignored) {
+                // A custom meter implementation cannot affect the business failure.
+            }
+        });
         try {
             PayloadCaptureMode mode = effectiveMode(definition);
-            if (mode == PayloadCaptureMode.NO_PAYLOAD) {
-                return;
-            }
-            boolean cancelled = failure instanceof CancellationException || failure instanceof InterruptedException;
-            boolean timeout = failure instanceof SocketTimeoutException || failure instanceof TimeoutException
-                    || failure.getClass().getSimpleName().toLowerCase(java.util.Locale.ROOT).contains("timeout");
-            StatusClass statusClass = cancelled ? StatusClass.CANCELLED : StatusClass.IO_ERROR;
-            Outcome outcome = cancelled ? Outcome.CANCELLED : Outcome.TECHNICAL_FAILURE;
+            if (!properties.isEventsEnabled() || mode == PayloadCaptureMode.NO_PAYLOAD) return;
             String failureCode = cancelled ? "cancelled" : timeout ? "timeout" : "transport_failure";
-            Optional<TransportFailureClass> transportFailure = transportSecurity.isPresent()
-                    ? TransportFailureClassifier.classify(failure)
-                    : Optional.empty();
             if (transportFailure.isPresent()) {
                 failureCode = transportFailure.get().name().toLowerCase(java.util.Locale.ROOT);
             }
@@ -317,13 +335,8 @@ public final class PartnerObservationEngine {
                     kind == InteractionKind.ASYNC_INITIATION
                             ? Optional.of(TimelineStage.ASYNC_ACK_NOT_RECEIVED)
                             : Optional.empty());
-            long duration = elapsedMillis(startedNanos);
             TelemetryRecord record;
-            AcknowledgementOutcome acknowledgement = null;
             if (kind == InteractionKind.ASYNC_INITIATION) {
-                acknowledgement = cancelled
-                        ? AcknowledgementOutcome.CANCELLED
-                        : timeout ? AcknowledgementOutcome.NO_ACK_TIMEOUT : AcknowledgementOutcome.TRANSPORT_FAILURE;
                 record = new AsyncAcknowledgementRecord(
                         definition.name(), OptionalInt.empty(), statusClass, acknowledgement, outcome,
                         duration, ProcessingDisposition.UNKNOWN, Optional.of(failureCode),
@@ -337,8 +350,6 @@ public final class PartnerObservationEngine {
             }
             submit(definition, envelope(
                     definition, Instant.now(), interaction, mode, PayloadStatus.NOT_REQUESTED, outcome, record));
-            metrics.outboundCompleted(definition, outcome, statusClass, duration, acknowledgement);
-            transportFailure.ifPresent(value -> metrics.transportSecurityFailure(definition, value));
         } catch (RuntimeException ignored) {
             // Observation cannot replace the business exception.
         }
@@ -350,13 +361,29 @@ public final class PartnerObservationEngine {
             String method,
             String contentType,
             OptionalLong declaredSize) {
-        return new CallbackObservation(
+        CallbackObservation observation = new CallbackObservation(
                 this, definition, receivedAt, method(method), contentType, declaredSize,
                 UUID.randomUUID(), UUID.randomUUID(), System.nanoTime());
+        metrics.callbackStarted(definition);
+        return observation;
     }
 
     ObservationMetrics metrics() {
         return metrics;
+    }
+
+    private void recordOutboundCompletion(
+            ObservationDefinition definition,
+            Outcome outcome,
+            StatusClass status,
+            long duration,
+            AcknowledgementOutcome acknowledgement,
+            HttpResult result) {
+        try {
+            metrics.outboundCompleted(definition, outcome, status, duration, acknowledgement, result);
+        } catch (RuntimeException ignored) {
+            // A custom meter implementation cannot affect business completion.
+        }
     }
 
     PayloadCaptureMode effectiveMode(ObservationDefinition definition) {
@@ -414,6 +441,18 @@ public final class PartnerObservationEngine {
             case 4 -> StatusClass.FOUR_XX;
             case 5 -> StatusClass.FIVE_XX;
             default -> StatusClass.UNKNOWN;
+        };
+    }
+
+    static HttpResult httpResult(StatusClass status) {
+        return switch (status) {
+            case ONE_XX -> HttpResult.HTTP_1XX;
+            case TWO_XX -> HttpResult.HTTP_2XX;
+            case THREE_XX -> HttpResult.HTTP_3XX;
+            case FOUR_XX -> HttpResult.HTTP_4XX;
+            case FIVE_XX -> HttpResult.HTTP_5XX;
+            case CANCELLED -> HttpResult.CANCELLED;
+            default -> HttpResult.UNKNOWN;
         };
     }
 

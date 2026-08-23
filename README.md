@@ -2,7 +2,7 @@
 
 Repository for a partner-isolated observability SDK and platform targeting Java 17, Spring Boot 2.7.x, Grafana Alloy, Loki, Prometheus, Grafana, Terraform, and AWS ECS.
 
-The scoped **M2-M5 SDK, integration, and local data-plane slices** are ready for review. Core provides schema-2 async/callback records and correlation, the Spring Boot 2.7 starter instruments configured application paths, and the LOCAL_SYNTHETIC Compose stack provides trusted Alloy routing plus one Loki tenant per synthetic partner. Encrypted services can use the typed, fail-open hooks in [the encrypted-service migration guide](docs/encrypted-service-migration.md). Grafana/Prometheus, deployment policy evidence, the remaining certificate matrix, and full-duration performance remain later milestone work. See [PLANS.md](PLANS.md) and [the machine-readable state](.agent-state/status.json).
+The scoped **M2-M6 SDK, integration, and local data-plane slices** are ready for review. Core provides schema-2 async/callback records and correlation, the Spring Boot 2.7 starter instruments configured application paths, and the LOCAL_SYNTHETIC Compose stack provides trusted Alloy routing, one Loki tenant per synthetic partner, and scrape-based Prometheus API/callback health metrics. Encrypted services can use the typed, fail-open hooks in [the encrypted-service migration guide](docs/encrypted-service-migration.md). Grafana query authorization, deployment policy evidence, the remaining certificate matrix, and full-duration performance remain later milestone work. See [PLANS.md](PLANS.md) and [the machine-readable state](.agent-state/status.json).
 
 ## Core promise
 
@@ -37,6 +37,7 @@ Prerequisites are Java 17, Bash, and Docker Compose/Terraform only when their mi
 ./scripts/test.sh
 ./scripts/test-security.sh --core  # implemented M2 pre-queue/trusted-context scope
 ./scripts/test-security.sh --data-plane  # implemented M5 real Alloy/Loki scope
+./scripts/test-security.sh --metrics-plane  # implemented M6 Alloy/Prometheus scope
 ./scripts/test-security.sh         # non-zero until remaining M7-M9 gates exist
 ./scripts/test-performance.sh      # non-zero until M9 profiles exist
 ./scripts/verify-all.sh        # non-zero until every required suite exists

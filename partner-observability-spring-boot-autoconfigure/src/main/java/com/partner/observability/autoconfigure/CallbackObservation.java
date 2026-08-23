@@ -89,6 +89,7 @@ public final class CallbackObservation {
             return;
         }
         try {
+            engine.metrics().callbackReceived(definition, classification);
             PayloadCaptureMode mode = engine.effectiveMode(definition);
             CapturedBody captured = engine.capture(
                     definition, ObservationLeg.CALLBACK_REQUEST, decodedBody, decodedBody != null,
@@ -107,7 +108,6 @@ public final class CallbackObservation {
                     Optional.empty());
             engine.submit(definition, engine.envelope(
                     definition, receivedAt, interaction, mode, captured.payload().status(), Outcome.UNKNOWN, record));
-            engine.metrics().callbackReceived(definition, classification);
         } catch (RuntimeException ignored) {
             // Callback behavior is independent of observation.
         }
@@ -203,6 +203,7 @@ public final class CallbackObservation {
                     ? PartnerObservationEngine.outcome(statusClass)
                     : transportOutcome == TransportOutcome.CANCELLED
                             ? Outcome.CANCELLED : Outcome.TECHNICAL_FAILURE;
+            engine.metrics().callbackResponded(definition, outcome, statusClass, transportOutcome);
             TimelineStage stage = transportOutcome == TransportOutcome.WRITE_COMPLETED
                     ? TimelineStage.CALLBACK_RESPONSE_SENT
                     : TimelineStage.CALLBACK_RESPONSE_WRITE_FAILED;
@@ -213,7 +214,6 @@ public final class CallbackObservation {
                     NO_VALUES, responsePayload);
             engine.submit(definition, engine.envelope(
                     definition, Instant.now(), interaction(stage), mode, responsePayloadStatus, outcome, record));
-            engine.metrics().callbackResponded(definition, outcome, statusClass, transportOutcome);
         } catch (RuntimeException ignored) {
             // Callback response is already owned by the host framework.
         }

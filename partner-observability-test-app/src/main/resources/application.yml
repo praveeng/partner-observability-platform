@@ -20,6 +20,7 @@ partner-observability:
   metrics-enabled: true
   export-enabled: true
   callbacks-enabled: true
+  local-synthetic: true
   service-name: partner-observability-test-app
   explicit-observations-enabled: true
   service-version: 0.1.0
@@ -37,6 +38,7 @@ partner-observability:
       subject-source: synthetic-host-auth
   outbound:
     - name: PARTNER_ALPHA_SYNC
+      origin: http://127.0.0.1
       path: /partner/alpha
       method: POST
       partner: partner-alpha-fixture
@@ -46,6 +48,7 @@ partner-observability:
       correlation:
         application-id-path: $.applicationId
     - name: PARTNER_BETA_SYNC
+      origin: http://127.0.0.1
       path: /partner/beta
       method: POST
       partner: partner-beta-fixture
@@ -55,6 +58,7 @@ partner-observability:
       correlation:
         application-id-path: $.applicationId
     - name: PARTNER_ALPHA_ENCRYPTED
+      origin: http://127.0.0.1
       path: /encrypted/alpha
       method: POST
       partner: partner-alpha-fixture
@@ -62,6 +66,7 @@ partner-observability:
       capture-mode: FULL_SANITIZED
       safe-fields: [applicationId, amount, tenureMonths, product, fixtureClassification, document]
     - name: PARTNER_BETA_ENCRYPTED
+      origin: http://127.0.0.1
       path: /encrypted/beta
       method: POST
       partner: partner-beta-fixture
@@ -69,6 +74,7 @@ partner-observability:
       capture-mode: FULL_SANITIZED
       safe-fields: [applicationId, amount, tenureMonths, product, fixtureClassification, document]
     - name: PARTNER_ALPHA_ASYNC
+      origin: http://127.0.0.1
       path: /async/alpha
       method: POST
       partner: partner-alpha-fixture
@@ -83,6 +89,7 @@ partner-observability:
         partner-reference-id-path: $.partnerReferenceId
         external-transaction-id-path: $.externalTransactionId
     - name: PARTNER_BETA_ASYNC
+      origin: http://127.0.0.1
       path: /async/beta
       method: POST
       partner: partner-beta-fixture

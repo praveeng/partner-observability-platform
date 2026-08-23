@@ -7,6 +7,10 @@ cd "$repo_root"
 export LC_ALL=C
 export TZ=UTC
 export CI=true
+export GRADLE_USER_HOME="${GRADLE_USER_HOME:-/tmp/partner-observability-gradle-cache}"
+
+readonly REQUIRED_TERRAFORM_VERSION="1.11.4"
+readonly REQUIRED_GRADLE_VERSION="7.6.4"
 
 declare -a stage_names=()
 declare -a stage_results=()
@@ -52,14 +56,23 @@ check_prerequisites() {
     require_command "$command_name" || result=1
   done
 
-  local terraform_bin
+  local terraform_bin terraform_version
   terraform_bin="${TERRAFORM_BIN:-$(command -v terraform || true)}"
   if [[ -z "$terraform_bin" || ! -x "$terraform_bin" ]]; then
-    echo 'MISSING prerequisite: Terraform CLI (set TERRAFORM_BIN to an executable pinned binary when it is not on PATH)' >&2
+    printf 'MISSING prerequisite: Terraform CLI %s (set TERRAFORM_BIN to the approved executable when it is not on PATH)\n' \
+      "$REQUIRED_TERRAFORM_VERSION" >&2
     result=1
   else
     printf 'FOUND prerequisite: Terraform CLI at %s\n' "$terraform_bin"
-    TERRAFORM_BIN="$terraform_bin" "$terraform_bin" version | head -n 1
+    terraform_version="$("$terraform_bin" version -json 2>/dev/null | jq -r '.terraform_version // empty')"
+    if [[ "$terraform_version" != "$REQUIRED_TERRAFORM_VERSION" ]]; then
+      printf 'INVALID prerequisite: Terraform %s is required; found %s\n' \
+        "$REQUIRED_TERRAFORM_VERSION" "${terraform_version:-unknown}" >&2
+      result=1
+    else
+      printf 'FOUND prerequisite: Terraform %s\n' "$terraform_version"
+    fi
+    export TERRAFORM_BIN="$terraform_bin"
   fi
 
   if [[ ! -x ./gradlew ]]; then
@@ -67,6 +80,15 @@ check_prerequisites() {
     result=1
   else
     echo 'FOUND prerequisite: executable Gradle wrapper ./gradlew'
+    local wrapper_distribution
+    wrapper_distribution="$(sed -n 's#^distributionUrl=.*gradle-\([0-9][0-9.]*\)-bin\.zip$#\1#p' gradle/wrapper/gradle-wrapper.properties)"
+    if [[ "$wrapper_distribution" != "$REQUIRED_GRADLE_VERSION" ]]; then
+      printf 'INVALID prerequisite: Gradle wrapper %s is required; configured %s\n' \
+        "$REQUIRED_GRADLE_VERSION" "${wrapper_distribution:-unknown}" >&2
+      result=1
+    else
+      printf 'FOUND prerequisite: Gradle wrapper %s\n' "$wrapper_distribution"
+    fi
   fi
 
   if command -v java >/dev/null 2>&1; then
@@ -85,6 +107,15 @@ check_prerequisites() {
       echo 'MISSING prerequisite: Docker Compose v2 plugin' >&2
       result=1
     }
+    local compose_version
+    compose_version="$(docker compose version --short 2>/dev/null || true)"
+    if [[ "$compose_version" != 2.* ]]; then
+      printf 'INVALID prerequisite: Docker Compose v2 is required; found %s\n' \
+        "${compose_version:-unknown}" >&2
+      result=1
+    else
+      printf 'FOUND prerequisite: Docker Compose %s\n' "$compose_version"
+    fi
     docker info >/dev/null 2>&1 || {
       echo 'UNAVAILABLE prerequisite: Docker daemon is not reachable by the current user.' >&2
       result=1
@@ -107,7 +138,8 @@ repository_baseline() {
   else
     echo 'INFO: worktree is clean.'
   fi
-  echo 'INFO: Gradle clean, unique Compose projects, disposable volumes, and temporary Terraform data directories isolate generated state.'
+  mkdir -p "$GRADLE_USER_HOME"
+  echo 'INFO: Gradle clean, a task-specific Gradle cache, unique Compose projects, disposable volumes, and tracked-file Terraform snapshots isolate generated state.'
 }
 
 gradle_test() {
@@ -163,7 +195,9 @@ print_summary() {
   if (( failed_stages == 0 )); then
     printf '\nFINAL RESULT: PASS (%d stages)\n' "${#stage_names[@]}"
   else
-    printf '\nFINAL RESULT: FAIL (%d of %d stages failed)\n' "$failed_stages" "${#stage_names[@]}" >&2
+    # Keep the complete summary on one stream so captured CI/local output
+    # cannot reorder the final verdict ahead of individual stage rows.
+    printf '\nFINAL RESULT: FAIL (%d of %d stages failed)\n' "$failed_stages" "${#stage_names[@]}"
   fi
 }
 

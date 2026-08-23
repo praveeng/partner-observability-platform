@@ -18,7 +18,7 @@ for shell_file in scripts/*.sh test/integration/*.sh test/terraform/*.sh; do
   bash -n "$shell_file"
 done
 
-for requirement_id in $(seq 1 49); do
+for (( requirement_id = 1; requirement_id <= 49; requirement_id++ )); do
   rg -q "^\| ${requirement_id} \|" docs/acceptance-criteria.md || {
     echo "ERROR: acceptance-criteria.md has no completion-gate mapping for requirement $requirement_id" >&2
     exit 1
@@ -44,6 +44,13 @@ rg -q 'LOKI_RETENTION_PERIOD.*384h' terraform/modules/ecs-loki/main.tf
 rg -q 'retention_period:[[:space:]]*24h' loki/local-config.yaml
 rg -q -- '--storage\.tsdb\.retention\.time=16d' docker/compose.yml
 rg -q 'auth_enabled:[[:space:]]*true' loki/local-config.yaml
+rg -q 'REQUIRED_TERRAFORM_VERSION="1\.11\.4"' scripts/verify-all.sh
+rg -q 'required_aws_provider_version="6\.61\.0"' scripts/test-terraform.sh
+rg -q 'tracked-file Terraform snapshots isolate generated state' scripts/verify-all.sh
+if rg -n 'grafana/(alloy|loki):|prom/prometheus:|nginx:[0-9]' test/integration --glob '*.sh'; then
+  echo 'ERROR: integration validators must use the digest-pinned image resolved from Compose, not a mutable tag.' >&2
+  exit 1
+fi
 
 if rg -n -i '(helm_release|kubernetes_|apiVersion:[[:space:]]*(apps/|v1))' \
     partner-observability-* alloy loki prometheus grafana terraform docker \

@@ -23,6 +23,7 @@ public class PartnerObservabilityProperties {
     private boolean metricsEnabled = true;
     private boolean exportEnabled = true;
     private boolean callbacksEnabled = true;
+    private boolean localSynthetic;
     private String serviceName = "application";
     private String serviceVersion = "unknown";
     private String market = "local";
@@ -49,6 +50,8 @@ public class PartnerObservabilityProperties {
     public void setExportEnabled(boolean value) { exportEnabled = value; }
     public boolean isCallbacksEnabled() { return callbacksEnabled; }
     public void setCallbacksEnabled(boolean value) { callbacksEnabled = value; }
+    public boolean isLocalSynthetic() { return localSynthetic; }
+    public void setLocalSynthetic(boolean value) { localSynthetic = value; }
     public String getServiceName() { return serviceName; }
     public void setServiceName(String value) { serviceName = value; }
     public String getServiceVersion() { return serviceVersion; }
@@ -133,9 +136,12 @@ public class PartnerObservabilityProperties {
 
     public static class OutboundApi extends PayloadDefinition {
         private ExchangeMode exchangeMode = ExchangeMode.SYNC;
+        private String origin;
 
         public ExchangeMode getExchangeMode() { return exchangeMode; }
         public void setExchangeMode(ExchangeMode value) { exchangeMode = value; }
+        public String getOrigin() { return origin; }
+        public void setOrigin(String value) { origin = value; }
     }
 
     public static class Callback extends PayloadDefinition {

@@ -23,12 +23,18 @@ partner-observability:
       slot: p001
   outbound:
     - name: CREDIT_SUBMISSION
+      origin: https://partner-a.example
       path: /partner-api/applications
       method: POST
       partner: PARTNER_A
       correlation-profile: CREDIT_ASYNC
       capture-mode: METADATA_ONLY
 ```
+
+`origin` is a security boundary for automatic capture: scheme, host, effective port,
+method, and path must all match before a record is attributed to the configured partner.
+Only HTTPS origins validate. The test-only `local-synthetic=true` exception is restricted
+to DEV and literal loopback HTTP; it must never appear in a deployed partner service.
 
 Full sanitized capture additionally requires an exact `safe-fields` allowlist. Callback entries use the same partner/profile model plus a fixed callback path and either an authenticated principal mapping or a host-provided trusted resolver. See the auto-configuration README for the capture and trust boundaries.
 

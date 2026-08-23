@@ -233,15 +233,18 @@ jq -e '
   all(.services["tenant-gateway"].ports[]; .host_ip == "127.0.0.1") and
   .networks.backend.internal == true
 ' "$tmp_dir/compose.json" >/dev/null
+alloy_image="$(jq -er '.services.alloy.image' "$tmp_dir/compose.json")"
+loki_image="$(jq -er '.services.loki.image' "$tmp_dir/compose.json")"
+gateway_image="$(jq -er '.services["tenant-gateway"].image' "$tmp_dir/compose.json")"
 docker run --rm -v "$repo_root/alloy/local-config.alloy:/etc/alloy/config.alloy:ro" \
-  grafana/alloy:v1.18.0 validate /etc/alloy/config.alloy
+  "$alloy_image" validate /etc/alloy/config.alloy
 docker run --rm -v "$repo_root/loki/local-config.yaml:/etc/loki/local-config.yaml:ro" \
-  grafana/loki:3.7.2 -config.file=/etc/loki/local-config.yaml -verify-config=true
+  "$loki_image" -config.file=/etc/loki/local-config.yaml -verify-config=true
 docker run --rm \
   --add-host loki:127.0.0.1 \
   -v "$repo_root/docker/nginx/local-gateway.conf:/etc/nginx/nginx.conf:ro" \
   -v "$repo_root/docker/nginx/local-synthetic.htpasswd:/etc/nginx/local-synthetic.htpasswd:ro" \
-  nginx:1.28.0-alpine nginx -t
+  "$gateway_image" nginx -t
 
 echo "Starting isolated LOCAL_SYNTHETIC Alloy/Loki stack."
 compose up -d --wait

@@ -4,6 +4,8 @@ import com.partner.observability.core.policy.PayloadCaptureMode;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.regex.Pattern;
 
 final class PartnerObservabilityConfigurationValidator {
@@ -44,12 +46,51 @@ final class PartnerObservabilityConfigurationValidator {
             }
         }
         validateDefinitions(properties.getOutbound(), partners, "outbound", 64);
+        validateOutboundOrigins(properties);
         validateDefinitions(properties.getCallbacks(), partners, "callback", 64);
         validateLogSelections(properties);
         if (properties.isEnabled() && properties.getOutbound().isEmpty()
                 && properties.getCallbacks().isEmpty() && properties.getLogSelections().isEmpty()) {
             fail("enabled configuration must define an outbound API, callback, or log selection");
         }
+    }
+
+    private void validateOutboundOrigins(PartnerObservabilityProperties properties) {
+        Set<String> routes = new HashSet<>();
+        for (PartnerObservabilityProperties.OutboundApi definition : properties.getOutbound()) {
+            URI origin;
+            try {
+                origin = new URI(required(definition.getOrigin(), "outbound origin"));
+            } catch (URISyntaxException exception) {
+                fail("outbound origin is invalid");
+                return;
+            }
+            String scheme = value(origin.getScheme()).toLowerCase(java.util.Locale.ROOT);
+            String host = origin.getHost();
+            if (host == null || origin.getUserInfo() != null || origin.getQuery() != null
+                    || origin.getFragment() != null || !(origin.getPath().isEmpty() || "/".equals(origin.getPath()))) {
+                fail("outbound origin must contain only scheme, host, and optional port");
+            }
+            boolean secure = "https".equals(scheme);
+            boolean loopback = "127.0.0.1".equals(host) || "::1".equals(host);
+            if (!secure && !("http".equals(scheme)
+                    && properties.getEnvironment() == com.partner.observability.core.context.DeploymentEnvironment.DEV
+                    && properties.isLocalSynthetic()
+                    && loopback)) {
+                fail("outbound origin must use HTTPS; DEV loopback HTTP requires local-synthetic");
+            }
+            String route = definition.getMethod() + " " + normalizedOrigin(origin) + definition.getPath();
+            if (!routes.add(route)) {
+                fail("outbound origin/method/path routes must be unique");
+            }
+        }
+    }
+
+    private String normalizedOrigin(URI origin) {
+        String scheme = origin.getScheme().toLowerCase(java.util.Locale.ROOT);
+        String host = origin.getHost().toLowerCase(java.util.Locale.ROOT);
+        int port = origin.getPort() >= 0 ? origin.getPort() : ("https".equals(scheme) ? 443 : 80);
+        return scheme + "://" + host + ":" + port;
     }
 
     private void validateLogSelections(PartnerObservabilityProperties properties) {
@@ -125,6 +166,7 @@ final class PartnerObservabilityConfigurationValidator {
         }
         Set<String> names = new HashSet<>();
         Set<String> routes = new HashSet<>();
+        List<String> callbackRoutes = new java.util.ArrayList<>();
         for (PartnerObservabilityProperties.PayloadDefinition definition : definitions) {
             token(definition.getName(), kind + " name");
             token(definition.getCorrelationProfile(), kind + " correlation-profile");
@@ -148,8 +190,17 @@ final class PartnerObservabilityConfigurationValidator {
             if (definition.getSafeFields().size() > 128) {
                 fail(kind + " safe-fields exceed the hard cap");
             }
-            if (!names.add(definition.getName()) || !routes.add(definition.getMethod() + " " + path)) {
+            boolean duplicateRoute = "callback".equals(kind)
+                    && !routes.add(definition.getMethod() + " " + path);
+            if (!names.add(definition.getName()) || duplicateRoute) {
                 fail(kind + " names and method/path routes must be unique");
+            }
+            if ("callback".equals(kind)) {
+                String route = definition.getMethod() + " " + path;
+                if (callbackRoutes.stream().anyMatch(existing -> callbackRoutesOverlap(existing, route))) {
+                    fail("callback routes must not overlap");
+                }
+                callbackRoutes.add(route);
             }
             validateCorrelation(definition.getCorrelation());
             if (definition instanceof PartnerObservabilityProperties.Callback callback
@@ -158,6 +209,29 @@ final class PartnerObservabilityConfigurationValidator {
                 fail("callback authenticated-principal is invalid");
             }
         }
+    }
+
+    private boolean callbackRoutesOverlap(String firstRoute, String secondRoute) {
+        int firstSpace = firstRoute.indexOf(' ');
+        int secondSpace = secondRoute.indexOf(' ');
+        if (!firstRoute.substring(0, firstSpace).equals(secondRoute.substring(0, secondSpace))) {
+            return false;
+        }
+        String[] first = firstRoute.substring(firstSpace + 1).split("/", -1);
+        String[] second = secondRoute.substring(secondSpace + 1).split("/", -1);
+        if (first.length != second.length) {
+            return false;
+        }
+        for (int index = 0; index < first.length; index++) {
+            if (!routeVariable(first[index]) && !routeVariable(second[index]) && !first[index].equals(second[index])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean routeVariable(String segment) {
+        return segment.startsWith("{") && segment.endsWith("}");
     }
 
     private void validateCorrelation(PartnerObservabilityProperties.Correlation correlation) {

@@ -18,7 +18,7 @@ M1 approval authorizes implementation planning, not production deployment or pro
 
 ## Authoritative local completion gate
 
-`./scripts/verify-all.sh` is the authoritative local completion gate. It requires Java 17, the executable Gradle wrapper, Docker with the Compose v2 plugin and a reachable daemon, Terraform, Bash, Git, curl, jq, and ripgrep. A missing prerequisite fails preflight; no suite is silently skipped. The gate uses a Gradle clean build, reruns focused test tasks, unique Compose projects with disposable volumes, temporary Terraform data directories, UTC/C locale, and a final per-stage `PASS`/`FAIL` summary. Every security command is a normal mandatory stage, so any non-zero security result fails the aggregate gate.
+`./scripts/verify-all.sh` is the authoritative local completion gate. It requires Java 17, the pinned Gradle 7.6.4 wrapper, Docker with the Compose v2 plugin and a reachable daemon, the locally validated Terraform 1.11.4 CLI, Bash, Git, curl, jq, and ripgrep. A missing or wrong-version prerequisite fails preflight; no suite is silently skipped. The gate uses a Gradle clean build, reruns focused test tasks, a task-specific Gradle cache, digest-pinned Compose images for both runtime and configuration validation, unique Compose projects with disposable volumes, tracked-file Terraform snapshots with temporary data directories and the approved AWS provider 6.61.0, UTC/C locale, and a final per-stage `PASS`/`FAIL` summary. Ignored Terraform files from earlier runs cannot affect validation. Every security command is a normal mandatory stage, so any non-zero security result fails the aggregate gate.
 
 The following matrix is normative. “Required completion runner” identifies the command that must provide the final automated evidence. Supporting evidence does not turn a missing end-to-end boundary into a pass.
 
@@ -82,6 +82,7 @@ The existing performance profiles remain cross-cutting completion criteria even 
 - Core has no Spring dependency. Optional RestTemplate, WebClient, OkHttp, Logback, Reactor, Actuator, and Micrometer integrations are classpath/bean conditional.
 - Schema-2 outbound request/response, async acknowledgement, callback request/response/processing, business event, context, correlation identifiers, safe value, capture decision, and SLI models match `telemetry-contract.md`.
 - RestTemplate/WebClient/OkHttp execute business I/O exactly once and preserve response bytes, streaming, cancellation, and exception semantics.
+- Automatic outbound selection requires a configuration-owned HTTPS origin and exact scheme/host/effective-port/method/path match. Missing/plaintext origins fail startup; only explicit `local-synthetic=true` DEV literal-loopback fixtures may use HTTP.
 - RestTemplate/WebClient/OkHttp use the service-owned HTTPS transport unchanged. Starter activation does not create, install, replace, or mutate SSL contexts/socket factories, trust/hostname managers, WebClient connectors/SSL providers, OkHttp pinners/connection specifications, proxies, DNS, redirects, or TLS policies.
 - Async client mappings emit one outbound request and one acknowledgement terminal record without double-counting a generic response; accepted, rejected, timeout, cancellation, and transport failure mappings are tested.
 - Configured MVC/WebFlux callback interception preserves authentication/signature ordering, route mapping, body bytes, status, exceptions, async dispatch, backpressure, cancellation, and buffer ownership. Unconfigured inbound traffic emits no partner callback record.
@@ -128,6 +129,7 @@ The existing performance profiles remain cross-cutting completion criteria even 
 ## HTTPS/TLS transport gates
 
 - Every external partner API, acknowledgement/response, callback/webhook, ECS DEV mock, and partner Grafana connection is HTTPS/TLS. Configuration mutation tests reject HTTP in DEV/STAGE/PROD.
+- A different origin using an approved partner method/path creates no automatic observation, and semantically overlapping callback route templates fail startup before list order can choose a partner.
 - RestTemplate, WebClient, and OkHttp pass synthetic valid-chain tests and preserve their original unknown-CA, expired/not-yet-valid, incomplete-chain, and hostname-mismatch failures with the starter both disabled and enabled.
 - Trust-all `TrustManager`/SSL contexts and permissive `HostnameVerifier` implementations are absent from production code/configuration. Static checks cover client SSL/TLS setter methods in observability modules.
 - An HTTPS-to-HTTP redirect is rejected and no SDK retry, alternate client, trust bypass, or plaintext fallback occurs. The original business error/result is identical with instrumentation disabled/enabled.

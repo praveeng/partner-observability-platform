@@ -105,8 +105,115 @@ class PartnerObservabilityAutoConfigurationTest {
                     assertThat(context).hasNotFailed();
                     PartnerObservationEngine engine = context.getBean(PartnerObservationEngine.class);
                     assertThat(engine.startOutbound(
-                            URI.create("http://127.0.0.1/partner/a"), "POST", null, false,
+                            URI.create("https://partner-a.example/partner/a"), "POST", null, false,
                             "application/json", java.util.OptionalLong.empty(), 1)).isPresent();
+                });
+    }
+
+    @Test
+    void outboundSelectionCannotCrossAConfiguredPartnerOrigin() {
+        runner.withBean(ObjectMapper.class, ObjectMapper::new)
+                .withPropertyValues(validProperties())
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    ConfiguredObservationRegistry registry = context.getBean(ConfiguredObservationRegistry.class);
+
+                    assertThat(registry.outbound("POST", URI.create("https://partner-a.example/partner/a")))
+                            .isPresent();
+                    assertThat(registry.outbound("POST", URI.create("https://partner-b.example/partner/a")))
+                            .isEmpty();
+                });
+    }
+
+    @Test
+    void overlappingCallbackRoutesForDifferentPartnersFailStartupClosed() {
+        runner.withPropertyValues(
+                        "partner-observability.enabled=true",
+                        "partner-observability.service-name=fixture-service",
+                        "partner-observability.service-version=1.0",
+                        "partner-observability.market=synthetic",
+                        "partner-observability.partners[0].key=partner-a",
+                        "partner-observability.partners[0].tenant-route-id=tenant-a",
+                        "partner-observability.partners[0].slot=p001",
+                        "partner-observability.partners[1].key=partner-b",
+                        "partner-observability.partners[1].tenant-route-id=tenant-b",
+                        "partner-observability.partners[1].slot=p002",
+                        "partner-observability.callbacks[0].name=callback-a",
+                        "partner-observability.callbacks[0].path=/callbacks/{applicationId}",
+                        "partner-observability.callbacks[0].partner=partner-a",
+                        "partner-observability.callbacks[1].name=callback-b",
+                        "partner-observability.callbacks[1].path=/callbacks/{partnerReferenceId}",
+                        "partner-observability.callbacks[1].partner=partner-b")
+                .run(context -> assertThat(context).hasFailed());
+    }
+
+    @Test
+    void plaintextOrMissingPartnerOriginFailsStartupClosed() {
+        String[] missingOrigin = java.util.Arrays.stream(validProperties())
+                .filter(value -> !value.contains(".origin="))
+                .toArray(String[]::new);
+        runner.withPropertyValues(missingOrigin).run(context -> assertThat(context).hasFailed());
+
+        String[] plaintext = java.util.Arrays.stream(validProperties())
+                .map(value -> value.contains(".origin=")
+                        ? "partner-observability.outbound[0].origin=http://partner-a.example"
+                        : value)
+                .toArray(String[]::new);
+        runner.withPropertyValues(plaintext).run(context -> assertThat(context).hasFailed());
+    }
+
+    @Test
+    void insecureLoopbackRequiresAnExplicitDevOnlyException() {
+        String[] loopback = java.util.Arrays.stream(validProperties())
+                .map(value -> value.contains(".origin=")
+                        ? "partner-observability.outbound[0].origin=http://127.0.0.1"
+                        : value)
+                .toArray(String[]::new);
+        runner.withPropertyValues(loopback).run(context -> assertThat(context).hasFailed());
+
+        runner.withPropertyValues(loopback)
+                .withPropertyValues("partner-observability.local-synthetic=true")
+                .run(context -> assertThat(context).hasNotFailed());
+
+        runner.withPropertyValues(loopback)
+                .withPropertyValues(
+                        "partner-observability.local-synthetic=true",
+                        "partner-observability.environment=STAGE")
+                .run(context -> assertThat(context).hasFailed());
+    }
+
+    @Test
+    void identicalPathsAtDifferentApprovedOriginsRemainPartnerIsolated() {
+        runner.withPropertyValues(
+                        "partner-observability.enabled=true",
+                        "partner-observability.service-name=fixture-service",
+                        "partner-observability.service-version=1.0",
+                        "partner-observability.market=synthetic",
+                        "partner-observability.partners[0].key=partner-a",
+                        "partner-observability.partners[0].tenant-route-id=tenant-a",
+                        "partner-observability.partners[0].slot=p001",
+                        "partner-observability.partners[1].key=partner-b",
+                        "partner-observability.partners[1].tenant-route-id=tenant-b",
+                        "partner-observability.partners[1].slot=p002",
+                        "partner-observability.outbound[0].name=submit-a",
+                        "partner-observability.outbound[0].origin=https://partner-a.example",
+                        "partner-observability.outbound[0].path=/applications",
+                        "partner-observability.outbound[0].partner=partner-a",
+                        "partner-observability.outbound[1].name=submit-b",
+                        "partner-observability.outbound[1].origin=https://partner-b.example",
+                        "partner-observability.outbound[1].path=/applications",
+                        "partner-observability.outbound[1].partner=partner-b")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    ConfiguredObservationRegistry registry = context.getBean(ConfiguredObservationRegistry.class);
+                    assertThat(registry.outbound("POST", URI.create("https://partner-a.example/applications")))
+                            .hasValueSatisfying(definition -> assertThat(
+                                            definition.partnerContext().canonicalPartnerKey())
+                                    .isEqualTo("partner-a"));
+                    assertThat(registry.outbound("POST", URI.create("https://partner-b.example/applications")))
+                            .hasValueSatisfying(definition -> assertThat(
+                                            definition.partnerContext().canonicalPartnerKey())
+                                    .isEqualTo("partner-b"));
                 });
     }
 
@@ -120,6 +227,7 @@ class PartnerObservabilityAutoConfigurationTest {
             "partner-observability.partners[0].tenant-route-id=tenant-a",
             "partner-observability.partners[0].slot=p001",
             "partner-observability.outbound[0].name=submit",
+            "partner-observability.outbound[0].origin=https://partner-a.example",
             "partner-observability.outbound[0].path=/partner/a",
             "partner-observability.outbound[0].partner=partner-a",
             "partner-observability.outbound[0].capture-mode=METADATA_ONLY"

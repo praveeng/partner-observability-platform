@@ -244,6 +244,7 @@ class MicrometerObservationMetricsTest {
             PartnerObservabilityProperties properties, String name, String path, ExchangeMode mode) {
         PartnerObservabilityProperties.OutboundApi api = new PartnerObservabilityProperties.OutboundApi();
         configure(api, name, path);
+        api.setOrigin("https://partner-a.example");
         api.setExchangeMode(mode);
         properties.getOutbound().add(api);
     }

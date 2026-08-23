@@ -34,7 +34,39 @@ public final class ConfiguredObservationRegistry {
         if (uri == null) {
             return Optional.empty();
         }
-        return match(outbound, method, uri.getPath());
+        return outbound.stream()
+                .filter(definition -> definition.method().equalsIgnoreCase(method)
+                        && originMatches(definition.origin(), uri)
+                        && routeMatches(definition.path(), uri.getPath()))
+                .findFirst();
+    }
+
+    private boolean originMatches(URI configured, URI actual) {
+        if (actual.getScheme() == null || actual.getHost() == null) {
+            return false;
+        }
+        if (!configured.getScheme().equalsIgnoreCase(actual.getScheme())
+                || !configured.getHost().equalsIgnoreCase(actual.getHost())) {
+            return false;
+        }
+        int configuredPort = configured.getPort();
+        int actualPort = actual.getPort();
+        if (configuredPort >= 0) {
+            return effectivePort(configured) == effectivePort(actual);
+        }
+        if ("http".equalsIgnoreCase(configured.getScheme()) && isLiteralLoopback(configured.getHost())) {
+            return true;
+        }
+        return effectivePort(configured) == effectivePort(actual);
+    }
+
+    private int effectivePort(URI uri) {
+        if (uri.getPort() >= 0) return uri.getPort();
+        return "https".equalsIgnoreCase(uri.getScheme()) ? 443 : 80;
+    }
+
+    private boolean isLiteralLoopback(String host) {
+        return "127.0.0.1".equals(host) || "::1".equals(host);
     }
 
     public Optional<ObservationDefinition> outboundByName(String name) {
@@ -97,7 +129,9 @@ public final class ConfiguredObservationRegistry {
                     ? ExchangeMode.SYNC
                     : ((PartnerObservabilityProperties.OutboundApi) definition).getExchangeMode();
             result.add(new ObservationDefinition(
-                    definition.getName(), definition.getPath(), definition.getMethod(),
+                    definition.getName(), callback ? null : URI.create(
+                            ((PartnerObservabilityProperties.OutboundApi) definition).getOrigin()),
+                    definition.getPath(), definition.getMethod(),
                     partners.get(definition.getPartner()), definition.getCorrelationProfile(),
                     definition.getCaptureMode(), definition.getSafeFields(), CorrelationPaths.copyOf(definition.getCorrelation()),
                     exchangeMode, callback, processing, authenticatedPrincipal));

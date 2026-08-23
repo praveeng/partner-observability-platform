@@ -76,12 +76,14 @@ jq -e '
   any(.services.prometheus.command[]; . == "--storage.tsdb.retention.size=1GB") and
   (all(.services.prometheus.command[]; . != "--web.enable-admin-api" and . != "--web.enable-lifecycle"))
 ' "$tmp_dir/compose.json" >/dev/null
+prometheus_image="$(jq -er '.services.prometheus.image' "$tmp_dir/compose.json")"
+alloy_image="$(jq -er '.services.alloy.image' "$tmp_dir/compose.json")"
 docker run --rm --entrypoint /bin/promtool \
   -v "$repo_root/prometheus/local-config.yml:/etc/prometheus/prometheus.yml:ro" \
   -v "$repo_root/prometheus/partner-recording-rules.yml:/etc/prometheus/partner-recording-rules.yml:ro" \
-  prom/prometheus:v3.12.0 check config /etc/prometheus/prometheus.yml
+  "$prometheus_image" check config /etc/prometheus/prometheus.yml
 docker run --rm -v "$repo_root/alloy/local-config.alloy:/etc/alloy/config.alloy:ro" \
-  grafana/alloy:v1.18.0 validate /etc/alloy/config.alloy
+  "$alloy_image" validate /etc/alloy/config.alloy
 
 echo "Starting scrape -> relabel -> bounded remote-write -> Prometheus flow."
 compose up -d --wait prometheus metrics-fixture alloy

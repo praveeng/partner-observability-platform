@@ -413,6 +413,7 @@ class PartnerSafeLogCompatibilityTest {
                         "partner-observability.partners[0].tenant-route-id=foreign-tenant-a",
                         "partner-observability.partners[0].slot=p003",
                         "partner-observability.outbound[0].name=foreign-submit",
+                        "partner-observability.outbound[0].origin=https://partner-a.example",
                         "partner-observability.outbound[0].path=/foreign",
                         "partner-observability.outbound[0].partner=partner-a")
                 .run(context -> {

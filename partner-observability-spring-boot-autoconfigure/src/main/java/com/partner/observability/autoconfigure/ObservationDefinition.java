@@ -5,9 +5,11 @@ import com.partner.observability.core.model.ExchangeMode;
 import com.partner.observability.core.policy.PayloadCaptureMode;
 import java.util.List;
 import java.util.Objects;
+import java.net.URI;
 
 public record ObservationDefinition(
         String name,
+        URI origin,
         String path,
         String method,
         PartnerContext partnerContext,
@@ -22,6 +24,9 @@ public record ObservationDefinition(
 
     public ObservationDefinition {
         Objects.requireNonNull(name, "name");
+        if (!callback) {
+            Objects.requireNonNull(origin, "origin");
+        }
         Objects.requireNonNull(path, "path");
         Objects.requireNonNull(method, "method");
         Objects.requireNonNull(partnerContext, "partnerContext");

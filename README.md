@@ -22,6 +22,7 @@ Observability must never reduce business availability. Application traffic write
 | `test` | Cross-component integration, security, performance, and synthetic fixtures |
 | `docs` | Product, architecture, security, telemetry, deployment, and acceptance contracts |
 | `docs/transport-security.md` | HTTPS-only client, ALB/ACM, certificate, secret, and TLS ownership contract |
+| `docs/security-review.md` | Adversarial production-security findings, 84 attack dispositions, fixes, and blockers |
 | `.agent-state` | Machine-readable autonomous-agent handoff state |
 
 ## Agent entry point

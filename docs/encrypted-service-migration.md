@@ -20,6 +20,10 @@ The feature is off by default. Enabling it does not select any API or field by i
 The API name, route, method, and partner are server-controlled configuration. Business
 code never supplies a partner identity or tenant route.
 
+The required HTTPS `origin` binds automatic transport joining to the intended partner
+host. Explicit logical observation by API name does not authorize a different transport
+origin; the host service remains responsible for calling only its reviewed endpoint.
+
 ```yaml
 partner-observability:
   enabled: true
@@ -28,6 +32,7 @@ partner-observability:
   explicit-observations-enabled: true
   outbound:
     - name: PARTNER_ALPHA_ENCRYPTED
+      origin: https://partner-alpha.example
       path: /partner/encrypted
       method: POST
       partner: partner-alpha

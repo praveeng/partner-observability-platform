@@ -10,15 +10,19 @@
       "READY_FOR_REVIEW",
       "COMPLETE"
     ],
-    "currentState": "IN_PROGRESS"
+    "currentState": "BLOCKED"
   },
-  "milestone": "M3 selected SLF4J/Logback compatibility",
-  "summary": "The selected-log compatibility slice passes its 12-test disclosure/isolation/failure suite, the full auto-configuration module, repository build/tests, core security, and real Alloy/Loki and Alloy/Prometheus gates. Repository-wide verification remains non-zero because Terraform is unavailable, M9 performance is NOT IMPLEMENTED, and Terraform whitespace fails the documentation baseline. An all-worktree local snapshot commit is being created at explicit user direction without changing that verdict.",
-  "blockers": [],
-  "nextActions": [
-    "Provide the pinned Terraform CLI and resolve the unrelated Terraform trailing-blank-line findings before rerunning the aggregate preflight/baseline.",
-    "Complete the M7/M9 Grafana, end-to-end, and full-duration performance gates required by authoritative repository-wide verification.",
-    "Repair the zero-byte unreferenced Git object through an explicitly approved repository-maintenance action before relying on a clean git-fsck result."
+  "milestone": "Adversarial production lending security review",
+  "summary": "BLOCKED: adversarial 84-scenario production review completed. Cross-origin outbound attribution and overlapping callback routes were reproduced then fixed with retained regressions. All implemented SDK, Alloy/Loki, Prometheus, Terraform, and documentation gates pass; authoritative verification fails 5/22 stages only at missing Grafana/query authorization, application end to end, full security aggregation, performance profiles, and dashboard provisioning.",
+  "blockers": [
+    "B001: Grafana provisioning, dashboards, and the real local Grafana authentication/query-isolation runner are missing, blocking requirements 35 and 48 plus full security.",
+    "B002: test/integration/run-local-end-to-end.sh is missing, blocking requirements 36-46 and authorized-path tenant-isolation evidence.",
+    "B003: scripts/test-performance.sh reports NOT IMPLEMENTED for every mandatory full-duration acceptance profile."
   ],
-  "lastUpdated": "2026-08-23T11:28:00Z"
+  "nextActions": [
+    "Implement M7 Grafana provisioning, fixed query-gateway authorization, partner dashboards, and real authentication/isolation tests.",
+    "Implement the application-originated outbound and async/callback end-to-end suite for requirements 36-46.",
+    "Implement and run all exact M9 performance profiles without shortening loads, durations, or thresholds, then rerun scripts/verify-all.sh."
+  ],
+  "lastUpdated": "2026-08-23T16:10:00Z"
 }

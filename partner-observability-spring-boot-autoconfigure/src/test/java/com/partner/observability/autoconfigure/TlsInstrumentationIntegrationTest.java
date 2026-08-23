@@ -68,10 +68,13 @@ class TlsInstrumentationIntegrationTest {
                     entry("ok-http/untrusted-certificate", false),
                     entry("rest-template/wrong-host", false),
                     entry("web-client/wrong-host", false),
-                    entry("ok-http/wrong-host", false)));
+                    entry("ok-http/wrong-host", false),
+                    entry("rest-template/expired-certificate", false),
+                    entry("web-client/expired-certificate", false),
+                    entry("ok-http/expired-certificate", false)));
             assertThat(disabled.telemetry()).isEmpty();
             assertThat(disabled.transportFailureMetricCount()).isZero();
-            assertThat(enabled.transportFailureMetricCount()).isEqualTo(6);
+            assertThat(enabled.transportFailureMetricCount()).isEqualTo(3);
             assertThat(enabled.metricMetadata())
                     .doesNotContain(CERTIFICATE_SENTINEL)
                     .doesNotContain("PRIVATE KEY")
@@ -86,8 +89,22 @@ class TlsInstrumentationIntegrationTest {
             assertThat(responses).allSatisfy(response ->
                     assertThat(response.transportSecurity()).contains(TransportSecurity.TLS));
             assertThat(responses.stream().filter(response -> response.httpStatus().isEmpty()).toList())
-                    .hasSize(6)
+                    .hasSize(6);
+            assertThat(responses.stream()
+                    .filter(response -> response.apiId().equals("tls-api") && response.httpStatus().isEmpty())
+                    .toList())
+                    .hasSize(3)
                     .allSatisfy(response -> assertThat(response.transportFailureClass()).isPresent());
+            assertThat(responses.stream()
+                    .filter(response -> response.apiId().equals("expired-tls-api"))
+                    .toList())
+                    .hasSize(3)
+                    .allSatisfy(response -> {
+                        assertThat(response.httpStatus()).isEmpty();
+                        assertThat(response.outcome()).isEqualTo(com.partner.observability.core.model.Outcome.TECHNICAL_FAILURE);
+                        assertThat(response.errorCode()).hasValueSatisfying(code ->
+                                assertThat(code).isIn("timeout", "transport_failure", "tls_certificate_validation"));
+                    });
             assertThat(responses.stream()
                     .flatMap(response -> response.transportFailureClass().stream())
                             .toList())
@@ -118,7 +135,10 @@ class TlsInstrumentationIntegrationTest {
                 .withBean("untrustedWebClient", WebClient.class, () -> originals.untrustedWebClient)
                 .withBean("trustedOkHttp", OkHttpClient.class, () -> originals.trustedOkHttp)
                 .withBean("untrustedOkHttp", OkHttpClient.class, () -> originals.untrustedOkHttp)
-                .withPropertyValues(properties(enabled));
+                .withBean("expiredRestTemplate", RestTemplate.class, () -> originals.expiredRestTemplate)
+                .withBean("expiredWebClient", WebClient.class, () -> originals.expiredWebClient)
+                .withBean("expiredOkHttp", OkHttpClient.class, () -> originals.expiredOkHttp)
+                .withPropertyValues(properties(enabled, fixture));
 
         Map<String, Boolean> outcomes = new LinkedHashMap<>();
         runner.run(context -> {
@@ -129,6 +149,9 @@ class TlsInstrumentationIntegrationTest {
             WebClient untrustedWebClient = context.getBean("untrustedWebClient", WebClient.class);
             OkHttpClient trustedOkHttp = context.getBean("trustedOkHttp", OkHttpClient.class);
             OkHttpClient untrustedOkHttp = context.getBean("untrustedOkHttp", OkHttpClient.class);
+            RestTemplate expiredRestTemplate = context.getBean("expiredRestTemplate", RestTemplate.class);
+            WebClient expiredWebClient = context.getBean("expiredWebClient", WebClient.class);
+            OkHttpClient expiredOkHttp = context.getBean("expiredOkHttp", OkHttpClient.class);
 
             assertThat(trustedOkHttp.sslSocketFactory()).isSameAs(originals.trustedOkHttp.sslSocketFactory());
             assertThat(trustedOkHttp.x509TrustManager()).isSameAs(originals.trustedOkHttp.x509TrustManager());
@@ -145,6 +168,9 @@ class TlsInstrumentationIntegrationTest {
             outcomes.put("rest-template/wrong-host", rest(trustedRestTemplate, fixture.wrongHostUrl()));
             outcomes.put("web-client/wrong-host", web(trustedWebClient, fixture.wrongHostUrl()));
             outcomes.put("ok-http/wrong-host", okHttp(trustedOkHttp, fixture.wrongHostUrl()));
+            outcomes.put("rest-template/expired-certificate", rest(expiredRestTemplate, fixture.expiredUrl()));
+            outcomes.put("web-client/expired-certificate", web(expiredWebClient, fixture.expiredUrl()));
+            outcomes.put("ok-http/expired-certificate", okHttp(expiredOkHttp, fixture.expiredUrl()));
 
             assertThat(originals.trustedRestFactory.invocations()).isGreaterThan(0);
             assertThat(originals.untrustedRestFactory.invocations()).isGreaterThan(0);
@@ -199,7 +225,7 @@ class TlsInstrumentationIntegrationTest {
         }
     }
 
-    private String[] properties(boolean enabled) {
+    private String[] properties(boolean enabled, TlsFixture fixture) {
         return new String[] {
             "partner-observability.enabled=" + enabled,
             "partner-observability.service-name=tls-fixture-service",
@@ -209,9 +235,15 @@ class TlsInstrumentationIntegrationTest {
             "partner-observability.partners[0].tenant-route-id=tenant-a",
             "partner-observability.partners[0].slot=p001",
             "partner-observability.outbound[0].name=tls-api",
+            "partner-observability.outbound[0].origin=" + fixture.origin(),
             "partner-observability.outbound[0].path=/partner/a",
             "partner-observability.outbound[0].partner=partner-a",
-            "partner-observability.outbound[0].capture-mode=METADATA_ONLY"
+            "partner-observability.outbound[0].capture-mode=METADATA_ONLY",
+            "partner-observability.outbound[1].name=expired-tls-api",
+            "partner-observability.outbound[1].origin=" + fixture.expiredOrigin(),
+            "partner-observability.outbound[1].path=/partner/expired",
+            "partner-observability.outbound[1].partner=partner-a",
+            "partner-observability.outbound[1].capture-mode=METADATA_ONLY"
         };
     }
 
@@ -260,8 +292,11 @@ class TlsInstrumentationIntegrationTest {
 
     private static final class TlsFixture implements AutoCloseable {
         private final MockWebServer server = new MockWebServer();
+        private final MockWebServer expiredServer = new MockWebServer();
         private final HandshakeCertificates clientCertificates;
         private final SslContext nettyClientSslContext;
+        private final HandshakeCertificates expiredClientCertificates;
+        private final SslContext expiredNettyClientSslContext;
 
         private TlsFixture() throws IOException {
             HeldCertificate certificate = new HeldCertificate.Builder()
@@ -277,7 +312,23 @@ class TlsInstrumentationIntegrationTest {
             nettyClientSslContext = SslContextBuilder.forClient()
                     .trustManager(certificate.certificate())
                     .build();
+            long now = System.currentTimeMillis();
+            HeldCertificate expiredCertificate = new HeldCertificate.Builder()
+                    .commonName("SYNTHETIC_EXPIRED_CERTIFICATE")
+                    .addSubjectAlternativeName("localhost")
+                    .validityInterval(now - Duration.ofDays(2).toMillis(), now - Duration.ofDays(1).toMillis())
+                    .build();
+            HandshakeCertificates expiredServerCertificates = new HandshakeCertificates.Builder()
+                    .heldCertificate(expiredCertificate)
+                    .build();
+            expiredClientCertificates = new HandshakeCertificates.Builder()
+                    .addTrustedCertificate(expiredCertificate.certificate())
+                    .build();
+            expiredNettyClientSslContext = SslContextBuilder.forClient()
+                    .trustManager(expiredCertificate.certificate())
+                    .build();
             server.useHttps(serverCertificates.sslSocketFactory(), false);
+            expiredServer.useHttps(expiredServerCertificates.sslSocketFactory(), false);
             for (int index = 0; index < 12; index++) {
                 server.enqueue(new MockResponse()
                         .setResponseCode(200)
@@ -285,6 +336,7 @@ class TlsInstrumentationIntegrationTest {
                         .setBody("{\"status\":\"SYNTHETIC_OK\"}"));
             }
             server.start();
+            expiredServer.start();
         }
 
         private ClientSet clients() {
@@ -314,8 +366,21 @@ class TlsInstrumentationIntegrationTest {
             OkHttpClient untrustedOkHttp = new OkHttpClient.Builder()
                     .callTimeout(Duration.ofSeconds(3))
                     .build();
+            RestTemplate expiredRest = restTemplate(expiredClientCertificates.sslSocketFactory());
+            WebClient expiredWeb = WebClient.builder()
+                    .clientConnector(new ReactorClientHttpConnector(HttpClient.create()
+                            .secure(specification -> specification.sslContext(expiredNettyClientSslContext))
+                            .responseTimeout(Duration.ofSeconds(2))))
+                    .build();
+            OkHttpClient expiredOkHttp = new OkHttpClient.Builder()
+                    .sslSocketFactory(
+                            expiredClientCertificates.sslSocketFactory(),
+                            expiredClientCertificates.trustManager())
+                    .callTimeout(Duration.ofSeconds(3))
+                    .build();
             return new ClientSet(
                     trustedRest, untrustedRest, trustedWeb, untrustedWeb, trustedOkHttp, untrustedOkHttp,
+                    expiredRest, expiredWeb, expiredOkHttp,
                     trustedRestFactory, untrustedRestFactory, trustedWebConnector, untrustedWebConnector);
         }
 
@@ -330,13 +395,28 @@ class TlsInstrumentationIntegrationTest {
             return server.url("/partner/a").toString();
         }
 
+        private String origin() {
+            okhttp3.HttpUrl url = server.url("/");
+            return url.scheme() + "://" + url.host() + ":" + url.port();
+        }
+
         private String wrongHostUrl() {
             return server.url("/partner/a").newBuilder().host("127.0.0.1").build().toString();
+        }
+
+        private String expiredUrl() {
+            return expiredServer.url("/partner/expired").toString();
+        }
+
+        private String expiredOrigin() {
+            okhttp3.HttpUrl url = expiredServer.url("/");
+            return url.scheme() + "://" + url.host() + ":" + url.port();
         }
 
         @Override
         public void close() throws IOException {
             server.shutdown();
+            expiredServer.shutdown();
         }
     }
 
@@ -391,6 +471,9 @@ class TlsInstrumentationIntegrationTest {
         private final WebClient untrustedWebClient;
         private final OkHttpClient trustedOkHttp;
         private final OkHttpClient untrustedOkHttp;
+        private final RestTemplate expiredRestTemplate;
+        private final WebClient expiredWebClient;
+        private final OkHttpClient expiredOkHttp;
         private final TestHttpsRequestFactory trustedRestFactory;
         private final TestHttpsRequestFactory untrustedRestFactory;
         private final TrackingClientHttpConnector trustedWebConnector;
@@ -403,6 +486,9 @@ class TlsInstrumentationIntegrationTest {
                 WebClient untrustedWebClient,
                 OkHttpClient trustedOkHttp,
                 OkHttpClient untrustedOkHttp,
+                RestTemplate expiredRestTemplate,
+                WebClient expiredWebClient,
+                OkHttpClient expiredOkHttp,
                 TestHttpsRequestFactory trustedRestFactory,
                 TestHttpsRequestFactory untrustedRestFactory,
                 TrackingClientHttpConnector trustedWebConnector,
@@ -413,6 +499,9 @@ class TlsInstrumentationIntegrationTest {
             this.untrustedWebClient = untrustedWebClient;
             this.trustedOkHttp = trustedOkHttp;
             this.untrustedOkHttp = untrustedOkHttp;
+            this.expiredRestTemplate = expiredRestTemplate;
+            this.expiredWebClient = expiredWebClient;
+            this.expiredOkHttp = expiredOkHttp;
             this.trustedRestFactory = trustedRestFactory;
             this.untrustedRestFactory = untrustedRestFactory;
             this.trustedWebConnector = trustedWebConnector;

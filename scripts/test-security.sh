@@ -9,6 +9,17 @@ run_core_security() {
     --tests '*PayloadSafetyTest' \
     --tests '*PartnerContextSecurityTest' \
     --tests '*BoundedAsyncDispatcherTest'
+  ./gradlew --no-daemon :partner-observability-spring-boot-autoconfigure:test \
+    --tests '*TlsInstrumentation*' \
+    --tests '*PartnerObservabilityAutoConfigurationTest' \
+    --tests '*PartnerCallbackWebFilterTest' \
+    --tests '*PartnerSafeLogCompatibilityTest' \
+    --tests '*JacksonSafeBodyCaptureTest'
+  ./gradlew --no-daemon :partner-observability-test-app:test \
+    --tests '*PartnerObservabilityStarterIntegrationTest' \
+    --tests '*SyntheticAsyncLifecycleIntegrationTest' \
+    --tests '*EncryptedRestTemplateFixtureIntegrationTest'
+  ./test/security/run-adversarial-static.sh
 }
 
 run_data_plane_security() {
@@ -24,9 +35,9 @@ run_terraform_security() {
 }
 
 if [[ "${1:-}" == "--core" ]]; then
-  echo "Running the implemented M2 pre-queue payload, trusted-context, and failure-containment security gate."
+  echo "Running the implemented pre-queue, callback, client TLS, trusted-context, and failure-containment security gate."
   run_core_security
-  echo "PASS: M2 core security scope. This does not claim downstream Alloy/Loki/Grafana isolation."
+  echo "PASS: SDK/callback security scope. This does not claim downstream Alloy/Loki/Grafana isolation."
   exit 0
 fi
 
@@ -51,11 +62,11 @@ if [[ "${1:-}" == "--terraform" ]]; then
   exit 0
 fi
 
-echo "Running implemented M2 core, M5 local data-plane, M6 local metrics-plane, and M8 Terraform checks before reporting remaining platform gaps."
+echo "Running the complete local security gate: pre-queue safety, data/metrics planes, Terraform policy, Grafana/query authorization, and application end to end."
 run_core_security
 run_data_plane_security
 run_metrics_plane_security
 run_terraform_security
-echo "NOT IMPLEMENTED: Grafana/Prometheus partner query authorization, deployed runtime reachability, rotation/revocation drills, and remaining end-to-end verification are scheduled for M7/M9." >&2
-echo "No whole-platform security-check success is being claimed. Use a scoped option for an implemented gate." >&2
-exit 2
+./scripts/test-grafana.sh
+./scripts/test-end-to-end.sh
+echo "PASS: complete local disclosure and partner-isolation security gate."

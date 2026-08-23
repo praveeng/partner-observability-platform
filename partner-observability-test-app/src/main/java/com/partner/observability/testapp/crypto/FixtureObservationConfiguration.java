@@ -1,6 +1,9 @@
 package com.partner.observability.testapp.crypto;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import com.partner.observability.autoconfigure.PartnerPlaintextSchema;
+import com.partner.observability.core.payload.PayloadFieldPolicy;
+import com.partner.observability.core.payload.PayloadValueType;
+import com.partner.observability.testapp.model.SyntheticPartnerRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -8,18 +11,56 @@ import org.springframework.context.annotation.Configuration;
 public class FixtureObservationConfiguration {
 
     @Bean
-    @ConditionalOnMissingBean(FixturePlaintextObservationPort.class)
-    FixturePlaintextObservationPort noOpFixturePlaintextObservationPort() {
-        return new FixturePlaintextObservationPort() {
-            @Override
-            public void beforeEncryption(com.partner.observability.testapp.model.SyntheticPartnerRequest request) {
-                // Production SDK integration will replace this fixture-only no-op bean.
-            }
+    PartnerPlaintextSchema<SyntheticPartnerRequest> alphaEncryptedResponseSchema() {
+        return responseSchema("PARTNER_ALPHA_ENCRYPTED");
+    }
 
-            @Override
-            public void afterDecryption(com.partner.observability.testapp.model.SyntheticPartnerRequest response) {
-                // Production SDK integration will replace this fixture-only no-op bean.
-            }
-        };
+    @Bean
+    PartnerPlaintextSchema<SyntheticPartnerRequest> betaEncryptedRequestSchema() {
+        return requestSchema("PARTNER_BETA_ENCRYPTED");
+    }
+
+    @Bean
+    PartnerPlaintextSchema<SyntheticPartnerRequest> betaEncryptedResponseSchema() {
+        return responseSchema("PARTNER_BETA_ENCRYPTED");
+    }
+
+    private PartnerPlaintextSchema<SyntheticPartnerRequest> requestSchema(String api) {
+        return configure(PartnerPlaintextSchema.request(api, SyntheticPartnerRequest.class)).build();
+    }
+
+    private PartnerPlaintextSchema<SyntheticPartnerRequest> responseSchema(String api) {
+        return configure(PartnerPlaintextSchema.response(api, SyntheticPartnerRequest.class)).build();
+    }
+
+    private PartnerPlaintextSchema.Builder<SyntheticPartnerRequest> configure(
+            PartnerPlaintextSchema.Builder<SyntheticPartnerRequest> builder) {
+        return builder
+                .allowString("applicationId", SyntheticPartnerRequest::applicationId)
+                .allowNumber("amount", SyntheticPartnerRequest::amount)
+                .allowNumber("tenureMonths", SyntheticPartnerRequest::tenureMonths)
+                .allowString("product", SyntheticPartnerRequest::product)
+                .allowString("fixtureClassification", request -> attribute(request, "fixtureClassification"))
+                .field("encryptionKey", PayloadFieldPolicy.REMOVE, PayloadValueType.STRING,
+                        request -> attribute(request, "encryptionKey"))
+                .field("initializationVector", PayloadFieldPolicy.REMOVE, PayloadValueType.STRING,
+                        request -> attribute(request, "initializationVector"))
+                .field("credential", PayloadFieldPolicy.REMOVE, PayloadValueType.STRING,
+                        request -> attribute(request, "credential"))
+                .field("document", PayloadFieldPolicy.ALLOW, PayloadValueType.STRING,
+                        request -> attribute(request, "document"));
+    }
+
+    private Object attribute(SyntheticPartnerRequest request, String name) {
+        if (Boolean.TRUE.equals(request.attributes().get("failObservationExtractor"))
+                && "fixtureClassification".equals(name)) {
+            throw new IllegalStateException("SYNTHETIC_SCHEMA_FAILURE");
+        }
+        return request.attributes().get(name);
+    }
+
+    @Bean
+    PartnerPlaintextSchema<SyntheticPartnerRequest> alphaEncryptedRequestSchema() {
+        return requestSchema("PARTNER_ALPHA_ENCRYPTED");
     }
 }

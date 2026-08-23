@@ -101,7 +101,7 @@ public final class FixtureScenarioController {
         SyntheticPartner partnerLane = SyntheticPartner.fromFixturePath(partner);
         SyntheticPartnerRequest request = SyntheticPartnerRequest.standard(
                 partnerLane, SyntheticPartnerRequest.COLLIDING_APPLICATION_ID);
-        EncryptedRoundTrip result = encryptedFixture.roundTrip(request);
+        EncryptedRoundTrip result = encryptedFixture.roundTrip(partnerLane, request);
         return new ScenarioSummary(
                 "rest-template-encrypted",
                 "ENCRYPTED_ROUND_TRIP",

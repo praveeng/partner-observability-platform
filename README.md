@@ -2,7 +2,7 @@
 
 Repository for a partner-isolated observability SDK and platform targeting Java 17, Spring Boot 2.7.x, Grafana Alloy, Loki, Prometheus, Grafana, Terraform, and AWS ECS.
 
-The scoped **M2/M3 SDK integration** is ready for review. Core provides schema-2 async/callback records and correlation, and the Spring Boot 2.7 starter instruments configured RestTemplate, WebClient, OkHttp, MVC callback, and safe WebFlux transport paths. M3 includes generated-certificate evidence that instrumentation preserves existing client trust and hostname validation while recording only bounded TLS failure metadata. Backend Alloy/Loki/Grafana, explicit encrypted-plaintext integration, deployment policy evidence, the remaining certificate matrix, and full-duration performance remain later milestones. See [PLANS.md](PLANS.md) and [the machine-readable state](.agent-state/status.json).
+The scoped **M2/M3 SDK and M4 encrypted-integration slice** is ready for review. Core provides schema-2 async/callback records and correlation, and the Spring Boot 2.7 starter instruments configured RestTemplate, WebClient, OkHttp, MVC callback, and safe WebFlux transport paths. Encrypted services can add the typed, fail-open logical request/response hooks documented in [the encrypted-service migration guide](docs/encrypted-service-migration.md); standard services make no code changes. Backend Alloy/Loki/Grafana, deployment policy evidence, the remaining certificate matrix, and full-duration performance remain later milestone work. See [PLANS.md](PLANS.md) and [the machine-readable state](.agent-state/status.json).
 
 ## Core promise
 

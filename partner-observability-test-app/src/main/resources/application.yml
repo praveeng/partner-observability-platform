@@ -21,6 +21,7 @@ partner-observability:
   export-enabled: true
   callbacks-enabled: true
   service-name: partner-observability-test-app
+  explicit-observations-enabled: true
   service-version: 0.1.0
   market: synthetic
   environment: DEV
@@ -53,6 +54,20 @@ partner-observability:
       safe-fields: [applicationId, amount, tenureMonths, product, fixtureClassification, partnerLane, scenario, outcome, statusCode, errorCode]
       correlation:
         application-id-path: $.applicationId
+    - name: PARTNER_ALPHA_ENCRYPTED
+      path: /encrypted/alpha
+      method: POST
+      partner: partner-alpha-fixture
+      correlation-profile: SYNTHETIC_ENCRYPTED
+      capture-mode: FULL_SANITIZED
+      safe-fields: [applicationId, amount, tenureMonths, product, fixtureClassification, document]
+    - name: PARTNER_BETA_ENCRYPTED
+      path: /encrypted/beta
+      method: POST
+      partner: partner-beta-fixture
+      correlation-profile: SYNTHETIC_ENCRYPTED
+      capture-mode: FULL_SANITIZED
+      safe-fields: [applicationId, amount, tenureMonths, product, fixtureClassification, document]
     - name: PARTNER_ALPHA_ASYNC
       path: /async/alpha
       method: POST

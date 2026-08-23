@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-This is the revised M1 implementable architecture for the Partner Observability Platform. It defines contracts for M2-M10, including first-class asynchronous acknowledgements, callbacks/webhooks, and HTTPS/TLS transport ownership. Decisions are recorded in ADRs 0001-0011 under `decisions/`. The schema-2 core and scoped M3 Spring integration are now implemented, including type-only TLS failure metadata and client-preservation tests; the backend, query, deployment, explicit encrypted-plaintext, remaining transport-policy evidence, and full performance portions remain later milestone work.
+This architecture defines contracts for M2-M10, including asynchronous acknowledgements, callbacks, and HTTPS/TLS transport ownership. The schema-2 core, scoped M3 Spring integration, and explicit encrypted-plaintext hooks are implemented; backend, query, deployment, remaining transport-policy evidence, and full performance work remain later milestones.
 
 The supported runtime is Java 17 and Spring Boot 2.7.x. The platform uses SLF4J/Logback, Grafana Alloy, Loki, Prometheus, Grafana, Docker Compose locally, and Terraform-managed AWS ECS. Kubernetes and Helm are prohibited.
 
@@ -293,15 +293,17 @@ Instrumentation never decrypts data for observability and never captures ciphert
 Applications that already possess authorized plaintext use a scoped API at the existing boundary:
 
 ```java
-try (PartnerObservation observation = observations.begin(apiId, direction)) {
+try (PartnerObservation observation = observations.begin(configuredApiName)) {
     observation.captureRequest(plaintextDomainObject); // sanitizes immediately
-    PartnerReply reply = existingEncryptedCall();
-    observation.captureResponse(reply.getAuthorizedPlaintext());
-    observation.succeed(statusCode);
+    byte[] encryptedReply = restTemplate.postForObject(
+            uri, existingEncryption(plaintextDomainObject), byte[].class);
+    PartnerReply reply = existingDecryption(encryptedReply);
+    observation.captureResponse(reply);
+    return reply;
 }
 ```
 
-`captureRequest`/`captureResponse` reject bytes, streams, documents, arbitrary serializers, and unsupported types. They synchronously derive only a bounded safe tree and do not retain the domain object. Observability failures return a no-op result. `close()` emits a safe failure metadata record if no outcome was set, without using exception text. Pre-encryption capture is placed immediately before the existing encryption call; post-decryption capture is placed immediately after successful existing decryption. Encryption keys, nonces, ciphertext, and cryptographic diagnostics are removed.
+`PartnerPlaintextSchema` beans define typed reflection-free extractors per configured API leg and can only narrow `safe-fields`; remove-only paths do not widen that disclosure allowlist. Schema source types reject binary arrays/buffers, streams/readers/files, throwables, keys, and cryptographic parameter objects, and discovery is bounded to three legs for each of the 64 configured APIs. The feature is disabled by default. Capture derives a bounded safe tree synchronously and never retains the DTO. Binary, documents, Base64, unsupported types, and oversize values are excluded under the payload policy. Automatic client interception reuses the scope for status/duration and ignores both ciphertext bodies; unsupported transports call only `succeed(status)` or `failed()`. Keys, IVs/nonces, credentials, ciphertext, exception text, and crypto details are never emitted. Hook failure is contained and safe projections use the shared bounded asynchronous dispatcher. See `encrypted-service-migration.md`.
 
 Callback integrations use a parallel scoped API because automatic HTTP interception cannot determine semantic processing state:
 

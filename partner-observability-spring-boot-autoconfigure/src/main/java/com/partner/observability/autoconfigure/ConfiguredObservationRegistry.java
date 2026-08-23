@@ -37,6 +37,13 @@ public final class ConfiguredObservationRegistry {
         return match(outbound, method, uri.getPath());
     }
 
+    public Optional<ObservationDefinition> outboundByName(String name) {
+        if (name == null) {
+            return Optional.empty();
+        }
+        return outbound.stream().filter(definition -> definition.name().equals(name)).findFirst();
+    }
+
     public Optional<ObservationDefinition> callback(String method, String requestPath) {
         return match(callbacks, method, requestPath);
     }

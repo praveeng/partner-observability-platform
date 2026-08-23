@@ -10,15 +10,15 @@
       "READY_FOR_REVIEW",
       "COMPLETE"
     ],
-    "currentState": "IN_PROGRESS"
+    "currentState": "READY_FOR_REVIEW"
   },
-  "milestone": "M3 Spring Boot TLS-safe instrumentation",
-  "summary": "The scoped Java 17 / Spring Boot 2.7 M3 implementation and tests pass: enabled/disabled RestTemplate, WebClient, and OkHttp preserve trusted, untrusted, and wrong-host TLS behavior; client-owned TLS settings remain intact; bounded type-only failure telemetry, callbacks, correlation, payload safety, dispatch, metrics, and health tests are green. The task is still IN_PROGRESS because mandatory skill verification found the repository-wide M4-M9 Alloy/Loki/Grafana security boundaries and all six full-duration performance profiles NOT IMPLEMENTED, so aggregate verification is not green and the requested conditional commit has not been created.",
+  "milestone": "M4 explicit encrypted plaintext hooks",
+  "summary": "The scoped M4 encrypted-integration hook is ready for review: typed pre-encryption/post-decryption projection, ciphertext suppression, trusted configured partner routing, bounded asynchronous dispatch, and fail-open disabled/backend-down behavior pass focused and full module checks.",
   "blockers": [],
   "nextActions": [
-    "Implement and pass the M4-M9 downstream Alloy/Loki/Grafana payload/isolation security checks required by the payload-safety and architecture-review Skills.",
-    "Implement and run the six exact acceptance performance profiles: disabled overhead, metadata throughput, full-sanitized throughput, backend saturation, mixed soak, and reactive concurrency/cancellation.",
-    "Rerun scripts/verify-all.sh; set READY_FOR_REVIEW and create the requested local commit only when aggregate verification is green."
+    "Implement and verify Alloy schema-2 defense in depth before claiming full payload-safety acceptance.",
+    "Implement the documented downstream isolation and exact M9 performance gates before claiming whole-platform verification.",
+    "Review the encrypted-service migration API and synthetic proof fixture."
   ],
-  "lastUpdated": "2026-08-17T04:38:53Z"
+  "lastUpdated": "2026-08-23T05:22:00Z"
 }

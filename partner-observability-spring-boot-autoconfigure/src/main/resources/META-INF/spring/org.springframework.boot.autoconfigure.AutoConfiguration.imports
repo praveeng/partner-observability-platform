@@ -1,1 +1,2 @@
+com.partner.observability.autoconfigure.PartnerObservationsDisabledAutoConfiguration
 com.partner.observability.autoconfigure.PartnerObservabilityAutoConfiguration

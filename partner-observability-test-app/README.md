@@ -38,7 +38,14 @@ The `alpha` and `beta` path segments on the control endpoints select fixed local
 
 Tests additionally execute two synthetic partners with the same application ID, bounded concurrent RestTemplate traffic, concurrent reactive WebClient traffic, and DTO -> JSON -> AES-GCM -> RestTemplate -> decrypt -> DTO behavior. The starter instruments the fixed mock paths; RestTemplate proves bounded safe JSON capture while WebClient and OkHttp prove metadata-only degradation without body re-subscription or replay.
 
-The encryption flow retains its fixture-local `FixturePlaintextObservationPort` to mark pre-encryption and post-decryption seams. The automatic HTTP interceptor correctly treats ciphertext as unsupported/binary metadata; a later M4 explicit plaintext API will connect those seams without moving decryption into the SDK.
+The encryption flow uses the production `PartnerObservations` scope immediately before
+serialization/encryption and `PartnerObservation.captureResponse` immediately after
+decryption/deserialization. Typed `PartnerPlaintextSchema` beans expose only reviewed business
+fields, and the automatic RestTemplate interceptor joins the same observation for transport
+status/duration without capturing either ciphertext body. Tests prove sanitized logical request
+and response visibility, two-partner isolation, key/IV/credential and large-Base64 exclusion,
+publisher/hook failure containment, and successful encrypted traffic when observability is
+disabled.
 
 ## Async and callback scenarios
 

@@ -16,6 +16,7 @@ public class PartnerObservabilityProperties {
     private boolean payloadsEnabled;
     private boolean logsEnabled = true;
     private boolean eventsEnabled = true;
+    private boolean explicitObservationsEnabled;
     private boolean metricsEnabled = true;
     private boolean exportEnabled = true;
     private boolean callbacksEnabled = true;
@@ -36,6 +37,8 @@ public class PartnerObservabilityProperties {
     public void setLogsEnabled(boolean value) { logsEnabled = value; }
     public boolean isEventsEnabled() { return eventsEnabled; }
     public void setEventsEnabled(boolean value) { eventsEnabled = value; }
+    public boolean isExplicitObservationsEnabled() { return explicitObservationsEnabled; }
+    public void setExplicitObservationsEnabled(boolean value) { explicitObservationsEnabled = value; }
     public boolean isMetricsEnabled() { return metricsEnabled; }
     public void setMetricsEnabled(boolean value) { metricsEnabled = value; }
     public boolean isExportEnabled() { return exportEnabled; }

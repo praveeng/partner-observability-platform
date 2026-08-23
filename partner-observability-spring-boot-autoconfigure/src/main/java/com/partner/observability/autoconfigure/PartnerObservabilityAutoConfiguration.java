@@ -101,6 +101,24 @@ public class PartnerObservabilityAutoConfiguration {
                 metrics.getIfAvailable(() -> ObservationMetrics.NONE));
     }
 
+    @Bean
+    @ConditionalOnMissingBean
+    PartnerObservations partnerObservations(
+            PartnerObservabilityProperties properties,
+            ConfiguredObservationRegistry registry,
+            PartnerObservationEngine engine,
+            FailClosedPayloadSanitizer sanitizer,
+            ObjectProvider<PartnerPlaintextSchema<?>> schemas) {
+        return new PartnerObservations(
+                properties,
+                registry,
+                engine,
+                sanitizer,
+                schemas.orderedStream()
+                        .limit(PartnerObservations.MAX_PLAINTEXT_SCHEMAS + 1L)
+                        .toList());
+    }
+
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(ObjectMapper.class)
     @ConditionalOnBean(ObjectMapper.class)

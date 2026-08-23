@@ -162,8 +162,9 @@ public final class LocalMockPartnerServer implements SmartLifecycle {
                 + "?syntheticAttempt=" + attempt);
     }
 
-    public URI encryptedUri() {
-        return baseUri().resolve("/encrypted");
+    public URI encryptedUri(SyntheticPartner partner) {
+        return baseUri().resolve(
+                "/encrypted/" + partner.name().toLowerCase(Locale.ROOT));
     }
 
     public URI asyncUri(SyntheticPartner partner) {

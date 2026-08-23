@@ -85,6 +85,10 @@ public final class PartnerObservationEngine {
             return Optional.empty();
         }
         ObservationDefinition definition = matched.get();
+        Optional<PartnerObservation> explicit = PartnerObservations.current(definition);
+        if (explicit.isPresent()) {
+            return explicit.get().transportStarted(uri, attempt);
+        }
         try {
             PayloadCaptureMode mode = effectiveMode(definition);
             if (mode == PayloadCaptureMode.NO_PAYLOAD) {
@@ -109,6 +113,7 @@ public final class PartnerObservationEngine {
                     definition.name(), definition.path(), definition.exchangeMode(), method(method),
                     Math.max(1, Math.min(10, attempt)), normalizedContentType(contentType), declaredSize,
                     NO_VALUES, NO_VALUES, safeResult(captured.payload()), TransportState.DELEGATED,
+
                     security);
             submit(definition, envelope(
                     definition, now, interaction, mode, captured.payload().status(), Outcome.UNKNOWN, request));
@@ -118,6 +123,93 @@ public final class PartnerObservationEngine {
         } catch (RuntimeException exception) {
             return Optional.empty();
         }
+    }
+
+    void emitExplicitRequest(
+            ObservationDefinition definition,
+            UUID interactionId,
+            Instant occurredAt,
+            CapturedBody captured,
+            Optional<TransportSecurity> transportSecurity,
+            int attempt) {
+        try {
+            PayloadCaptureMode mode = effectiveMode(definition);
+            if (mode == PayloadCaptureMode.NO_PAYLOAD) return;
+            CapturedBody effective = forMode(captured, mode);
+            InteractionKind kind = definition.exchangeMode() == ExchangeMode.ASYNC_INITIATION
+                    ? InteractionKind.ASYNC_INITIATION : InteractionKind.SYNC_OUTBOUND;
+            InteractionContext interaction = new InteractionContext(
+                    kind, Direction.OUTBOUND_TO_PARTNER, interactionId, 0, Optional.empty(),
+                    definition.correlationProfile(), effective.identifiers(),
+                    kind == InteractionKind.ASYNC_INITIATION
+                            ? Optional.of(TimelineStage.ASYNC_REQUEST_SENT) : Optional.empty());
+            OutboundApiRequestRecord request = new OutboundApiRequestRecord(
+                    definition.name(), definition.path(), definition.exchangeMode(), method(definition.method()),
+                    Math.max(1, Math.min(10, attempt)), Optional.of("application/json"), OptionalLong.empty(),
+                    NO_VALUES, NO_VALUES, safeResult(effective.payload()), TransportState.DELEGATED,
+                    transportSecurity);
+            submit(definition, envelope(
+                    definition, occurredAt, interaction, mode, effective.payload().status(),
+                    Outcome.UNKNOWN, request));
+        } catch (RuntimeException ignored) {
+            // Explicit capture cannot alter encryption or transport behavior.
+        }
+    }
+
+    void completeExplicitOutbound(
+            ObservationDefinition definition,
+            UUID interactionId,
+            long startedNanos,
+            CorrelationIdentifiers requestIdentifiers,
+            Optional<TransportSecurity> transportSecurity,
+            int status,
+            CapturedBody captured) {
+        try {
+            PayloadCaptureMode mode = effectiveMode(definition);
+            if (mode == PayloadCaptureMode.NO_PAYLOAD) return;
+            CapturedBody effective = forMode(captured, mode);
+            CorrelationIdentifiers identifiers = requestIdentifiers.merge(effective.identifiers());
+            long duration = elapsedMillis(startedNanos);
+            StatusClass statusClass = statusClass(status);
+            Outcome outcome = outcome(statusClass);
+            InteractionKind kind = definition.exchangeMode() == ExchangeMode.ASYNC_INITIATION
+                    ? InteractionKind.ASYNC_INITIATION : InteractionKind.SYNC_OUTBOUND;
+            InteractionContext interaction = new InteractionContext(
+                    kind, Direction.OUTBOUND_TO_PARTNER, interactionId, 1, Optional.empty(),
+                    definition.correlationProfile(), identifiers,
+                    kind == InteractionKind.ASYNC_INITIATION
+                            ? Optional.of(TimelineStage.ASYNC_ACK_RECEIVED) : Optional.empty());
+            TelemetryRecord record;
+            AcknowledgementOutcome acknowledgement = null;
+            if (kind == InteractionKind.ASYNC_INITIATION) {
+                acknowledgement = status >= 200 && status < 300
+                        ? AcknowledgementOutcome.ACCEPTED : AcknowledgementOutcome.REJECTED;
+                record = new AsyncAcknowledgementRecord(
+                        definition.name(), OptionalInt.of(status), statusClass, acknowledgement, outcome,
+                        duration, acknowledgement == AcknowledgementOutcome.ACCEPTED
+                                ? ProcessingDisposition.PARTNER_PROCESSING_EXPECTED
+                                : ProcessingDisposition.TERMINAL_REJECTION,
+                        Optional.empty(), transportSecurity, Optional.empty(), Optional.of("application/json"),
+                        OptionalLong.empty(), NO_VALUES, safeResult(effective.payload()));
+            } else {
+                record = new OutboundApiResponseRecord(
+                        definition.name(), OptionalInt.of(status), statusClass, outcome, duration,
+                        Optional.empty(), transportSecurity, Optional.empty(), Optional.of("application/json"),
+                        OptionalLong.empty(), NO_VALUES, safeResult(effective.payload()));
+            }
+            submit(definition, envelope(
+                    definition, Instant.now(), interaction, mode, effective.payload().status(), outcome, record));
+            metrics.outboundCompleted(definition, outcome, statusClass, duration, acknowledgement);
+        } catch (RuntimeException ignored) {
+            // Explicit capture cannot alter decryption or the business result.
+        }
+    }
+
+    private CapturedBody forMode(CapturedBody captured, PayloadCaptureMode mode) {
+        if (mode == PayloadCaptureMode.FULL_SANITIZED) {
+            return new CapturedBody(safeResult(captured.payload()), captured.identifiers());
+        }
+        return new CapturedBody(NO_VALUES, captured.identifiers());
     }
 
     public Optional<String> resolveOutboundApiName(URI uri, String method) {

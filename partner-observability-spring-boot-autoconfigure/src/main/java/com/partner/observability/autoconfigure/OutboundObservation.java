@@ -17,6 +17,7 @@ public final class OutboundObservation {
     private final long startedNanos;
     private final CorrelationIdentifiers requestIdentifiers;
     private final Optional<TransportSecurity> transportSecurity;
+    private final PartnerObservation explicit;
     private final AtomicBoolean terminal = new AtomicBoolean();
 
     OutboundObservation(
@@ -34,9 +35,28 @@ public final class OutboundObservation {
         this.startedNanos = startedNanos;
         this.requestIdentifiers = requestIdentifiers;
         this.transportSecurity = transportSecurity;
+        explicit = null;
     }
 
-    public PartnerContext partnerContext() { return definition.partnerContext(); }
+    private OutboundObservation(PartnerObservation explicit) {
+        engine = null;
+        definition = null;
+        interactionId = explicit.interactionId();
+        startedAt = null;
+        startedNanos = 0;
+        requestIdentifiers = CorrelationIdentifiers.empty();
+        transportSecurity = Optional.empty();
+        this.explicit = explicit;
+    }
+
+    static OutboundObservation explicit(PartnerObservation observation) {
+        return new OutboundObservation(observation);
+    }
+
+    public PartnerContext partnerContext() {
+        return explicit == null ? definition.partnerContext() : explicit.partnerContext();
+    }
+
     public UUID interactionId() { return interactionId; }
 
     public void complete(
@@ -45,6 +65,10 @@ public final class OutboundObservation {
             boolean bodySupported,
             String contentType,
             OptionalLong declaredSize) {
+        if (explicit != null) {
+            if (terminal.compareAndSet(false, true)) explicit.transportCompleted(status);
+            return;
+        }
         if (terminal.compareAndSet(false, true)) {
             engine.completeOutbound(
                     definition, interactionId, startedAt, startedNanos, requestIdentifiers,
@@ -53,6 +77,10 @@ public final class OutboundObservation {
     }
 
     public void failed(Throwable failure) {
+        if (explicit != null) {
+            if (terminal.compareAndSet(false, true)) explicit.transportFailed(failure);
+            return;
+        }
         if (terminal.compareAndSet(false, true)) {
             engine.failOutbound(
                     definition, interactionId, startedAt, startedNanos, requestIdentifiers,

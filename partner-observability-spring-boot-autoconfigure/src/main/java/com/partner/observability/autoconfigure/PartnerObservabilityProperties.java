@@ -2,6 +2,9 @@ package com.partner.observability.autoconfigure;
 
 import com.partner.observability.core.context.DeploymentEnvironment;
 import com.partner.observability.core.model.ExchangeMode;
+import com.partner.observability.core.model.Outcome;
+import com.partner.observability.core.payload.PayloadFieldPolicy;
+import com.partner.observability.core.payload.PayloadValueType;
 import com.partner.observability.core.policy.PayloadCaptureMode;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,7 +17,7 @@ public class PartnerObservabilityProperties {
 
     private boolean enabled;
     private boolean payloadsEnabled;
-    private boolean logsEnabled = true;
+    private boolean logsEnabled;
     private boolean eventsEnabled = true;
     private boolean explicitObservationsEnabled;
     private boolean metricsEnabled = true;
@@ -28,6 +31,7 @@ public class PartnerObservabilityProperties {
     private final List<Partner> partners = new ArrayList<>();
     private final List<OutboundApi> outbound = new ArrayList<>();
     private final List<Callback> callbacks = new ArrayList<>();
+    private final List<LogSelection> logSelections = new ArrayList<>();
 
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -58,6 +62,58 @@ public class PartnerObservabilityProperties {
     public List<Partner> getPartners() { return partners; }
     public List<OutboundApi> getOutbound() { return outbound; }
     public List<Callback> getCallbacks() { return callbacks; }
+    public List<LogSelection> getLogSelections() { return logSelections; }
+
+    /** An exact safe category mapping for an existing SLF4J statement. */
+    public static class LogSelection {
+        private String category;
+        private String loggerPattern;
+        private String marker;
+        private String messageTemplate;
+        private String minimumLevel = "INFO";
+        private String journeyStage = "LOG_EVENT";
+        private Outcome outcome = Outcome.UNKNOWN;
+        private String errorCode;
+        private final List<LogArgument> arguments = new ArrayList<>();
+
+        public String getCategory() { return category; }
+        public void setCategory(String value) { category = value; }
+        public String getLoggerPattern() { return loggerPattern; }
+        public void setLoggerPattern(String value) { loggerPattern = value; }
+        public String getMarker() { return marker; }
+        public void setMarker(String value) { marker = value; }
+        public String getMessageTemplate() { return messageTemplate; }
+        public void setMessageTemplate(String value) { messageTemplate = value; }
+        public String getMinimumLevel() { return minimumLevel; }
+        public void setMinimumLevel(String value) {
+            minimumLevel = value == null ? null : value.toUpperCase(Locale.ROOT);
+        }
+        public String getJourneyStage() { return journeyStage; }
+        public void setJourneyStage(String value) { journeyStage = value; }
+        public Outcome getOutcome() { return outcome; }
+        public void setOutcome(Outcome value) { outcome = value; }
+        public String getErrorCode() { return errorCode; }
+        public void setErrorCode(String value) { errorCode = value; }
+        public List<LogArgument> getArguments() { return arguments; }
+    }
+
+    /** One explicitly indexed scalar argument; arbitrary object rendering is never used. */
+    public static class LogArgument {
+        private int index = -1;
+        private String name;
+        private PayloadValueType type = PayloadValueType.STRING;
+        private PayloadFieldPolicy policy = PayloadFieldPolicy.ALLOW;
+
+        public int getIndex() { return index; }
+        public void setIndex(int value) { index = value; }
+        public String getName() { return name; }
+        public void setName(String value) { name = value; }
+        public PayloadValueType getType() { return type; }
+        public void setType(PayloadValueType value) { type = value; }
+        public PayloadFieldPolicy getPolicy() { return policy; }
+        public void setPolicy(PayloadFieldPolicy value) { policy = value; }
+    }
+
 
     public static class Partner {
         private String key;

@@ -36,7 +36,7 @@ The project supplies partner-isolated application observability for Java 17 / Sp
 18. Helm is prohibited. This repository has no Kubernetes deployment model.
 19. Terraform is required for provisioned infrastructure.
 20. Production deployment and production credentials are prohibited from agent activity in this repository.
-21. Codex agents may commit locally but must not push or merge.
+21. Autonomous agents may commit locally and may push completed, verified work under the Git policy below, but must not merge.
 
 These invariants are acceptance gates. Tests that contradict them are defective; an agent must not relax an invariant merely to make a check pass.
 
@@ -89,7 +89,9 @@ Keep `.agent-state/status.json` valid JSON and update its timestamp, milestone, 
 
 - Preserve existing user changes and never use destructive Git operations to discard them.
 - Local commits are permitted when requested or useful to an autonomous milestone workflow.
-- Never push, merge, create a remote release, deploy infrastructure, or use production credentials.
+- Agents may push commits only after the current declared work scope is complete, its required checks pass, documentation and agent state are current, and the lifecycle is `READY_FOR_REVIEW` or `COMPLETE`.
+- Push only the completed commits to an existing configured remote branch. Force pushes, history rewrites, tag or release publication, protected-branch bypass, and pushing unrelated or unverified work are prohibited.
+- Never merge, create a remote release, deploy infrastructure, or use production credentials.
 - Do not commit generated build output, local state, secrets, `.env` files, Terraform state, or captured telemetry.
 
 ## Definition of done for any later milestone

@@ -19,6 +19,10 @@ run_metrics_plane_security() {
   ./test/integration/run-local-metrics-plane.sh
 }
 
+run_terraform_security() {
+  ./scripts/test-terraform.sh
+}
+
 if [[ "${1:-}" == "--core" ]]; then
   echo "Running the implemented M2 pre-queue payload, trusted-context, and failure-containment security gate."
   run_core_security
@@ -40,10 +44,18 @@ if [[ "${1:-}" == "--metrics-plane" ]]; then
   exit 0
 fi
 
-echo "Running implemented M2 core, M5 local data-plane, and M6 local metrics-plane checks before reporting remaining platform gaps."
+if [[ "${1:-}" == "--terraform" ]]; then
+  echo "Running the implemented M8 Terraform/ECS static and mocked-provider security gate."
+  run_terraform_security
+  echo "PASS: M8 configuration scope. No AWS plan, apply, credential, or runtime reachability claim is made."
+  exit 0
+fi
+
+echo "Running implemented M2 core, M5 local data-plane, M6 local metrics-plane, and M8 Terraform checks before reporting remaining platform gaps."
 run_core_security
 run_data_plane_security
 run_metrics_plane_security
-echo "NOT IMPLEMENTED: Grafana/Prometheus partner query authorization, deployed-network, rotation/revocation, and remaining end-to-end security verification is scheduled for M7-M9." >&2
-echo "No whole-platform security-check success is being claimed. Use --core or --data-plane for an implemented scoped gate." >&2
+run_terraform_security
+echo "NOT IMPLEMENTED: Grafana/Prometheus partner query authorization, deployed runtime reachability, rotation/revocation drills, and remaining end-to-end verification are scheduled for M7/M9." >&2
+echo "No whole-platform security-check success is being claimed. Use a scoped option for an implemented gate." >&2
 exit 2

@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-This architecture defines contracts for M2-M10, including asynchronous acknowledgements, callbacks, and HTTPS/TLS transport ownership. The schema-2 core, scoped M3 Spring integration, and explicit encrypted-plaintext hooks are implemented; backend, query, deployment, remaining transport-policy evidence, and full performance work remain later milestones.
+This architecture defines contracts for M2-M10, including asynchronous acknowledgements, callbacks, and HTTPS/TLS transport ownership. The schema-2 core, scoped M3 Spring integration, selected-log bridge, and explicit encrypted-plaintext hooks are implemented; backend, query, deployment, remaining transport-policy evidence, and full performance work remain later milestones.
 
 The supported runtime is Java 17 and Spring Boot 2.7.x. The platform uses SLF4J/Logback, Grafana Alloy, Loki, Prometheus, Grafana, Docker Compose locally, and Terraform-managed AWS ECS. Kubernetes and Helm are prohibited.
 
@@ -284,7 +284,13 @@ MDC exposes only `originalCorrelationId`, `requestId`, `applicationId`, and `loa
 
 Arbitrary rendered logs cannot be made reliably partner-safe after formatting, so they remain internal-only and follow the service's normal ECS/CloudWatch route. They are never tailed wholesale into partner Loki.
 
-The optional `PartnerSafeAppender` accepts only events sent to the dedicated logger `partner.observability.safe` with marker `PARTNER_SAFE`. It ignores the rendered message and throwable. It reads allowlisted structured key/value arguments plus trusted context, passes them through the same sanitizer and bounded queues, and emits a `PartnerBusinessEventRecord`. Logger name, level, literal template ID, and stable error code may be retained; raw format strings, argument `toString()`, stack traces, and exception messages are excluded. This is disabled by default.
+The optional Logback compatibility bridge is disabled by default. Each startup-validated selection combines an exact logger or trailing package pattern, an exact unformatted SLF4J message template, a configured bounded category/journey stage, a minimum level, and optionally an exact marker. A logger/package or marker alone is never sufficient. Multiple exact statements may map to the same configured category.
+
+Only explicitly indexed scalar arguments are projected under configured field/type/policy rules and passed through the first-stage sanitizer. The bridge never calls `getFormattedMessage()`, copies the raw template, reads MDC to select a tenant, invokes arbitrary argument `toString()`, or reads throwable proxies, exception messages, or stack traces. Unsupported, secret-shaped, binary/Base64, and oversized arguments are omitted under the normal fail-closed payload contract.
+
+A selected record is emitted only inside a trusted `PartnerObservationContext` whose immutable partner context exactly matches the startup registry. Missing or foreign context drops the copy without a fallback tenant. The resulting `PartnerBusinessEventRecord` uses the existing bounded non-blocking dispatcher and no request/logging thread performs remote I/O.
+
+The observer appender is attached alongside the root logger's existing appenders and does not replace appenders, change levels, filters, additivity, formatting, or the original event. Existing ECS/CloudWatch behavior therefore remains authoritative and unchanged when compatibility capture is disabled, drops, saturates, or publisher export fails. Non-additive loggers are not reconfigured merely to force capture. ADR 0012 defines the decision and migration rules.
 
 ## Encrypted integrations and explicit observation APIs
 

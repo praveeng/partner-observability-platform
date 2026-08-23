@@ -1,6 +1,9 @@
 package com.partner.observability.autoconfigure;
 
 import com.partner.observability.core.context.PartnerContext;
+import com.partner.observability.core.model.CorrelationIdentifiers;
+import com.partner.observability.core.model.Direction;
+import com.partner.observability.core.model.InteractionKind;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -21,13 +24,26 @@ public final class PartnerObservationContext {
     }
 
     public static Scope open(PartnerContext partnerContext, UUID interactionId) {
+        return open(new Snapshot(partnerContext, interactionId));
+    }
+
+    public static Scope openCallback(
+            PartnerContext partnerContext,
+            UUID interactionId,
+            UUID callbackAttemptId,
+            String correlationProfileId) {
+        return open(new Snapshot(
+                partnerContext, interactionId, InteractionKind.CALLBACK, Direction.INBOUND_FROM_PARTNER,
+                Optional.of(callbackAttemptId), correlationProfileId, CorrelationIdentifiers.empty()));
+    }
+
+    private static Scope open(Snapshot next) {
         Snapshot previous = CURRENT.get();
         String previousSlot = MDC.get(MDC_SLOT);
         String previousInteraction = MDC.get(MDC_INTERACTION);
-        Snapshot next = new Snapshot(partnerContext, interactionId);
         CURRENT.set(next);
-        MDC.put(MDC_SLOT, partnerContext.partnerSlot());
-        MDC.put(MDC_INTERACTION, interactionId.toString());
+        MDC.put(MDC_SLOT, next.partnerContext().partnerSlot());
+        MDC.put(MDC_INTERACTION, next.interactionId().toString());
         return () -> {
             restore(MDC_SLOT, previousSlot);
             restore(MDC_INTERACTION, previousInteraction);
@@ -35,16 +51,35 @@ public final class PartnerObservationContext {
         };
     }
 
-    public record Snapshot(PartnerContext partnerContext, UUID interactionId) {
+    public record Snapshot(
+            PartnerContext partnerContext,
+            UUID interactionId,
+            InteractionKind interactionKind,
+            Direction direction,
+            Optional<UUID> callbackAttemptId,
+            String correlationProfileId,
+            CorrelationIdentifiers identifiers) {
+        public Snapshot(PartnerContext partnerContext, UUID interactionId) {
+            this(
+                    partnerContext, interactionId, InteractionKind.SYNC_OUTBOUND,
+                    Direction.OUTBOUND_TO_PARTNER, Optional.empty(), "safe-log",
+                    CorrelationIdentifiers.empty());
+        }
+
         public Snapshot {
             Objects.requireNonNull(partnerContext, "partnerContext");
             Objects.requireNonNull(interactionId, "interactionId");
+            Objects.requireNonNull(interactionKind, "interactionKind");
+            Objects.requireNonNull(direction, "direction");
+            callbackAttemptId = callbackAttemptId == null ? Optional.empty() : callbackAttemptId;
+            Objects.requireNonNull(correlationProfileId, "correlationProfileId");
+            Objects.requireNonNull(identifiers, "identifiers");
         }
 
         public Runnable wrap(Runnable task) {
             Objects.requireNonNull(task, "task");
             return () -> {
-                try (Scope ignored = PartnerObservationContext.open(partnerContext, interactionId)) {
+                try (Scope ignored = PartnerObservationContext.open(this)) {
                     task.run();
                 }
             };

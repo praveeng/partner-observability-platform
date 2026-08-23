@@ -36,7 +36,7 @@ Partner-facing Spring Boot services need useful operational telemetry for synchr
 - Metadata-only is the safe default for a newly enabled API.
 - No-payload mode emits no partner record for APIs where even metadata is inappropriate.
 - Full sanitized mode is an explicitly reviewed, bounded safe projection of configured textual/scalar fields; it is never a verbatim payload copy and never includes prohibited, unknown, binary/Base64, document, or oversized content.
-- Existing arbitrary application logs remain internal-only. Partner-facing logs/events are created through interceptors, explicit observation APIs, or the marked structured safe logger.
+- Existing arbitrary application logs remain internal-only. A legacy SLF4J statement can create a partner-safe event only through a disabled-by-default exact logger/template selection (optionally narrowed by a marker), trusted partner context, configured scalar argument schema, and the normal first-stage sanitizer; rendered messages and throwables are never copied.
 - Callback request capture is after trusted authentication/decryption and before business processing; callback response capture is after processing. Failed authentication never creates a partner-tenant fallback record.
 
 ## Success measures

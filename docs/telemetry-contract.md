@@ -278,6 +278,8 @@ Fields are `callbackApiId`, `processingMode` (`INLINE` or `BACKGROUND`), `proces
 
 Callers select a registered definition; they cannot invent event names or fields at runtime. Partner-safe events are operational telemetry, not business commands or an audit ledger.
 
+A selected legacy SLF4J statement is one such registered definition, not a log-line record. Its exact unformatted template/logger selector and optional marker choose only configuration-owned `eventName`, `journeyStage`, outcome/error code, and configured scalar argument schema. The formatted message, logger text, raw template, MDC, throwable, exception, and stack are absent. Emission requires trusted registry-matching `PartnerObservationContext` and uses `TelemetryChannel.LOG` on the same bounded dispatcher.
+
 ## Callback edge-case representation
 
 | Situation | Required representation |

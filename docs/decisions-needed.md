@@ -48,7 +48,7 @@ These questions do not authorize unsafe defaults. Their affected production acti
 ## Explicit requirement challenges
 
 - Full sanitized payload capture cannot mean verbatim/full raw capture. It is the bounded safe projection in ADR 0001; otherwise it conflicts with mandatory removal, masking, binary exclusion, and fail-closed disclosure.
-- Existing arbitrary SLF4J messages cannot safely become partner telemetry after rendering. Only marked structured safe-log records are captured; raw logs remain internal-only.
+- Existing arbitrary SLF4J messages cannot safely become partner telemetry after rendering. ADR 0012 permits only startup-approved exact logger/template mappings with configured scalar schemas, optional exact markers, trusted partner context, and first-stage sanitization; raw logs, rendered messages, and throwables remain internal-only.
 - Grafana OSS organization isolation alone is not sufficient for shared Prometheus/Loki authorization. Fixed credential mappings, tenant-header injection, PromQL label enforcement, and network denial are mandatory.
 - One initial stateful ECS task per backend is cost-conscious but not highly available. No production HA/RTO claim is made without Q002.
 - Local Grafana accounts satisfy the stated initial mechanism but may not satisfy production MFA/audit policy; Q001 remains explicit.

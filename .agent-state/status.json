@@ -10,15 +10,15 @@
       "READY_FOR_REVIEW",
       "COMPLETE"
     ],
-    "currentState": "READY_FOR_REVIEW"
+    "currentState": "IN_PROGRESS"
   },
-  "milestone": "M6 Prometheus metrics and SLIs",
-  "summary": "M6 is ready for review: startup-fixed Micrometer outbound/callback metrics, exact series-budget rejection, Alloy scrape safety, local Prometheus scrape/remote-write/retention, and recording rules passed unit, build, security-core, M5 regression, and real-container M6 checks.",
+  "milestone": "M3 selected SLF4J/Logback compatibility",
+  "summary": "The selected-log compatibility slice passes its 12-test disclosure/isolation/failure suite, the full auto-configuration module, repository build/tests, core security, and real Alloy/Loki and Alloy/Prometheus gates. Repository-wide verification remains non-zero because Terraform is unavailable, M9 performance is NOT IMPLEMENTED, and Terraform whitespace fails the documentation baseline. An all-worktree local snapshot commit is being created at explicit user direction without changing that verdict.",
   "blockers": [],
   "nextActions": [
-    "Review the M6 fixed meter manifest, Alloy metric contract, recording rules, and acceptance evidence.",
-    "Implement M7 partner-authorized query access and Grafana dashboards without weakening the M6 scrape boundary.",
-    "Complete the deferred M8 deployment and M9 performance milestones; aggregate verification remains intentionally non-zero until those gates exist."
+    "Provide the pinned Terraform CLI and resolve the unrelated Terraform trailing-blank-line findings before rerunning the aggregate preflight/baseline.",
+    "Complete the M7/M9 Grafana, end-to-end, and full-duration performance gates required by authoritative repository-wide verification.",
+    "Repair the zero-byte unreferenced Git object through an explicitly approved repository-maintenance action before relying on a clean git-fsck result."
   ],
-  "lastUpdated": "2026-08-23T09:11:59Z"
+  "lastUpdated": "2026-08-23T11:28:00Z"
 }

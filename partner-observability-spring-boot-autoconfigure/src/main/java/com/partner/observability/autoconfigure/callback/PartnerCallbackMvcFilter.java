@@ -67,8 +67,9 @@ final class PartnerCallbackMvcFilter extends OncePerRequestFilter {
                 length < 0 ? OptionalLong.empty() : OptionalLong.of(length));
         request.setAttribute(CallbackObservations.ATTRIBUTE, observation);
         Throwable failure = null;
-        try (PartnerObservationContext.Scope ignored = PartnerObservationContext.open(
-                definition.partnerContext(), observation.interactionId())) {
+        try (PartnerObservationContext.Scope ignored = PartnerObservationContext.openCallback(
+                definition.partnerContext(), observation.interactionId(),
+                observation.callbackAttemptId(), definition.correlationProfile())) {
             chain.doFilter(request, response);
         } catch (IOException | ServletException | RuntimeException exception) {
             failure = exception;

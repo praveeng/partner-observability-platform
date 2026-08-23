@@ -113,6 +113,8 @@ Generated configuration is validated, assigned a content digest, stored in a ver
 
 Modules take existing ECS cluster, private/public subnets by role, VPC, DNS zone, approved ACM certificate ARN, pinned TLS policy, image digests, sizing, manifest digest, and approved secret ARNs as inputs. They do not create partner integration services or callback ALBs, import certificate/private key data, create users/password values, Terraform backends, production credentials, or perform deployments from documentation checks.
 
+The M8 module set implements these boundaries for an existing market ECS cluster. The composition also includes the architecture-required query gateway even though partner dashboard/query behavior remains an M7 runtime concern: Grafana must never gain a direct Loki or Prometheus network path while M7 is incomplete. The module creates exact SG-to-SG paths, a private TLS Alloy NLB, the single 443-only Grafana ALB, encrypted state, fixed stateful task counts, bounded stateless autoscaling, and exact secret/artifact ARN grants. Provider-schema validation and a mocked local network plan are evidence of configuration correctness only; they are not an AWS plan or deployment-readiness approval for any real environment.
+
 Examples under `terraform/examples/dev`, `stage`, and `prod` eventually demonstrate composition with placeholders. `plan` requires explicit account/environment confirmation; `apply` is never an autonomous default.
 
 ## Sizing and autoscaling

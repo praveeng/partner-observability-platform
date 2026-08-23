@@ -42,7 +42,7 @@ These properties are non-configurable acceptance gates. ADRs and onboarding mani
 - Explicit pre-encryption/post-decryption hooks operate only where business code already has authorized plaintext, sanitize immediately, and never retain source objects.
 - Callback request capture occurs only after trusted partner authentication/decryption and before business processing; callback response capture occurs after processing and before serialization/encryption. Uncertain ordering reduces capture to metadata-only/off.
 - Automatic interceptors do not serialize one-shot, streaming, duplex, reactive, binary, or unknown bodies for observation.
-- Arbitrary existing SLF4J rendered messages remain internal-only. Only marked structured safe-log events pass the normal sanitizer.
+- Arbitrary existing SLF4J rendered messages remain internal-only. Compatibility capture requires a startup-approved exact logger/template selection, optional exact marker, configured scalar arguments, and trusted registry-matching partner context; it never reads formatted messages or throwables and always passes projected arguments through the normal sanitizer and bounded dispatcher.
 
 ## Partner isolation
 

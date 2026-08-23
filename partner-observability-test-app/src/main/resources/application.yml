@@ -15,7 +15,7 @@ logging:
 partner-observability:
   enabled: true
   payloads-enabled: true
-  logs-enabled: true
+  logs-enabled: false
   events-enabled: true
   metrics-enabled: true
   export-enabled: true

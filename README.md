@@ -58,6 +58,6 @@ jq empty .agent-state/status.json
 - Docker Compose locally; Terraform and AWS ECS as the deployment model.
 - No Kubernetes and no Helm.
 - No production deployment, production credentials, or real partner/customer data.
-- Agents may commit locally but must never push or merge.
+- Agents may commit locally and may push completed, verified work from a `READY_FOR_REVIEW` or `COMPLETE` scope to an existing remote branch. Force pushes, merges, protected-branch bypass, releases, and deployments remain prohibited.
 
 The project is licensed under Apache License 2.0; see [LICENSE](LICENSE).

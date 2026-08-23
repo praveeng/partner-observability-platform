@@ -11,6 +11,9 @@ final class PartnerObservabilityConfigurationValidator {
     private static final Pattern TOKEN = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]{0,62}");
     private static final Pattern SLOT = Pattern.compile("p0(?:0[1-9]|[1-5][0-9]|6[0-4])");
     private static final Pattern TENANT = Pattern.compile("[a-z0-9-]{1,40}");
+    private static final Pattern LOGGER_PATTERN = Pattern.compile(
+            "(?:[A-Za-z_$][A-Za-z0-9_$]*\\.)*[A-Za-z_$][A-Za-z0-9_$]*(?:\\.\\*|\\.\\*\\*)?");
+    private static final Set<String> LOG_LEVELS = Set.of("TRACE", "DEBUG", "INFO", "WARN", "ERROR");
     private static final Set<String> METHODS = Set.of("GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "TRACE");
 
     void validate(PartnerObservabilityProperties properties) {
@@ -42,8 +45,73 @@ final class PartnerObservabilityConfigurationValidator {
         }
         validateDefinitions(properties.getOutbound(), partners, "outbound", 64);
         validateDefinitions(properties.getCallbacks(), partners, "callback", 64);
-        if (properties.isEnabled() && properties.getOutbound().isEmpty() && properties.getCallbacks().isEmpty()) {
-            fail("enabled configuration must define an outbound API or callback");
+        validateLogSelections(properties);
+        if (properties.isEnabled() && properties.getOutbound().isEmpty()
+                && properties.getCallbacks().isEmpty() && properties.getLogSelections().isEmpty()) {
+            fail("enabled configuration must define an outbound API, callback, or log selection");
+        }
+    }
+
+    private void validateLogSelections(PartnerObservabilityProperties properties) {
+        List<PartnerObservabilityProperties.LogSelection> selections = properties.getLogSelections();
+        if (selections.size() > 64) {
+            fail("at most 64 log selections are permitted");
+        }
+        if (properties.isLogsEnabled() && selections.isEmpty()) {
+            fail("logs-enabled requires at least one log selection");
+        }
+        Set<String> matchers = new HashSet<>();
+        if (!selections.isEmpty() && properties.getPartners().isEmpty()) {
+            fail("log selections require at least one configured partner");
+        }
+        for (PartnerObservabilityProperties.LogSelection selection : selections) {
+            token(selection.getCategory(), "log category");
+            token(selection.getJourneyStage(), "log journey-stage");
+            if (selection.getOutcome() == null) {
+                fail("log outcome is required");
+            }
+            String pattern = required(selection.getLoggerPattern(), "log logger-pattern");
+            if (pattern.length() > 256 || !LOGGER_PATTERN.matcher(pattern).matches()) {
+                fail("log logger-pattern is invalid");
+            }
+            String template = required(selection.getMessageTemplate(), "log message-template");
+            if (template.length() > 2048 || template.indexOf('\0') >= 0) {
+                fail("log message-template is invalid");
+            }
+            if (!LOG_LEVELS.contains(required(selection.getMinimumLevel(), "log minimum-level"))) {
+                fail("log minimum-level is invalid");
+            }
+            if (selection.getMarker() != null) {
+                token(selection.getMarker(), "log marker");
+            }
+            if (selection.getErrorCode() != null) {
+                token(selection.getErrorCode(), "log error-code");
+            }
+            String matcher = pattern + "\n" + value(selection.getMarker()) + "\n" + template;
+            if (!matchers.add(matcher)) {
+                fail("log selections must have unique logger/marker/template matchers");
+            }
+            validateLogArguments(selection.getArguments());
+        }
+    }
+
+    private void validateLogArguments(List<PartnerObservabilityProperties.LogArgument> arguments) {
+        if (arguments.size() > 32) {
+            fail("log arguments exceed the hard cap");
+        }
+        Set<Integer> indexes = new HashSet<>();
+        Set<String> names = new HashSet<>();
+        for (PartnerObservabilityProperties.LogArgument argument : arguments) {
+            if (argument.getIndex() < 0 || argument.getIndex() >= 32 || !indexes.add(argument.getIndex())) {
+                fail("log argument indexes must be unique values from 0 to 31");
+            }
+            token(argument.getName(), "log argument name");
+            if (!names.add(argument.getName())) {
+                fail("log argument names must be unique");
+            }
+            if (argument.getType() == null || argument.getPolicy() == null) {
+                fail("log argument type and policy are required");
+            }
         }
     }
 

@@ -16,6 +16,66 @@ M1 is ready for review when:
 
 M1 approval authorizes implementation planning, not production deployment or production payload capture.
 
+## Authoritative local completion gate
+
+`./scripts/verify-all.sh` is the authoritative local completion gate. It requires Java 17, the executable Gradle wrapper, Docker with the Compose v2 plugin and a reachable daemon, Terraform, Bash, Git, curl, jq, and ripgrep. A missing prerequisite fails preflight; no suite is silently skipped. The gate uses a Gradle clean build, reruns focused test tasks, unique Compose projects with disposable volumes, temporary Terraform data directories, UTC/C locale, and a final per-stage `PASS`/`FAIL` summary. Every security command is a normal mandatory stage, so any non-zero security result fails the aggregate gate.
+
+The following matrix is normative. “Required completion runner” identifies the command that must provide the final automated evidence. Supporting evidence does not turn a missing end-to-end boundary into a pass.
+
+| # | Mandatory requirement | Automated evidence | Required completion runner |
+| ---: | --- | --- | --- |
+| 1 | Gradle clean build | All module compilation, tests, checks, and archives from cleaned outputs | `./gradlew --no-daemon clean build` in `verify-all.sh` |
+| 2 | Unit tests | Framework-independent model, policy, payload, context, and dispatch tests | `:partner-observability-core:test --rerun-tasks` |
+| 3 | Spring Boot starter tests | Auto-configuration module tests plus the one-starter synthetic application tests | Auto-configuration and test-app `test --rerun-tasks` tasks |
+| 4 | Bounded queue tests | `BoundedTelemetryQueueTest` and `BoundedAsyncDispatcherTest` | BUILD / CORE bounded-queue stage |
+| 5 | Telemetry failure isolation tests | Dispatcher publisher failure/retry tests and starter/encrypted publisher-failure business assertions | BUILD / CORE failure-isolation stage |
+| 6 | RestTemplate integration tests | Normal/error/timeout/retry/concurrency behavior, starter capture, and TLS equivalence in `SyntheticPartnerClientsIntegrationTest`, `PartnerObservabilityStarterIntegrationTest`, and `TlsInstrumentationIntegrationTest` | OUTBOUND CLIENTS stage |
+| 7 | WebClient integration tests | Normal/reactive-concurrency behavior, starter capture, and TLS equivalence in the same client suites | OUTBOUND CLIENTS stage |
+| 8 | OkHttp integration tests | Normal behavior, starter capture, client-setting preservation, and TLS equivalence in the same client suites | OUTBOUND CLIENTS stage |
+| 9 | Encrypted integration tests | `EncryptedRestTemplateFixtureIntegrationTest` and `PartnerPlaintextSchemaTest` | Encrypted integration stage |
+| 10 | Async request acknowledgement | `returns202AcknowledgementsWithAnOptionalPartnerReferenceBridge` plus emitted acknowledgement assertions | CALLBACKS / ASYNC stage |
+| 11 | Callback request capture | Synthetic callback journey and `CallbackRequestRecord` assertions | CALLBACKS / ASYNC stage |
+| 12 | Callback response capture | Synthetic callback journey and `CallbackResponseRecord` assertions | CALLBACKS / ASYNC stage |
+| 13 | Callback processing result | `separatesSuccessfulAndFailedCallbackProcessingFromHttpReceipt` and processing-record assertions | CALLBACKS / ASYNC stage |
+| 14 | Callback correlation using `applicationId` | `supportsEachCallbackCorrelationShape` | CALLBACKS / ASYNC stage |
+| 15 | Callback correlation using `partnerReferenceId` without `applicationId` | `supportsEachCallbackCorrelationShape` explicitly asserts the absent application ID and retained partner reference | CALLBACKS / ASYNC stage |
+| 16 | Duplicate callback | `modelsRetryDuplicateAndOutOfOrderDeliveriesAsSeparateAttempts` and starter duplicate-attempt telemetry assertions | CALLBACKS / ASYNC stage |
+| 17 | Callback retry | Retry delivery/attempt assertions in the lifecycle and starter suites | CALLBACKS / ASYNC stage |
+| 18 | Out-of-order callback | Out-of-order sequence and unique attempt assertions | CALLBACKS / ASYNC stage |
+| 19 | Unknown callback reference | Unknown partner-reference assertions after a late callback | CALLBACKS / ASYNC stage |
+| 20 | Wrong-partner callback isolation | `failsClosedForInvalidSignatureAndWrongPartnerWithoutTrustedCallbackFacts` plus queue-absence assertions | CALLBACKS / ASYNC and security stages |
+| 21 | Callback authentication/signature failure | Invalid-signature 401 and absence of trusted callback facts | CALLBACKS / ASYNC and security stages |
+| 22 | Callback processing failure | Failed processing, background failure, and response-write separation assertions | CALLBACKS / ASYNC stage |
+| 23 | Callback containing Base64 document | Hostile 5/8 MiB callback fixtures plus pre-queue/Loki absence assertions | CALLBACKS / ASYNC, payload, and data-plane security stages |
+| 24 | Callback PII masking | Hostile callback retention-absence assertions plus sanitizer and Alloy mask assertions | CALLBACKS / ASYNC, payload, and data-plane security stages |
+| 25 | Payload-safety tests | `PayloadSafetyTest` and `ApplicationPayloadSafetyTest` mandatory corpus | PAYLOAD / LOG SAFETY and security stages |
+| 26 | Base64/document exclusion | Core, fixture, encrypted-flow, dispatcher, and Alloy sink-absence tests | PAYLOAD / LOG SAFETY and security stages |
+| 27 | SLF4J compatibility | `PartnerSafeLogCompatibilityTest` | SLF4J/Logback compatibility stage |
+| 28 | Secret leakage | Core removal/value corpus, selected-log tests, encrypted-flow tests, and Alloy sink scan | Security completion gate |
+| 29 | PII masking | Core deterministic masks and Alloy retained-result assertions | Security completion gate |
+| 30 | Binary leakage | Pre-queue binary/type/Base64 corpus and downstream absence assertions | Security completion gate |
+| 31 | Docker Compose startup | Compose configuration validation and unique disposable local stacks | Data-plane and metrics-plane integration runners |
+| 32 | Alloy health | Compose dependency/health wait, Alloy config validation, and live self-metrics | `test/integration/run-local-data-plane.sh` |
+| 33 | Loki health | Loki config verification, Compose health wait, ingest, and query assertions | `test/integration/run-local-data-plane.sh` |
+| 34 | Prometheus health | Promtool validation, Compose health wait, live query/flags/rules assertions | `test/integration/run-local-metrics-plane.sh` |
+| 35 | Grafana health | Real provisioned Grafana health/authentication runner required; missing assets must return `NOT IMPLEMENTED` | `scripts/test-grafana.sh` |
+| 36 | End-to-end outbound request/response visibility | Must originate in the test application and be visible through the authorized Grafana path; direct OTLP injection is insufficient | `scripts/test-end-to-end.sh` |
+| 37 | End-to-end async request -> acknowledgement -> callback journey | Must originate in the test application and traverse Alloy/Loki/query/Grafana | `scripts/test-end-to-end.sh` |
+| 38 | Transaction search | Supporting exact structured-metadata search exists in the data-plane test; completion requires the authorized UI/query path | `scripts/test-end-to-end.sh` |
+| 39 | Callback reference search | Supporting fixed-tenant metadata search exists; completion requires the authorized UI/query path | `scripts/test-end-to-end.sh` |
+| 40 | Event visibility | Supporting seven-record Loki visibility exists; completion requires the authorized Grafana detail/timeline path | `scripts/test-end-to-end.sh` |
+| 41 | Metric correctness | Micrometer unit tests and live Alloy/Prometheus assertions support the final dashboard result test | `scripts/test-end-to-end.sh` |
+| 42 | Callback metric correctness | Callback meter/rule unit and live query assertions support the final dashboard result test | `scripts/test-end-to-end.sh` |
+| 43 | Tenant-isolation tests | Fixed-tenant ingest/query denial exists; completion also requires Grafana/query-proxy attacks | `scripts/test-security.sh` and `scripts/test-end-to-end.sh` |
+| 44 | Callback tenant-isolation tests | Callback event query denial exists; completion also requires public UI/query-path denial | `scripts/test-security.sh` and `scripts/test-end-to-end.sh` |
+| 45 | Same `applicationId` across partners isolation | Core batching, test-app, and real Loki tenant collision assertions; final UI/query path remains mandatory | `scripts/test-end-to-end.sh` |
+| 46 | Same `callbackReferenceId` across partners isolation | Test-app and real Loki tenant collision assertions; final UI/query path remains mandatory | `scripts/test-end-to-end.sh` |
+| 47 | Terraform fmt/validate | Recursive format, every root/module provider-schema validation, static policy, and mocked network plan test | `scripts/test-terraform.sh` |
+| 48 | Dashboard/provisioning validation | JSON parsing plus real provisioned authentication/org/datasource/dashboard validation required | `scripts/test-grafana.sh --validate-only` |
+| 49 | Documentation/configuration consistency | Mapping completeness, JSON/shell syntax, version, retention, tenancy, no-Kubernetes/Helm, and mandatory-command checks | `scripts/test-docs.sh` |
+
+The existing performance profiles remain cross-cutting completion criteria even though they are outside the numbered 1-49 task list. `verify-all.sh` therefore also requires `scripts/test-performance.sh`; a smoke or shortened run is not a substitute for the exact acceptance table below.
+
 ## Functional contract gates
 
 - One starter dependency plus configuration integrates a supported Spring Boot 2.7 service; disabled mode requires no application code.
@@ -28,7 +88,7 @@ M1 approval authorizes implementation planning, not production deployment or pro
 - Callback receipt/retry, authentication/validation, processing start/terminal, and response write are distinct facts. HTTP 2xx/202 is never treated as proof of business completion.
 - Explicit pre-encryption/post-decryption API immediately creates a safe projection, never decrypts, and suppresses all observability failures.
 - Context propagation/restoration works for servlet, MVC async dispatch, configured executor, Reactor, callback/background wrappers, and MDC without stale cross-partner values or source-object retention.
-- Marked structured safe logs work; arbitrary rendered SLF4J messages/throwables remain internal-only.
+- Disabled-by-default selected SLF4J compatibility preserves existing appenders and semantics, requires exact logger/template plus trusted partner context, optionally requires an exact marker, sanitizes only configured scalar arguments, and never copies arbitrary rendered messages, Authorization values, Base64/binary, oversized content, exceptions, or stack traces.
 - All kill switches reduce capture immediately and cannot expand the startup allowlist.
 - Automatic and explicit observations share interaction/attempt IDs and emit at most one request/response payload record.
 
@@ -113,7 +173,7 @@ M1 approval authorizes implementation planning, not production deployment or pro
 ### Concurrency and framework tests
 
 - MPSC multi-producer/single-consumer races, queue byte accounting, priority fairness, independent callback-stage loss, shutdown, retry slot, dispatcher recovery, and exact drop accounting.
-- Spring context slices and synthetic MVC/WebFlux services for RestTemplate, WebClient, OkHttp, callback filters/advice/decorators, Logback, MDC, servlet async, `@Async`, Reactor, cancellation, one-shot/duplex/streaming bodies, authentication/signature/decryption ordering, explicit processing hooks, and disabled/missing optional dependencies.
+- Spring context slices and synthetic MVC/WebFlux services for RestTemplate, WebClient, OkHttp, callback filters/advice/decorators, selected Logback templates/markers, unchanged existing appenders, publisher failure, missing/multiple partner context, stack/exception exclusion, large/Base64/Authorization arguments, MDC, servlet async, `@Async`, Reactor, cancellation, one-shot/duplex/streaming bodies, authentication/signature/decryption ordering, explicit processing hooks, and disabled/missing optional dependencies.
 - Synthetic TLS servers/CAs for all three clients, covering valid/invalid chains, expiry, hostname mismatch, downgrade redirect, unchanged client configuration, structured type-only failure classification, and exception/message/secret absence.
 
 ### Integration/security/end-to-end tests

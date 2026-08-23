@@ -3,6 +3,7 @@ package com.partner.observability.autoconfigure;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.partner.observability.autoconfigure.callback.CallbackInstrumentationConfiguration;
 import com.partner.observability.autoconfigure.http.HttpClientInstrumentationConfiguration;
+import com.partner.observability.autoconfigure.logging.PartnerLogbackConfiguration;
 import com.partner.observability.core.dispatch.BoundedAsyncDispatcher;
 import com.partner.observability.core.dispatch.DispatcherConfig;
 import com.partner.observability.core.health.TelemetryHealth;
@@ -29,6 +30,7 @@ import org.springframework.core.task.TaskDecorator;
 @Import({
     HttpClientInstrumentationConfiguration.class,
     CallbackInstrumentationConfiguration.class,
+    PartnerLogbackConfiguration.class,
     PartnerObservabilityOptionalConfiguration.class
 })
 public class PartnerObservabilityAutoConfiguration {

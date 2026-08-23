@@ -1,0 +1,345 @@
+// LOCAL_SYNTHETIC schema-2 data plane. The ingress gateway, not event content,
+// selects one of these fixed receivers. Each pipeline independently validates,
+// sanitizes, bounds, and exports to one fixed Loki tenant.
+
+otelcol.receiver.otlp "partner_a" {
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+  output {
+    logs = [otelcol.processor.filter.partner_a.input]
+  }
+}
+
+otelcol.receiver.otlp "partner_b" {
+  http {
+    endpoint = "0.0.0.0:4319"
+  }
+  output {
+    logs = [otelcol.processor.filter.partner_b.input]
+  }
+}
+
+otelcol.receiver.otlp "partner_c" {
+  http {
+    endpoint = "0.0.0.0:4320"
+  }
+  output {
+    logs = [otelcol.processor.filter.partner_c.input]
+  }
+}
+
+// Conditions are intentionally duplicated per fixed route. A generated market
+// manifest will own this repetition in ECS; local static configuration keeps the
+// trust boundary reviewable without a runtime/default tenant selector.
+otelcol.processor.filter "partner_a" {
+  error_mode = "propagate"
+  logs {
+    log_record = [
+      `resource.attributes["service.name"] != "synthetic-partner-service"`,
+      `resource.attributes["market"] != "LOCAL"`,
+      `resource.attributes["deployment.environment"] != "LOCAL_SYNTHETIC"`,
+      `attributes["partner.key"] != "partner-a"`,
+      `not IsString(body)`,
+      `Len(body) > 65536`,
+      `not IsMatch(body, "^\\s*\\{")`,
+      `not (attributes["schema.version"] == 1 or attributes["schema.version"] == 2)`,
+      `attributes["schema.version"] == 1 and not IsMatch(attributes["event.type"], "^(partner_api_request|partner_api_response|partner_event)$")`,
+      `attributes["schema.version"] == 2 and not IsMatch(attributes["event.type"], "^(outbound_api_request|outbound_api_response|async_acknowledgement|callback_request|callback_response|callback_processing_event|partner_business_event)$")`,
+      `not IsMatch(attributes["event.domain"], "^(API|ASYNC|CALLBACK|BUSINESS)$")`,
+      `not IsMatch(attributes["direction"], "^(OUTBOUND_TO_PARTNER|INBOUND_FROM_PARTNER)$")`,
+      `not IsMatch(attributes["outcome"], "^(SUCCESS|BUSINESS_REJECTED|TECHNICAL_FAILURE|CANCELLED|UNKNOWN)$")`,
+      `not IsMatch(attributes["severity"], "^(INFO|WARN|ERROR)$")`,
+      `not IsMatch(attributes["event.id"], "^[0-9a-f-]{36}$")`,
+      `not IsMatch(attributes["interaction.id"], "^[0-9a-f-]{36}$")`,
+      `not IsMatch(attributes["correlation.profile.id"], "^[A-Za-z0-9._-]{1,63}$")`,
+      `not IsMatch(attributes["api.id"], "^[A-Za-z0-9._-]{1,63}$")`,
+      `attributes["application.id"] != nil and not IsMatch(attributes["application.id"], "^[A-Za-z0-9._-]{1,128}$")`,
+      `attributes["loan.id"] != nil and not IsMatch(attributes["loan.id"], "^[A-Za-z0-9._-]{1,128}$")`,
+      `attributes["correlation.id"] != nil and not IsMatch(attributes["correlation.id"], "^[A-Za-z0-9._-]{1,128}$")`,
+      `attributes["original.correlation.id"] != nil and not IsMatch(attributes["original.correlation.id"], "^[A-Za-z0-9._-]{1,128}$")`,
+      `attributes["request.id"] != nil and not IsMatch(attributes["request.id"], "^[A-Za-z0-9._-]{1,128}$")`,
+      `attributes["partner.reference.id"] != nil and not IsMatch(attributes["partner.reference.id"], "^[A-Za-z0-9._-]{1,128}$")`,
+      `attributes["callback.reference.id"] != nil and not IsMatch(attributes["callback.reference.id"], "^[A-Za-z0-9._-]{1,128}$")`,
+      `attributes["external.transaction.id"] != nil and not IsMatch(attributes["external.transaction.id"], "^[A-Za-z0-9._-]{1,128}$")`,
+      `IsMatch(body, "(?i)\\\"[^\\\"]*(authorization|proxy.?authorization|password|passcode|secret|token|jwt|cookie|session|api.?key|otp|one.?time|verification.?code|cvv|cvc|card.?number|private.?key|signing.?key|encryption.?key)[^\\\"]*\\\"\\s*:")`,
+      `IsMatch(body, "(?i)(bearer|basic)\\s+[A-Za-z0-9._~+/-]+")`,
+      `IsMatch(body, "(?i)-----BEGIN [A-Z ]*(PRIVATE KEY|CERTIFICATE)-----")`,
+      `IsMatch(body, "(?i)data:[^;\\\"]+;base64,")`,
+      `IsMatch(body, "\\\"[A-Za-z0-9+/]{32,}={0,2}\\\"")`,
+      `IsMatch(body, "\\\"[0-9]{13,19}\\\"")`,
+    ]
+  }
+  output {
+    logs = [otelcol.processor.transform.partner_a.input]
+  }
+}
+
+otelcol.processor.filter "partner_b" {
+  error_mode = "propagate"
+  logs {
+    log_record = [
+      `resource.attributes["service.name"] != "synthetic-partner-service"`,
+      `resource.attributes["market"] != "LOCAL"`,
+      `resource.attributes["deployment.environment"] != "LOCAL_SYNTHETIC"`,
+      `attributes["partner.key"] != "partner-b"`,
+      `not IsString(body)`,
+      `Len(body) > 65536`,
+      `not IsMatch(body, "^\\s*\\{")`,
+      `not (attributes["schema.version"] == 1 or attributes["schema.version"] == 2)`,
+      `attributes["schema.version"] == 1 and not IsMatch(attributes["event.type"], "^(partner_api_request|partner_api_response|partner_event)$")`,
+      `attributes["schema.version"] == 2 and not IsMatch(attributes["event.type"], "^(outbound_api_request|outbound_api_response|async_acknowledgement|callback_request|callback_response|callback_processing_event|partner_business_event)$")`,
+      `not IsMatch(attributes["event.domain"], "^(API|ASYNC|CALLBACK|BUSINESS)$")`,
+      `not IsMatch(attributes["direction"], "^(OUTBOUND_TO_PARTNER|INBOUND_FROM_PARTNER)$")`,
+      `not IsMatch(attributes["outcome"], "^(SUCCESS|BUSINESS_REJECTED|TECHNICAL_FAILURE|CANCELLED|UNKNOWN)$")`,
+      `not IsMatch(attributes["severity"], "^(INFO|WARN|ERROR)$")`,
+      `not IsMatch(attributes["event.id"], "^[0-9a-f-]{36}$")`,
+      `not IsMatch(attributes["interaction.id"], "^[0-9a-f-]{36}$")`,
+      `not IsMatch(attributes["correlation.profile.id"], "^[A-Za-z0-9._-]{1,63}$")`,
+      `not IsMatch(attributes["api.id"], "^[A-Za-z0-9._-]{1,63}$")`,
+      `attributes["application.id"] != nil and not IsMatch(attributes["application.id"], "^[A-Za-z0-9._-]{1,128}$")`,
+      `attributes["loan.id"] != nil and not IsMatch(attributes["loan.id"], "^[A-Za-z0-9._-]{1,128}$")`,
+      `attributes["correlation.id"] != nil and not IsMatch(attributes["correlation.id"], "^[A-Za-z0-9._-]{1,128}$")`,
+      `attributes["original.correlation.id"] != nil and not IsMatch(attributes["original.correlation.id"], "^[A-Za-z0-9._-]{1,128}$")`,
+      `attributes["request.id"] != nil and not IsMatch(attributes["request.id"], "^[A-Za-z0-9._-]{1,128}$")`,
+      `attributes["partner.reference.id"] != nil and not IsMatch(attributes["partner.reference.id"], "^[A-Za-z0-9._-]{1,128}$")`,
+      `attributes["callback.reference.id"] != nil and not IsMatch(attributes["callback.reference.id"], "^[A-Za-z0-9._-]{1,128}$")`,
+      `attributes["external.transaction.id"] != nil and not IsMatch(attributes["external.transaction.id"], "^[A-Za-z0-9._-]{1,128}$")`,
+      `IsMatch(body, "(?i)\\\"[^\\\"]*(authorization|proxy.?authorization|password|passcode|secret|token|jwt|cookie|session|api.?key|otp|one.?time|verification.?code|cvv|cvc|card.?number|private.?key|signing.?key|encryption.?key)[^\\\"]*\\\"\\s*:")`,
+      `IsMatch(body, "(?i)(bearer|basic)\\s+[A-Za-z0-9._~+/-]+")`,
+      `IsMatch(body, "(?i)-----BEGIN [A-Z ]*(PRIVATE KEY|CERTIFICATE)-----")`,
+      `IsMatch(body, "(?i)data:[^;\\\"]+;base64,")`,
+      `IsMatch(body, "\\\"[A-Za-z0-9+/]{32,}={0,2}\\\"")`,
+      `IsMatch(body, "\\\"[0-9]{13,19}\\\"")`,
+    ]
+  }
+  output {
+    logs = [otelcol.processor.transform.partner_b.input]
+  }
+}
+
+otelcol.processor.filter "partner_c" {
+  error_mode = "propagate"
+  logs {
+    log_record = [
+      `resource.attributes["service.name"] != "synthetic-partner-service"`,
+      `resource.attributes["market"] != "LOCAL"`,
+      `resource.attributes["deployment.environment"] != "LOCAL_SYNTHETIC"`,
+      `attributes["partner.key"] != "partner-c"`,
+      `not IsString(body)`,
+      `Len(body) > 65536`,
+      `not IsMatch(body, "^\\s*\\{")`,
+      `not (attributes["schema.version"] == 1 or attributes["schema.version"] == 2)`,
+      `attributes["schema.version"] == 1 and not IsMatch(attributes["event.type"], "^(partner_api_request|partner_api_response|partner_event)$")`,
+      `attributes["schema.version"] == 2 and not IsMatch(attributes["event.type"], "^(outbound_api_request|outbound_api_response|async_acknowledgement|callback_request|callback_response|callback_processing_event|partner_business_event)$")`,
+      `not IsMatch(attributes["event.domain"], "^(API|ASYNC|CALLBACK|BUSINESS)$")`,
+      `not IsMatch(attributes["direction"], "^(OUTBOUND_TO_PARTNER|INBOUND_FROM_PARTNER)$")`,
+      `not IsMatch(attributes["outcome"], "^(SUCCESS|BUSINESS_REJECTED|TECHNICAL_FAILURE|CANCELLED|UNKNOWN)$")`,
+      `not IsMatch(attributes["severity"], "^(INFO|WARN|ERROR)$")`,
+      `not IsMatch(attributes["event.id"], "^[0-9a-f-]{36}$")`,
+      `not IsMatch(attributes["interaction.id"], "^[0-9a-f-]{36}$")`,
+      `not IsMatch(attributes["correlation.profile.id"], "^[A-Za-z0-9._-]{1,63}$")`,
+      `not IsMatch(attributes["api.id"], "^[A-Za-z0-9._-]{1,63}$")`,
+      `attributes["application.id"] != nil and not IsMatch(attributes["application.id"], "^[A-Za-z0-9._-]{1,128}$")`,
+      `attributes["loan.id"] != nil and not IsMatch(attributes["loan.id"], "^[A-Za-z0-9._-]{1,128}$")`,
+      `attributes["correlation.id"] != nil and not IsMatch(attributes["correlation.id"], "^[A-Za-z0-9._-]{1,128}$")`,
+      `attributes["original.correlation.id"] != nil and not IsMatch(attributes["original.correlation.id"], "^[A-Za-z0-9._-]{1,128}$")`,
+      `attributes["request.id"] != nil and not IsMatch(attributes["request.id"], "^[A-Za-z0-9._-]{1,128}$")`,
+      `attributes["partner.reference.id"] != nil and not IsMatch(attributes["partner.reference.id"], "^[A-Za-z0-9._-]{1,128}$")`,
+      `attributes["callback.reference.id"] != nil and not IsMatch(attributes["callback.reference.id"], "^[A-Za-z0-9._-]{1,128}$")`,
+      `attributes["external.transaction.id"] != nil and not IsMatch(attributes["external.transaction.id"], "^[A-Za-z0-9._-]{1,128}$")`,
+      `IsMatch(body, "(?i)\\\"[^\\\"]*(authorization|proxy.?authorization|password|passcode|secret|token|jwt|cookie|session|api.?key|otp|one.?time|verification.?code|cvv|cvc|card.?number|private.?key|signing.?key|encryption.?key)[^\\\"]*\\\"\\s*:")`,
+      `IsMatch(body, "(?i)(bearer|basic)\\s+[A-Za-z0-9._~+/-]+")`,
+      `IsMatch(body, "(?i)-----BEGIN [A-Z ]*(PRIVATE KEY|CERTIFICATE)-----")`,
+      `IsMatch(body, "(?i)data:[^;\\\"]+;base64,")`,
+      `IsMatch(body, "\\\"[A-Za-z0-9+/]{32,}={0,2}\\\"")`,
+      `IsMatch(body, "\\\"[0-9]{13,19}\\\"")`,
+    ]
+  }
+  output {
+    logs = [otelcol.processor.transform.partner_c.input]
+  }
+}
+
+otelcol.processor.transform "partner_a" {
+  error_mode = "propagate"
+  log_statements {
+    context = "log"
+    statements = [
+      `replace_pattern(log.body, "(?i)(\\\"(?:phone|mobile|telephone)\\\"\\s*:\\s*\\\")[^\\\"]*(\\\")", "$1[MASKED_PHONE]$2")`,
+      `replace_pattern(log.body, "(?i)(\\\"email\\\"\\s*:\\s*\\\")[^\\\"]*(\\\")", "$1[MASKED_EMAIL]$2")`,
+      `replace_pattern(log.body, "(?i)(\\\"(?:account|account.?number|acct.?no|bank.?account(?:.?number)?|iban)\\\"\\s*:\\s*\\\")[^\\\"]*(\\\")", "$1[MASKED_ACCOUNT]$2")`,
+      `replace_pattern(log.body, "(?i)(\\\"(?:national.?id(?:entifier)?|government.?id|tax.?id(?:entifier)?|ssn|social.?security.?number|passport.?number)\\\"\\s*:\\s*\\\")[^\\\"]*(\\\")", "$1[MASKED_NATIONAL_ID]$2")`,
+      `replace_pattern(log.body, "(?i)(\\\"(?:address|postal.?address|street.?address|home.?address|mailing.?address|residential.?address|billing.?address)\\\"\\s*:\\s*\\\")[^\\\"]*(\\\")", "$1[MASKED_ADDRESS]$2")`,
+      `merge_maps(log.cache, ParseJSON(log.body), "upsert")`,
+      `delete_key(log.cache, "partnerKey")`,
+      `delete_key(log.cache, "partnerId")`,
+      `delete_key(log.cache, "tenantRouteId")`,
+      `delete_key(log.cache, "xScopeOrgId")`,
+      `set(log.body, log.cache)`,
+      `set(log.severity_text, "")`,
+      `set(log.observed_time_unix_nano, 0)`,
+      `set(instrumentation_scope.name, "")`,
+      `set(instrumentation_scope.version, "")`,
+      `keep_keys(instrumentation_scope.attributes, [])`,
+      `set(resource.attributes["service.name"], "synthetic-partner-service")`,
+      `set(resource.attributes["deployment.environment"], "LOCAL_SYNTHETIC")`,
+      `set(resource.attributes["market"], "LOCAL")`,
+      `set(resource.attributes["event.domain"], log.attributes["event.domain"])`,
+      `set(resource.attributes["event.type"], log.attributes["event.type"])`,
+      `set(resource.attributes["direction"], log.attributes["direction"])`,
+      `set(resource.attributes["outcome"], log.attributes["outcome"])`,
+      `set(resource.attributes["severity"], log.attributes["severity"])`,
+      `keep_keys(resource.attributes, ["service.name", "deployment.environment", "market", "event.domain", "event.type", "direction", "outcome", "severity"])`,
+      `keep_keys(log.attributes, ["event.id", "interaction.id", "callback.attempt.id", "correlation.profile.id", "timeline.stage", "api.id", "service.version", "status.class", "error.code", "application.id", "loan.id", "correlation.id", "original.correlation.id", "request.id", "partner.reference.id", "callback.reference.id", "external.transaction.id"])`,
+    ]
+  }
+  output {
+    logs = [otelcol.exporter.otlphttp.partner_a.input]
+  }
+}
+
+otelcol.processor.transform "partner_b" {
+  error_mode = "propagate"
+  log_statements {
+    context = "log"
+    statements = [
+      `replace_pattern(log.body, "(?i)(\\\"(?:phone|mobile|telephone)\\\"\\s*:\\s*\\\")[^\\\"]*(\\\")", "$1[MASKED_PHONE]$2")`,
+      `replace_pattern(log.body, "(?i)(\\\"email\\\"\\s*:\\s*\\\")[^\\\"]*(\\\")", "$1[MASKED_EMAIL]$2")`,
+      `replace_pattern(log.body, "(?i)(\\\"(?:account|account.?number|acct.?no|bank.?account(?:.?number)?|iban)\\\"\\s*:\\s*\\\")[^\\\"]*(\\\")", "$1[MASKED_ACCOUNT]$2")`,
+      `replace_pattern(log.body, "(?i)(\\\"(?:national.?id(?:entifier)?|government.?id|tax.?id(?:entifier)?|ssn|social.?security.?number|passport.?number)\\\"\\s*:\\s*\\\")[^\\\"]*(\\\")", "$1[MASKED_NATIONAL_ID]$2")`,
+      `replace_pattern(log.body, "(?i)(\\\"(?:address|postal.?address|street.?address|home.?address|mailing.?address|residential.?address|billing.?address)\\\"\\s*:\\s*\\\")[^\\\"]*(\\\")", "$1[MASKED_ADDRESS]$2")`,
+      `merge_maps(log.cache, ParseJSON(log.body), "upsert")`,
+      `delete_key(log.cache, "partnerKey")`,
+      `delete_key(log.cache, "partnerId")`,
+      `delete_key(log.cache, "tenantRouteId")`,
+      `delete_key(log.cache, "xScopeOrgId")`,
+      `set(log.body, log.cache)`,
+      `set(log.severity_text, "")`,
+      `set(log.observed_time_unix_nano, 0)`,
+      `set(instrumentation_scope.name, "")`,
+      `set(instrumentation_scope.version, "")`,
+      `keep_keys(instrumentation_scope.attributes, [])`,
+      `set(resource.attributes["service.name"], "synthetic-partner-service")`,
+      `set(resource.attributes["deployment.environment"], "LOCAL_SYNTHETIC")`,
+      `set(resource.attributes["market"], "LOCAL")`,
+      `set(resource.attributes["event.domain"], log.attributes["event.domain"])`,
+      `set(resource.attributes["event.type"], log.attributes["event.type"])`,
+      `set(resource.attributes["direction"], log.attributes["direction"])`,
+      `set(resource.attributes["outcome"], log.attributes["outcome"])`,
+      `set(resource.attributes["severity"], log.attributes["severity"])`,
+      `keep_keys(resource.attributes, ["service.name", "deployment.environment", "market", "event.domain", "event.type", "direction", "outcome", "severity"])`,
+      `keep_keys(log.attributes, ["event.id", "interaction.id", "callback.attempt.id", "correlation.profile.id", "timeline.stage", "api.id", "service.version", "status.class", "error.code", "application.id", "loan.id", "correlation.id", "original.correlation.id", "request.id", "partner.reference.id", "callback.reference.id", "external.transaction.id"])`,
+    ]
+  }
+  output {
+    logs = [otelcol.exporter.otlphttp.partner_b.input]
+  }
+}
+
+otelcol.processor.transform "partner_c" {
+  error_mode = "propagate"
+  log_statements {
+    context = "log"
+    statements = [
+      `replace_pattern(log.body, "(?i)(\\\"(?:phone|mobile|telephone)\\\"\\s*:\\s*\\\")[^\\\"]*(\\\")", "$1[MASKED_PHONE]$2")`,
+      `replace_pattern(log.body, "(?i)(\\\"email\\\"\\s*:\\s*\\\")[^\\\"]*(\\\")", "$1[MASKED_EMAIL]$2")`,
+      `replace_pattern(log.body, "(?i)(\\\"(?:account|account.?number|acct.?no|bank.?account(?:.?number)?|iban)\\\"\\s*:\\s*\\\")[^\\\"]*(\\\")", "$1[MASKED_ACCOUNT]$2")`,
+      `replace_pattern(log.body, "(?i)(\\\"(?:national.?id(?:entifier)?|government.?id|tax.?id(?:entifier)?|ssn|social.?security.?number|passport.?number)\\\"\\s*:\\s*\\\")[^\\\"]*(\\\")", "$1[MASKED_NATIONAL_ID]$2")`,
+      `replace_pattern(log.body, "(?i)(\\\"(?:address|postal.?address|street.?address|home.?address|mailing.?address|residential.?address|billing.?address)\\\"\\s*:\\s*\\\")[^\\\"]*(\\\")", "$1[MASKED_ADDRESS]$2")`,
+      `merge_maps(log.cache, ParseJSON(log.body), "upsert")`,
+      `delete_key(log.cache, "partnerKey")`,
+      `delete_key(log.cache, "partnerId")`,
+      `delete_key(log.cache, "tenantRouteId")`,
+      `delete_key(log.cache, "xScopeOrgId")`,
+      `set(log.body, log.cache)`,
+      `set(log.severity_text, "")`,
+      `set(log.observed_time_unix_nano, 0)`,
+      `set(instrumentation_scope.name, "")`,
+      `set(instrumentation_scope.version, "")`,
+      `keep_keys(instrumentation_scope.attributes, [])`,
+      `set(resource.attributes["service.name"], "synthetic-partner-service")`,
+      `set(resource.attributes["deployment.environment"], "LOCAL_SYNTHETIC")`,
+      `set(resource.attributes["market"], "LOCAL")`,
+      `set(resource.attributes["event.domain"], log.attributes["event.domain"])`,
+      `set(resource.attributes["event.type"], log.attributes["event.type"])`,
+      `set(resource.attributes["direction"], log.attributes["direction"])`,
+      `set(resource.attributes["outcome"], log.attributes["outcome"])`,
+      `set(resource.attributes["severity"], log.attributes["severity"])`,
+      `keep_keys(resource.attributes, ["service.name", "deployment.environment", "market", "event.domain", "event.type", "direction", "outcome", "severity"])`,
+      `keep_keys(log.attributes, ["event.id", "interaction.id", "callback.attempt.id", "correlation.profile.id", "timeline.stage", "api.id", "service.version", "status.class", "error.code", "application.id", "loan.id", "correlation.id", "original.correlation.id", "request.id", "partner.reference.id", "callback.reference.id", "external.transaction.id"])`,
+    ]
+  }
+  output {
+    logs = [otelcol.exporter.otlphttp.partner_c.input]
+  }
+}
+
+otelcol.exporter.otlphttp "partner_a" {
+  client {
+    endpoint = "http://loki:3100/otlp"
+    timeout = "1s"
+    headers = { "X-Scope-OrgID" = "local-p001-7f3a" }
+    tls { insecure = true }
+  }
+  retry_on_failure {
+    enabled = true
+    initial_interval = "200ms"
+    max_interval = "1s"
+    max_elapsed_time = "2s"
+  }
+  sending_queue {
+    enabled = true
+    block_on_overflow = false
+    num_consumers = 1
+    queue_size = 64
+    sizer = "requests"
+    wait_for_result = false
+  }
+}
+
+otelcol.exporter.otlphttp "partner_b" {
+  client {
+    endpoint = "http://loki:3100/otlp"
+    timeout = "1s"
+    headers = { "X-Scope-OrgID" = "local-p002-91bc" }
+    tls { insecure = true }
+  }
+  retry_on_failure {
+    enabled = true
+    initial_interval = "200ms"
+    max_interval = "1s"
+    max_elapsed_time = "2s"
+  }
+  sending_queue {
+    enabled = true
+    block_on_overflow = false
+    num_consumers = 1
+    queue_size = 64
+    sizer = "requests"
+    wait_for_result = false
+  }
+}
+
+otelcol.exporter.otlphttp "partner_c" {
+  client {
+    endpoint = "http://loki:3100/otlp"
+    timeout = "1s"
+    headers = { "X-Scope-OrgID" = "local-p003-c4d2" }
+    tls { insecure = true }
+  }
+  retry_on_failure {
+    enabled = true
+    initial_interval = "200ms"
+    max_interval = "1s"
+    max_elapsed_time = "2s"
+  }
+  sending_queue {
+    enabled = true
+    block_on_overflow = false
+    num_consumers = 1
+    queue_size = 64
+    sizer = "requests"
+    wait_for_result = false
+  }
+}

@@ -45,14 +45,19 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 - Implemented the minimum explicit pre-encryption/post-decryption API: a configured API scope, typed reflection-free schemas that cannot widen `safe-fields`, bounded schema discovery, automatic transport joining that discards ciphertext, and manual status-only completion for unsupported transports. Binary/stream/throwable/key/cryptographic-parameter source types fail closed. It is disabled by default and provides an inert bean when observability is disabled.
 - The test application proves separate sanitized logical request and response capture, two trusted configured partner routes, ciphertext-body suppression, key/IV/credential removal, large Base64 exclusion before queueing, hook/publisher failure containment, and successful encrypted traffic while disabled.
 - Verification on 2026-08-23: the forced typed-schema/encrypted-flow/disabled suite, full `./gradlew check --rerun-tasks`, `scripts/test.sh`, and `scripts/test-security.sh --core` pass. Architecture, partner-security, payload-safety, and starter static boundary checks found no scoped rejection. The aggregate `scripts/test-security.sh` and `scripts/verify-all.sh` remain non-zero only because Alloy/Loki/Grafana end-to-end security and exact M9 performance profiles report `NOT IMPLEMENTED`; no downstream, whole-platform, or performance acceptance claim is made.
-- Alloy schema-2 defense in depth and supported decoded-body advice remain M4 work and must not weaken authentication or encryption.
+- Alloy schema-2 defense in depth is implemented in M5; supported decoded-body advice remains constrained by the M4 typed-hook contract and must not weaken authentication or encryption.
 - Preparatory fixture complete: generated PDF/JPEG/opaque/document-array Base64 candidates and synthetic nested credential, OTP, card, and mask-required PII payloads are available on both outbound and callback paths for future sanitizer assertions. The fixture lifecycle ledger retains only bounded identifier/outcome projections, not hostile callback bodies.
 - Acceptance: prohibited classes are absent before queue admission and from every sink, including error paths and malformed inputs.
 
-### M5 — Alloy and Loki
+### M5 — Alloy and Loki (local data plane ready for review)
 
-- Define local Alloy/Loki configuration, per-partner Loki tenant routing, retention, limits, safe structured metadata handling, and schema N/N-1 migration for async/callback records.
-- Acceptance: backend outage cannot affect business results; tenant-crossing and cardinality tests fail closed.
+- Implemented a digest-pinned LOCAL_SYNTHETIC Compose stack with Alloy 1.18, Loki 3.7 single-binary TSDB v13, an internal-only backend network, loopback-only exposed ports, and fixed authenticated A/B/C ingress/query routes.
+- Each authenticated source/partner pair maps to a route-specific Alloy receiver and fixed opaque Loki tenant. Unknown/conflicting routes fail closed; tenant headers are stripped; callback bodies and OTLP metadata cannot choose a tenant.
+- Alloy accepts OTLP/HTTP logs for schema N/N-1, enforces the seven schema-2 and three legacy record names, bounds queues/retries/body/metadata, removes routing and unknown metadata, drops credential/card/Base64-shaped records, masks PII again, and emits native receiver/exporter/drop/queue metrics.
+- Loki multi-tenancy and structured metadata are enabled. The exact eight indexed labels remain bounded; transaction identifiers and API/callback/timeline fields remain structured metadata and are tested with exact LogQL metadata searches.
+- Local filesystem retention approximates cleanup with 24-hour retention and a two-hour delete delay. Production remains the documented encrypted S3-backed 384-hour retention with an 18-day lifecycle backstop and is not represented by this local stack.
+- Verification on 2026-08-23: real Compose integration validates configuration and proves A/B/C outbound/callback isolation, colliding identifier isolation, route/header/body spoof resistance, prohibited sink absence, PII masking, exact label allowlisting, schema N/N-1 names, structured-metadata search, correlated journeys, and Alloy self-metrics. The focused M5 suite passes; Grafana/Prometheus/deployed-network and exact M9 performance gates remain honestly non-zero/NOT IMPLEMENTED.
+- Acceptance: local tenant-crossing and cardinality tests fail closed; the application-side bounded dispatcher tests continue to prove backend outage cannot alter business results.
 
 ### M6 — Prometheus metrics
 
@@ -83,4 +88,4 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 
 ## Current focus
 
-The M4 explicit encrypted-plaintext hook slice is ready for review with exact migration guidance in `docs/encrypted-service-migration.md`. Alloy schema-2 defense in depth, remaining certificate/redirect and callback-ingress evidence, backend isolation/deployment work, and exact M9 duration/throughput profiles remain open.
+M5 local Alloy/Loki is ready for review with fixed A/B/C tenant routing, second-stage safety, searchable structured metadata, and real-container isolation evidence. The selected-log and M4 encrypted-hook slices remain in the current worktree. Grafana/Prometheus, remaining certificate/redirect and deployed callback-ingress evidence, Terraform/ECS deployment controls, and exact M9 duration/throughput profiles remain open; no whole-platform security, production-readiness, or performance claim is made.

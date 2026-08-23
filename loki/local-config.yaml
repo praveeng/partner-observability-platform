@@ -1,0 +1,96 @@
+auth_enabled: true
+
+server:
+  http_listen_address: 0.0.0.0
+  http_listen_port: 3100
+  log_level: warn
+
+common:
+  path_prefix: /var/lib/loki
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+  storage:
+    filesystem:
+      chunks_directory: /var/lib/loki/chunks
+      rules_directory: /var/lib/loki/rules
+
+schema_config:
+  configs:
+    - from: "2024-01-01"
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+limits_config:
+  allow_structured_metadata: true
+  discover_log_levels: false
+  max_structured_metadata_entries_count: 32
+  max_structured_metadata_size: 8KB
+  max_line_size: 64KB
+  max_line_size_truncate: false
+  retention_period: 24h
+  max_query_lookback: 24h
+  max_query_length: 25h
+  reject_old_samples: true
+  reject_old_samples_max_age: 25h
+  split_queries_by_interval: 15m
+  otlp_config:
+    resource_attributes:
+      ignore_defaults: true
+      attributes_config:
+        - action: index_label
+          attributes:
+            - service.name
+            - deployment.environment
+            - market
+            - event.domain
+            - event.type
+            - direction
+            - outcome
+            - severity
+    scope_attributes:
+      - action: drop
+        regex: ".*"
+    log_attributes:
+      - action: structured_metadata
+        attributes:
+          - event.id
+          - interaction.id
+          - callback.attempt.id
+          - correlation.profile.id
+          - timeline.stage
+          - api.id
+          - service.version
+          - status.class
+          - error.code
+          - application.id
+          - loan.id
+          - correlation.id
+          - original.correlation.id
+          - request.id
+          - partner.reference.id
+          - callback.reference.id
+          - external.transaction.id
+      - action: drop
+        regex: ".*"
+
+compactor:
+  working_directory: /var/lib/loki/compactor
+  compaction_interval: 10m
+  retention_enabled: true
+  retention_delete_delay: 2h
+  delete_request_store: filesystem
+
+ingester:
+  wal:
+    enabled: true
+    dir: /var/lib/loki/wal
+  chunk_encoding: snappy
+
+analytics:
+  reporting_enabled: false

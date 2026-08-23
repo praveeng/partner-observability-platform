@@ -1,3 +1,9 @@
-# Loki
+# Loki local data plane
 
-Future local/integration Loki configuration belongs here. The design requires one tenant per partner, server-enforced isolation, bounded labels, and structured metadata for approved high-cardinality identifiers. Configuration is deferred to M5.
+`local-config.yaml` runs Loki single-binary with multi-tenancy enabled, TSDB schema v13, structured metadata enabled, and filesystem storage in a named Docker volume. Synthetic partners A, B, and C use opaque tenants `local-p001-7f3a`, `local-p002-91bc`, and `local-p003-c4d2`; these tenant IDs are fixed only inside Alloy exporters and the authenticated query gateway.
+
+The exact indexed-label allowlist is `service_name`, `deployment_environment`, `market`, `event_domain`, `event_type`, `direction`, `outcome`, and `severity`. Partner identity and API/callback names are intentionally not extra stream labels under the architecture's fixed eight-label budget. `api_id`, `timeline_stage`, and these transaction identifiers are structured metadata: `application_id`, `loan_id`, `correlation_id`, `original_correlation_id`, `request_id`, `partner_reference_id`, `callback_reference_id`, and `external_transaction_id`. Event, interaction, callback-attempt, and correlation-profile IDs are structured metadata as well.
+
+Local retention is a development approximation: Loki compactor retention is 24 hours, queries look back 24 hours, old samples are rejected after 25 hours, deletion runs on the local filesystem, and the two-hour delete delay is retained. Named volumes are disposable and there is no durability, encryption, backup, or lifecycle guarantee.
+
+Production differs materially: Terraform will use encrypted S3-backed TSDB storage with exactly `384h` (16 days) of Loki retention, the same two-hour compactor delete delay, and an 18-day S3 lifecycle safety backstop with versioning disabled for telemetry objects. Encrypted EFS supports WAL/cache/compactor state. Production image promotion, IAM, networking, and object-store lifecycle evidence remain M8 work; the local configuration must not be promoted as production configuration.

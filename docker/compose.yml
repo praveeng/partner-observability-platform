@@ -1,0 +1,81 @@
+name: partner-observability-local
+
+services:
+  loki-volume-init:
+    image: nginx:1.28.0-alpine@sha256:30f1c0d78e0ad60901648be663a710bdadf19e4c10ac6782c235200619158284
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["chown -R 10001:10001 /var/lib/loki"]
+    volumes:
+      - loki-data:/var/lib/loki
+    networks:
+      - backend
+    restart: "no"
+
+  loki:
+    image: grafana/loki:3.7.2@sha256:191d4fdfb7264f16989f0a57f320872620a5a7c2ceeec6229212c4190ec49b86
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes:
+      - ../loki/local-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki-data:/var/lib/loki
+    networks:
+      - backend
+    depends_on:
+      loki-volume-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "/usr/bin/loki", "-config.file=/etc/loki/local-config.yaml", "-verify-config=true"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  alloy:
+    image: grafana/alloy:v1.18.0@sha256:491b0578c04983fd54fe99b587b6fab4404dc46d0dc16677bd6b00cc1140b308
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy
+      - /etc/alloy/config.alloy
+    volumes:
+      - ../alloy/local-config.alloy:/etc/alloy/config.alloy:ro
+      - alloy-data:/var/lib/alloy
+    ports:
+      - "127.0.0.1:${LOCAL_ALLOY_METRICS_PORT:-12345}:12345"
+    networks:
+      - backend
+      - edge
+    depends_on:
+      loki:
+        condition: service_healthy
+    restart: unless-stopped
+
+  tenant-gateway:
+    image: nginx:1.28.0-alpine@sha256:30f1c0d78e0ad60901648be663a710bdadf19e4c10ac6782c235200619158284
+    volumes:
+      - ./nginx/local-gateway.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/local-synthetic.htpasswd:/etc/nginx/local-synthetic.htpasswd:ro
+    ports:
+      - "127.0.0.1:${LOCAL_OTLP_PORT:-14318}:8080"
+      - "127.0.0.1:${LOCAL_QUERY_PORT:-13101}:8081"
+    networks:
+      - edge
+      - backend
+    depends_on:
+      - alloy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 5s
+      timeout: 2s
+      retries: 20
+    restart: unless-stopped
+
+networks:
+  edge: {}
+  backend:
+    internal: true
+
+volumes:
+  alloy-data: {}
+  loki-data: {}

@@ -550,6 +550,6 @@ This map is a completeness index; the linked contracts are normative and contain
 | ECS/Terraform/retention/no-Helm deployment design | PASS | Market topology, `deployment-model.md`, ADR 0007 |
 | Threat, failure, test, performance, rollout, and unresolved-input treatment | PASS | `threat-model.md`, `acceptance-criteria.md`, `decisions-needed.md`, ADR 0008 |
 | Schema-2 core and scoped Spring runtime | IMPLEMENTED / separately verified | Seven schema-2 record types, immutable correlation, bounded dispatcher, three outbound adapters, configured callback transport/semantic API, synthetic integration tests |
-| Backend/query/deployment/full performance implementation | NOT APPLICABLE to this architecture verdict | Explicitly pending M4-M9; whole-platform security/performance checks remain `NOT IMPLEMENTED` |
+| Runtime implementation outside the M1 verdict | NOT APPLICABLE to this architecture verdict | Local Alloy/Loki M5 is separately implemented and verified; Grafana/Prometheus/deployment/full-performance work remains pending M6-M9 |
 
 Overall verdict: **PASS for the M1 architecture/specification scope**. This is not a runtime, security-integration, release, or production-readiness verdict.

@@ -76,6 +76,9 @@ services:
       - --server.http.listen-addr=0.0.0.0:12345
       - --storage.path=/var/lib/alloy
       - /etc/alloy/config.alloy
+    environment:
+      LOCAL_METRICS_TARGET: ${LOCAL_METRICS_TARGET:-metrics-fixture:8080}
+      LOCAL_METRICS_SERVICE: ${LOCAL_METRICS_SERVICE:-synthetic-partner-service}
     volumes:
       - ../alloy/local-config.alloy:/etc/alloy/config.alloy:ro
       - alloy-data:/var/lib/alloy
@@ -161,6 +164,32 @@ services:
       timeout: 3s
       retries: 30
       start_period: 10s
+    restart: unless-stopped
+
+  test-app:
+    profiles: ["end-to-end"]
+    image: eclipse-temurin:17-jre-jammy@sha256:e17d77fb030dd4b642dc078d048a5fb9efcb3676ee20305d905949105a6ccd5a
+    command: ["java", "-jar", "/app/partner-observability-test-app.jar"]
+    environment:
+      SERVER_ADDRESS: 0.0.0.0
+      SERVER_PORT: 8080
+      LOCAL_SYNTHETIC_SAFE_LOG_ENABLED: "true"
+      LOCAL_SYNTHETIC_OTLP_ENABLED: "true"
+      LOCAL_SYNTHETIC_OTLP_ENDPOINT: http://tenant-gateway:8080/v1/logs
+      LOCAL_SYNTHETIC_OTLP_ALPHA_USERNAME: sdk-partner-a
+      LOCAL_SYNTHETIC_OTLP_ALPHA_PASSWORD: ${LOCAL_E2E_SDK_A_PASSWORD:-local-synthetic-sdk-a}
+      LOCAL_SYNTHETIC_OTLP_BETA_USERNAME: sdk-partner-b
+      LOCAL_SYNTHETIC_OTLP_BETA_PASSWORD: ${LOCAL_E2E_SDK_B_PASSWORD:-local-synthetic-sdk-b}
+    volumes:
+      - ${LOCAL_TEST_APP_JAR:-../partner-observability-test-app/build/libs/partner-observability-test-app-0.1.0-SNAPSHOT.jar}:/app/partner-observability-test-app.jar:ro
+    ports:
+      - "127.0.0.1:${LOCAL_TEST_APP_PORT:-18080}:8080"
+    networks:
+      - edge
+      - backend
+    depends_on:
+      tenant-gateway:
+        condition: service_healthy
     restart: unless-stopped
 
 networks:

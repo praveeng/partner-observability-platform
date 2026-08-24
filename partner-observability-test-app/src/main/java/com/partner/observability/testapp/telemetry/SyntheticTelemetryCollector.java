@@ -6,6 +6,7 @@ import com.partner.observability.core.publish.TelemetryPublisher;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import org.springframework.stereotype.Component;
 
@@ -14,8 +15,13 @@ import org.springframework.stereotype.Component;
 public final class SyntheticTelemetryCollector implements TelemetryPublisher {
     private static final int MAX_RECORDS = 4096;
     private final ArrayDeque<TelemetryEnvelope<?>> records = new ArrayDeque<>(MAX_RECORDS);
+    private final Optional<LocalSyntheticOtlpTelemetryPublisher> localOtlpPublisher;
     private volatile boolean failPublishing;
     private volatile CountDownLatch publishGate;
+
+    public SyntheticTelemetryCollector(Optional<LocalSyntheticOtlpTelemetryPublisher> localOtlpPublisher) {
+        this.localOtlpPublisher = localOtlpPublisher;
+    }
 
     @Override
     public synchronized void publish(PublishBatch batch) {
@@ -31,6 +37,7 @@ public final class SyntheticTelemetryCollector implements TelemetryPublisher {
         if (failPublishing) {
             throw new IllegalStateException("SYNTHETIC_TELEMETRY_BACKEND_FAILURE");
         }
+        localOtlpPublisher.ifPresent(publisher -> publisher.publish(batch));
         batch.submissions().forEach(submission -> {
             if (records.size() == MAX_RECORDS) records.removeFirst();
             records.addLast(submission.envelope());

@@ -15,7 +15,7 @@ logging:
 partner-observability:
   enabled: true
   payloads-enabled: true
-  logs-enabled: false
+  logs-enabled: ${LOCAL_SYNTHETIC_SAFE_LOG_ENABLED:false}
   events-enabled: true
   metrics-enabled: true
   export-enabled: true
@@ -27,6 +27,18 @@ partner-observability:
   market: synthetic
   environment: DEV
   policy-version: synthetic-v1
+  log-selections:
+    - category: CALLBACK_JOURNEY_UPDATED
+      logger-pattern: com.partner.observability.testapp.web.SyntheticCallbackController
+      message-template: "Synthetic callback business event {}"
+      minimum-level: INFO
+      journey-stage: CALLBACK_BUSINESS_EVENT
+      outcome: SUCCESS
+      arguments:
+        - index: 0
+          name: eventStatus
+          type: STRING
+          policy: ALLOW
   partners:
     - key: partner-alpha-fixture
       tenant-route-id: synthetic-alpha
@@ -44,9 +56,12 @@ partner-observability:
       partner: partner-alpha-fixture
       correlation-profile: SYNTHETIC_SYNC
       capture-mode: FULL_SANITIZED
-      safe-fields: [applicationId, amount, tenureMonths, product, fixtureClassification, partnerLane, scenario, outcome, statusCode, errorCode]
+      safe-fields: [applicationId, partnerReference, amount, tenureMonths, product, attributes.fixtureClassification, attributes.partnerLane, attributes.loanId, attributes.correlationId, attributes.phone, attributes.email, attributes.bankAccount, attributes.nationalId, attributes.address, attributes.Authorization, attributes.jwt, attributes.Cookie, attributes.apiKey, attributes.password, attributes.clientSecret, attributes.accessToken, attributes.encryptionKey, attributes.verification.oneTimePassword, attributes.verification.verificationCode, attributes.paymentCard.cardNumber, attributes.paymentCard.cvv, attributes.paymentCard.expiry, attributes.paymentCard.pin, fixtureClassification, partnerLane, scenario, outcome, statusCode, errorCode, phone, email, bankAccount, nationalId, address, Authorization, jwt, Cookie, apiKey, password, clientSecret, accessToken, encryptionKey]
       correlation:
         application-id-path: $.applicationId
+        loan-id-path: $.attributes.loanId
+        original-correlation-id-path: $.attributes.correlationId
+        partner-reference-id-path: $.partnerReference
     - name: PARTNER_BETA_SYNC
       origin: http://127.0.0.1
       path: /partner/beta
@@ -54,9 +69,12 @@ partner-observability:
       partner: partner-beta-fixture
       correlation-profile: SYNTHETIC_SYNC
       capture-mode: FULL_SANITIZED
-      safe-fields: [applicationId, amount, tenureMonths, product, fixtureClassification, partnerLane, scenario, outcome, statusCode, errorCode]
+      safe-fields: [applicationId, partnerReference, amount, tenureMonths, product, attributes.fixtureClassification, attributes.partnerLane, attributes.loanId, attributes.correlationId, attributes.phone, attributes.email, attributes.bankAccount, attributes.nationalId, attributes.address, attributes.Authorization, attributes.jwt, attributes.Cookie, attributes.apiKey, attributes.password, attributes.clientSecret, attributes.accessToken, attributes.encryptionKey, attributes.verification.oneTimePassword, attributes.verification.verificationCode, attributes.paymentCard.cardNumber, attributes.paymentCard.cvv, attributes.paymentCard.expiry, attributes.paymentCard.pin, fixtureClassification, partnerLane, scenario, outcome, statusCode, errorCode, phone, email, bankAccount, nationalId, address, Authorization, jwt, Cookie, apiKey, password, clientSecret, accessToken, encryptionKey]
       correlation:
         application-id-path: $.applicationId
+        loan-id-path: $.attributes.loanId
+        original-correlation-id-path: $.attributes.correlationId
+        partner-reference-id-path: $.partnerReference
     - name: PARTNER_ALPHA_ENCRYPTED
       origin: http://127.0.0.1
       path: /encrypted/alpha
@@ -111,7 +129,7 @@ partner-observability:
       correlation-profile: SYNTHETIC_ASYNC
       capture-mode: FULL_SANITIZED
       processing-events-enabled: true
-      safe-fields: [fixtureClassification, callbackSequence, outcome]
+      safe-fields: [fixtureClassification, callbackSequence, outcome, callbackData.fixtureClassification, callbackData.phone, callbackData.email, callbackData.bankAccount, callbackData.nationalId, callbackData.address, callbackData.Authorization, callbackData.jwt, callbackData.Cookie, callbackData.apiKey, callbackData.password, callbackData.clientSecret, callbackData.accessToken, callbackData.encryptionKey, callbackData.document]
       correlation:
         application-id-path: $.applicationId
         loan-id-path: $.loanId
@@ -126,7 +144,7 @@ partner-observability:
       correlation-profile: SYNTHETIC_ASYNC
       capture-mode: FULL_SANITIZED
       processing-events-enabled: true
-      safe-fields: [fixtureClassification, callbackSequence, outcome]
+      safe-fields: [fixtureClassification, callbackSequence, outcome, callbackData.fixtureClassification, callbackData.phone, callbackData.email, callbackData.bankAccount, callbackData.nationalId, callbackData.address, callbackData.Authorization, callbackData.jwt, callbackData.Cookie, callbackData.apiKey, callbackData.password, callbackData.clientSecret, callbackData.accessToken, callbackData.encryptionKey, callbackData.document]
       correlation:
         application-id-path: $.applicationId
         loan-id-path: $.loanId

@@ -3,6 +3,8 @@ package com.partner.observability.autoconfigure;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.partner.observability.core.context.PartnerContext;
+import com.partner.observability.core.model.CorrelationIdentifiers;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
@@ -60,6 +62,32 @@ class PartnerObservationContextTest {
         assertThat(observed.get().interactionId()).isEqualTo(interaction);
         assertThat(PartnerObservationContext.current()).isEmpty();
         assertThat(MDC.get("partner_observability_slot")).isNull();
+    }
+
+    @Test
+    void callbackIdentifiersUpdateOnlyTheMatchingTrustedScope() {
+        PartnerContext partner = partner();
+        UUID interaction = UUID.randomUUID();
+        UUID attempt = UUID.randomUUID();
+        CorrelationIdentifiers identifiers = new CorrelationIdentifiers(
+                Optional.of("APP-CALLBACK-001"),
+                Optional.of("LOAN-CALLBACK-001"),
+                Optional.of("CORR-CALLBACK-001"),
+                Optional.of("PREF-CALLBACK-001"),
+                Optional.empty(),
+                Optional.of("CBREF-CALLBACK-001"),
+                Optional.empty());
+
+        try (PartnerObservationContext.Scope ignored = PartnerObservationContext.openCallback(
+                partner, interaction, attempt, "callback-profile")) {
+            PartnerObservationContext.updateCallbackIdentifiers(interaction, UUID.randomUUID(), identifiers);
+            assertThat(PartnerObservationContext.current().orElseThrow().identifiers())
+                    .isEqualTo(CorrelationIdentifiers.empty());
+
+            PartnerObservationContext.updateCallbackIdentifiers(interaction, attempt, identifiers);
+            assertThat(PartnerObservationContext.current().orElseThrow().identifiers()).isEqualTo(identifiers);
+        }
+        assertThat(PartnerObservationContext.current()).isEmpty();
     }
 
     private PartnerContext partner() {

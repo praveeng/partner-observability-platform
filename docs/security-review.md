@@ -5,11 +5,12 @@
 **Production security verdict: REJECTED / BLOCKED.** The implemented SDK, Alloy/Loki,
 Prometheus, local Grafana/query gateway, and Terraform boundaries passed their available
 local security suites, and two confirmed isolation defects were fixed with failing-first
-regressions. The local Grafana completion boundary now has real provisioning, isolated
+regressions. The local Grafana completion boundary has real provisioning, isolated
 organizations, Viewer accounts, fixed datasources, and adversarial API/query tests. The
-application-to-authorized-query end-to-end suite, exact performance profiles, and staging-owned
-callback/TLS evidence remain mandatory release blockers. Partner access must remain disabled
-outside the validated local synthetic boundary until those separate gates pass.
+application-to-authorized-query suite now drives the real test application and passes its
+two-partner security boundary. Exact performance profiles and staging-owned callback/TLS
+evidence remain mandatory release blockers. Partner access must remain disabled outside the
+validated local synthetic boundary until those separate gates pass.
 
 This review was performed on 2026-08-23 and updated on 2026-08-24 against the current worktree. It covered the Java
 17/Spring Boot 2.7 SDK, callback fixture and filters, selected SLF4J compatibility, Alloy,
@@ -24,6 +25,7 @@ Evidence commands executed during the review:
 - `./scripts/test-security.sh --metrics-plane` — PASS using real Alloy/Prometheus containers.
 - `./scripts/test-grafana.sh` — PASS using real Grafana/Loki/Prometheus/gateway containers and generated local users/secrets.
 - `./scripts/test-grafana.sh --validate-only` — PASS using live Grafana provisioning/API validation.
+- `./test/integration/run-local-end-to-end.sh` — PASS using application-originated RestTemplate and real callback traffic through the SDK, Alloy, fixed query gateway, and Grafana.
 - `TERRAFORM_BIN=/tmp/partner-observability-terraform-1.11.4/terraform ./scripts/test-security.sh --terraform` — PASS, including the mocked network plan.
 - `./test/security/run-adversarial-static.sh` — PASS; it rejects production TLS bypass/downgrade primitives, tracked private keys, sensitive Terraform outputs, and missing origin/route guards.
 
@@ -36,16 +38,15 @@ The final current-worktree run used Java 17, Gradle 7.6.4, Docker Compose
 2.40.3-desktop.1, Terraform 1.11.4, and AWS provider 6.61.0:
 
 ```bash
-GRADLE_USER_HOME=/tmp/gradle-partner-observability \
+GRADLE_USER_HOME=/tmp/partner-observability-gradle \
 TERRAFORM_BIN=/tmp/partner-observability-terraform-1.11.4/terraform \
 ./scripts/verify-all.sh
 ```
 
-Result on 2026-08-24: `FINAL RESULT: FAIL (3 of 22 stages failed)`. Nineteen stages passed,
-including requirements 35 and 48 and the real Grafana boundary inside the aggregate security
-command. The three expected failures were application end to end (B002), the aggregate security
-gate only because it includes that same missing B002 suite, and full-duration performance (B003).
-No implemented stage regressed.
+Result on 2026-08-24: `FINAL RESULT: FAIL (1 of 22 stages failed)`. Twenty-one stages passed,
+including requirements 35, 36–46, 48, and the complete local security gate. The only failure
+was the independently open full-duration performance boundary (B003), which still reports
+`NOT IMPLEMENTED`. No implemented stage regressed.
 
 Status terms: **PASS** means the implemented local boundary resisted the attack; **FIXED**
 means this review first reproduced and then repaired a defect; **PARTIAL** means bounded
@@ -67,11 +68,12 @@ plaintext partner origin, public internal-backend listener, or SDK HTTPS downgra
 
 | ID | Severity | Blocker | Security effect |
 | --- | --- | --- | --- |
-| SR-04 | High | `test/integration/run-local-end-to-end.sh` is absent. | Application-originated outbound/callback records have not been proven through the authorized query boundary; same-ID and callback-reference isolation are supporting-layer claims only. |
 | SR-05 | Medium | Exact saturation, callback-flood, soak, reactive-cancellation, and heap/GC profiles are `NOT IMPLEMENTED`. | Queues are bounded and business calls are isolated in unit/integration tests, but cross-workload telemetry starvation and long-duration memory behavior are not accepted. |
 | SR-06 | High | Callback ALB/DNS/ACM/security-group infrastructure is host-service-owned and has no deployed staging evidence in this repository. | Inbound HTTPS-only behavior, forwarding-header spoof denial, direct-task reachability, certificate rotation, and WAF/rate controls require onboarding and staging tests before any external callback exposure. |
 
 Resolved on 2026-08-24: **SR-03 / B001**. `grafana/provisioning`, the generic Partner Operations dashboard, the fixed Loki/Prometheus query routes, and `test/integration/run-local-grafana.sh` now exercise PARTNER_A/PARTNER_B local authentication, exactly-one-organization Viewer membership, datasource/dashboard provisioning, secret non-disclosure, cross-tenant searches, colliding IDs, timeline/detail/SLI results, and API/Explore/org/header/UID/PromQL bypasses.
+
+Resolved on 2026-08-24: **SR-04 / B002**. `test/integration/run-local-end-to-end.sh` builds and drives the real synthetic Spring application through the SDK bounded dispatcher, fixed Alloy ingest routes, tenant Loki/Prometheus, query gateway, and Viewer-authenticated Grafana datasource/dashboard APIs. It proves real request/response and HTTP 202/callback journeys, typed searches, events, metrics/SLIs, bidirectional and colliding-ID isolation, and payload-safety sink absence without direct OTLP seeding or direct Loki acceptance queries.
 
 ## Attack scenario results
 

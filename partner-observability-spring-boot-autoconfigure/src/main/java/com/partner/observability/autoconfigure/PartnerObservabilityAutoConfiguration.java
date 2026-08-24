@@ -14,6 +14,7 @@ import com.partner.observability.core.publish.TelemetryPublisher;
 import com.partner.observability.core.time.SystemTimeSource;
 import java.util.Optional;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -25,6 +26,11 @@ import org.springframework.context.annotation.Import;
 import org.springframework.core.task.TaskDecorator;
 
 @Configuration(proxyBeanMethods = false)
+@AutoConfigureAfter(name = {
+    "org.springframework.boot.actuate.autoconfigure.metrics.MetricsAutoConfiguration",
+    "org.springframework.boot.actuate.autoconfigure.metrics.export.prometheus.PrometheusMetricsExportAutoConfiguration",
+    "org.springframework.boot.actuate.autoconfigure.metrics.CompositeMeterRegistryAutoConfiguration"
+})
 @EnableConfigurationProperties(PartnerObservabilityProperties.class)
 @ConditionalOnProperty(prefix = "partner-observability", name = "enabled", havingValue = "true")
 @Import({

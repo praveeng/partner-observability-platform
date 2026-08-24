@@ -37,6 +37,25 @@ public final class PartnerObservationContext {
                 Optional.of(callbackAttemptId), correlationProfileId, CorrelationIdentifiers.empty()));
     }
 
+    /** Adds identifiers extracted by callback instrumentation to the matching trusted scope. */
+    static void updateCallbackIdentifiers(
+            UUID interactionId, UUID callbackAttemptId, CorrelationIdentifiers identifiers) {
+        Snapshot current = CURRENT.get();
+        if (current == null
+                || !current.interactionId().equals(interactionId)
+                || current.callbackAttemptId().filter(callbackAttemptId::equals).isEmpty()) {
+            return;
+        }
+        CURRENT.set(new Snapshot(
+                current.partnerContext(),
+                current.interactionId(),
+                current.interactionKind(),
+                current.direction(),
+                current.callbackAttemptId(),
+                current.correlationProfileId(),
+                current.identifiers().merge(identifiers)));
+    }
+
     private static Scope open(Snapshot next) {
         Snapshot previous = CURRENT.get();
         String previousSlot = MDC.get(MDC_SLOT);

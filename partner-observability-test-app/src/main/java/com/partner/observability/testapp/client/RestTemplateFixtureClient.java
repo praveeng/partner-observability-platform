@@ -1,11 +1,14 @@
 package com.partner.observability.testapp.client;
 
 import com.partner.observability.testapp.fixture.LocalMockPartnerServer;
+import com.partner.observability.testapp.fixture.SyntheticPayloadFixtures;
 import com.partner.observability.testapp.model.ClientExchange;
 import com.partner.observability.testapp.model.SyntheticPartner;
 import com.partner.observability.testapp.model.SyntheticPartnerRequest;
 import com.partner.observability.testapp.model.SyntheticScenario;
 import java.net.URI;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -19,10 +22,15 @@ public final class RestTemplateFixtureClient {
 
     private final RestTemplate restTemplate;
     private final LocalMockPartnerServer mockServer;
+    private final SyntheticPayloadFixtures payloadFixtures;
 
-    public RestTemplateFixtureClient(RestTemplate fixtureRestTemplate, LocalMockPartnerServer mockServer) {
+    public RestTemplateFixtureClient(
+            RestTemplate fixtureRestTemplate,
+            LocalMockPartnerServer mockServer,
+            SyntheticPayloadFixtures payloadFixtures) {
         this.restTemplate = fixtureRestTemplate;
         this.mockServer = mockServer;
+        this.payloadFixtures = payloadFixtures;
     }
 
     public ClientExchange exchange(SyntheticScenario scenario, SyntheticPartner partner) {
@@ -52,7 +60,23 @@ public final class RestTemplateFixtureClient {
             SyntheticScenario scenario, SyntheticPartner partner, String applicationId, int attempt) {
         URI endpoint = mockServer.partnerUri(scenario, partner, attempt);
         HttpHeaders headers = fixtureHeaders(scenario, partner, attempt);
-        SyntheticPartnerRequest request = SyntheticPartnerRequest.standard(partner, applicationId);
+        SyntheticPartnerRequest standard = SyntheticPartnerRequest.standard(partner, applicationId);
+        Map<String, Object> attributes = new LinkedHashMap<>(standard.attributes());
+        attributes.put("loanId", "SYNTHETIC-SYNC-LOAN-" + partner.name());
+        attributes.put("correlationId", "SYNTHETIC-SYNC-CORRELATION-" + partner.name());
+        if (scenario == SyntheticScenario.RESTRICTED_PII
+                || scenario == SyntheticScenario.CREDENTIALS
+                || scenario == SyntheticScenario.OTP
+                || scenario == SyntheticScenario.CARD_DATA) {
+            attributes.putAll(payloadFixtures.payloadFor(scenario, partner));
+        }
+        SyntheticPartnerRequest request = new SyntheticPartnerRequest(
+                standard.applicationId(),
+                standard.partnerReference(),
+                standard.amount(),
+                standard.tenureMonths(),
+                standard.product(),
+                attributes);
         return restTemplate.exchange(endpoint, HttpMethod.POST, new HttpEntity<>(request, headers), String.class);
     }
 

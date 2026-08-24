@@ -26,6 +26,7 @@ import com.partner.observability.testapp.model.SyntheticAsyncJourneySnapshot;
 import com.partner.observability.testapp.model.SyntheticPartner;
 import com.partner.observability.testapp.model.SyntheticScenario;
 import com.partner.observability.testapp.telemetry.SyntheticTelemetryCollector;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -54,6 +55,7 @@ class PartnerObservabilityStarterIntegrationTest {
     @Autowired WebClientFixtureClient webClient;
     @Autowired OkHttpFixtureClient okHttp;
     @Autowired TestRestTemplate controlPlane;
+    @Autowired MeterRegistry meterRegistry;
 
     @BeforeEach
     void clearTelemetry() {
@@ -65,6 +67,14 @@ class PartnerObservabilityStarterIntegrationTest {
     void restorePublisher() {
         telemetry.failPublishing(false);
         telemetry.releasePublishing();
+    }
+
+    @Test
+    void starterRegistersTheBoundedPartnerMetricManifestWithTheApplicationRegistry() {
+        assertThat(meterRegistry.find("partner_observability_http_interactions_total").counters())
+                .isNotEmpty();
+        assertThat(meterRegistry.find("partner_observability_callback_deliveries_total").counters())
+                .isNotEmpty();
     }
 
     @Test

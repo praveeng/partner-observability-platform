@@ -96,6 +96,7 @@ public final class CallbackObservation {
                     contentType, declaredSize, mode);
             identifiers = (explicitIdentifiers == null ? CorrelationIdentifiers.empty() : explicitIdentifiers)
                     .merge(captured.identifiers());
+            PartnerObservationContext.updateCallbackIdentifiers(interactionId, attemptId, identifiers);
             TimelineStage stage = classification == DeliveryClassification.RETRY
                             || classification == DeliveryClassification.DUPLICATE
                     ? TimelineStage.CALLBACK_RETRY_RECEIVED

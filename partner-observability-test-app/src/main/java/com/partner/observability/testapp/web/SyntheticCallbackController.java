@@ -29,6 +29,8 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.regex.Pattern;
 import javax.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -45,6 +47,7 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 public final class SyntheticCallbackController {
 
     private static final int MAX_CALLBACK_BYTES = 16 * 1024 * 1024;
+    private static final Logger LOGGER = LoggerFactory.getLogger(SyntheticCallbackController.class);
     private static final Pattern RUN_ID = Pattern.compile("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}");
 
     private final ObjectMapper objectMapper;
@@ -210,6 +213,7 @@ public final class SyntheticCallbackController {
 
         lifecycleStore.processingSucceeded(handle);
         observation.ifPresent(value -> value.processingSucceeded(ProcessingMode.INLINE, false));
+        LOGGER.info("Synthetic callback business event {}", "PROCESSED");
         if (scenario == SyntheticAsyncScenario.RESPONSE_TRANSMISSION_FAILURE) {
             lifecycleStore.responseWriteFailed(handle, 200);
             observation.ifPresent(value -> value.response(200, TransportOutcome.WRITE_FAILED));

@@ -1,0 +1,24 @@
+apiVersion: 1
+
+providers:
+  - name: partner-a-operations
+    orgId: $GRAFANA_PARTNER_A_ORG_ID
+    folder: Partner Operations
+    folderUid: partner-a-operations
+    type: file
+    disableDeletion: false
+    allowUiUpdates: false
+    updateIntervalSeconds: 10
+    options:
+      path: /var/lib/grafana/dashboards
+
+  - name: partner-b-operations
+    orgId: $GRAFANA_PARTNER_B_ORG_ID
+    folder: Partner Operations
+    folderUid: partner-b-operations
+    type: file
+    disableDeletion: false
+    allowUiUpdates: false
+    updateIntervalSeconds: 10
+    options:
+      path: /var/lib/grafana/dashboards

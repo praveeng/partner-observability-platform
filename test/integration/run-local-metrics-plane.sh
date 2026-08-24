@@ -22,6 +22,10 @@ failed=1
 compose() {
   LOCAL_PROMETHEUS_PORT="$prometheus_port" \
     LOCAL_ALLOY_METRICS_PORT="$alloy_port" \
+    GRAFANA_ADMIN_PASSWORD="unused-${project_name}" \
+    GRAFANA_SECRET_KEY="unused-secret-key-${project_name}" \
+    GRAFANA_PARTNER_A_QUERY_PASSWORD="unused-a-${project_name}" \
+    GRAFANA_PARTNER_B_QUERY_PASSWORD="unused-b-${project_name}" \
     docker compose -p "$project_name" -f "$compose_file" "$@"
 }
 
@@ -94,12 +98,14 @@ wait_for_query 'partner_observability_callback_deliveries_total{partner_slot="p0
 
 echo "Proving trusted deployment labels overwrite target values and unsafe labels/series are removed."
 jq -e '
-  .data.result | length == 1 and
-  .[0].metric.market == "LOCAL" and
-  .[0].metric.environment == "LOCAL_SYNTHETIC" and
-  .[0].metric.service == "synthetic-partner-service" and
-  .[0].metric.partner_slot == "p001" and
-  (.[0].metric | has("applicationId") | not)
+  .data.result | length == 2 and
+  all(.[];
+    .metric.market == "LOCAL" and
+    .metric.environment == "LOCAL_SYNTHETIC" and
+    .metric.service == "synthetic-partner-service" and
+    .metric.partner_slot == "p001" and
+    (.metric | has("applicationId") | not)
+  )
 ' "$tmp_dir/p001.json" >/dev/null
 prom_query 'partner_observability_http_interactions_total{partner_slot="p999"}' "$tmp_dir/p999.json"
 jq -e '.data.result | length == 0' "$tmp_dir/p999.json" >/dev/null

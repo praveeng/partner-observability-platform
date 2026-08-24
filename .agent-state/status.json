@@ -10,19 +10,17 @@
       "READY_FOR_REVIEW",
       "COMPLETE"
     ],
-    "currentState": "BLOCKED"
+    "currentState": "READY_FOR_REVIEW"
   },
-  "milestone": "Adversarial production lending security review",
-  "summary": "BLOCKED: adversarial 84-scenario production review completed. Cross-origin outbound attribution and overlapping callback routes were reproduced then fixed with retained regressions. All implemented SDK, Alloy/Loki, Prometheus, Terraform, and documentation gates pass; authoritative verification fails 5/22 stages only at missing Grafana/query authorization, application end to end, full security aggregation, performance profiles, and dashboard provisioning.",
+  "milestone": "M7 Grafana and journey query — B001 completion boundary",
+  "summary": "READY_FOR_REVIEW: B001 is resolved. The real LOCAL_SYNTHETIC Grafana organization, Viewer authentication, fixed Loki/Prometheus datasource, generic dashboard, and adversarial integration boundary passes requirements 35 and 48 plus focused data/metrics regressions. The aggregate gate passes 19/22 stages and remains non-zero only for B002 and B003.",
   "blockers": [
-    "B001: Grafana provisioning, dashboards, and the real local Grafana authentication/query-isolation runner are missing, blocking requirements 35 and 48 plus full security.",
     "B002: test/integration/run-local-end-to-end.sh is missing, blocking requirements 36-46 and authorized-path tenant-isolation evidence.",
     "B003: scripts/test-performance.sh reports NOT IMPLEMENTED for every mandatory full-duration acceptance profile."
   ],
   "nextActions": [
-    "Implement M7 Grafana provisioning, fixed query-gateway authorization, partner dashboards, and real authentication/isolation tests.",
     "Implement the application-originated outbound and async/callback end-to-end suite for requirements 36-46.",
     "Implement and run all exact M9 performance profiles without shortening loads, durations, or thresholds, then rerun scripts/verify-all.sh."
   ],
-  "lastUpdated": "2026-08-23T16:10:00Z"
+  "lastUpdated": "2026-08-24T04:40:11Z"
 }

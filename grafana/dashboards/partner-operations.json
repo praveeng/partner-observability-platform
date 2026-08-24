@@ -1,0 +1,304 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "description": "Tenant-fixed partner transaction search, journey timeline, safe record detail, and measured SLI views. Datasource credentials bind every query to the authenticated organization; variables only narrow results.",
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "description": "Choose one approved structured-metadata identifier and enter an exact value. The datasource gateway fixes the Loki tenant before this filter is evaluated.",
+      "gridPos": {"h": 3, "w": 24, "x": 0, "y": 0},
+      "id": 1,
+      "options": {
+        "content": "### Transaction search\nSearch by application ID, loan ID, original correlation ID, partner reference ID, or callback reference ID. Results are best-effort telemetry within the selected time range. A missing stage or no data is not a business outcome.",
+        "mode": "markdown"
+      },
+      "title": "Partner Operations",
+      "type": "text"
+    },
+    {
+      "datasource": {"type": "loki", "uid": "partner-loki"},
+      "description": "Exact identifier matches from the fixed partner tenant. No partner or tenant variable exists.",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 3},
+      "id": 2,
+      "options": {
+        "dedupStrategy": "exact",
+        "enableLogDetails": true,
+        "prettifyLogMessage": true,
+        "showCommonLabels": false,
+        "showLabels": true,
+        "showTime": true,
+        "sortOrder": "Ascending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": {"type": "loki", "uid": "partner-loki"},
+          "editorMode": "code",
+          "expr": "{service_name=~\"${service:regex}\"} | ${identifier_type:raw}=\"${identifier_value}\" | json",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Transaction Search Results",
+      "type": "logs"
+    },
+    {
+      "datasource": {"type": "loki", "uid": "partner-loki"},
+      "description": "Partner-safe overview fields for the exact search result: applicationId, loanId, partnerReferenceId, current/latest status, first/last event, and derivable elapsed journey duration.",
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 7, "w": 24, "x": 0, "y": 11},
+      "id": 3,
+      "options": {"cellHeight": "sm", "showHeader": true},
+      "targets": [
+        {
+          "datasource": {"type": "loki", "uid": "partner-loki"},
+          "editorMode": "code",
+          "expr": "{service_name=~\"${service:regex}\"} | ${identifier_type:raw}=\"${identifier_value}\" | json",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Transaction Overview — first/last event and elapsed journey",
+      "transformations": [
+        {"id": "extractFields", "options": {"format": "json", "source": "Line"}},
+        {"id": "sortBy", "options": {"fields": {}, "sort": [{"field": "Time", "desc": false}]}},
+        {"id": "reduce", "options": {"includeTimeField": true, "mode": "reduceFields", "reducers": ["firstNotNull", "lastNotNull", "range"]}}
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {"type": "loki", "uid": "partner-loki"},
+      "description": "Ordered real timestamps for PARTNER_API_REQUEST and PARTNER_API_RESPONSE wire equivalents, ASYNC_REQUEST_SENT, ASYNC_ACK_RECEIVED, CALLBACK_RECEIVED, CALLBACK_PROCESSED, CALLBACK_PROCESSING_FAILED, CALLBACK_RESPONSE_SENT, retries, timeouts, and partner-safe events. Receipt and processing remain distinct facts.",
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 18},
+      "id": 4,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": true,
+        "showCommonLabels": false,
+        "showLabels": true,
+        "showTime": true,
+        "sortOrder": "Ascending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": {"type": "loki", "uid": "partner-loki"},
+          "editorMode": "code",
+          "expr": "{service_name=~\"${service:regex}\"} | ${identifier_type:raw}=\"${identifier_value}\" | json",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Unified Partner Journey Timeline",
+      "type": "logs"
+    },
+    {
+      "datasource": {"type": "loki", "uid": "partner-loki"},
+      "description": "Exact event detail: timestamp, configured API/callback, direction, status, latency, validated IDs/references, sanitized payload, binary omission metadata, retry, and partner-safe error code. Stack traces and internal details are prohibited.",
+      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 28},
+      "id": 5,
+      "options": {
+        "dedupStrategy": "exact",
+        "enableLogDetails": true,
+        "prettifyLogMessage": true,
+        "showCommonLabels": false,
+        "showLabels": true,
+        "showTime": true,
+        "sortOrder": "Ascending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": {"type": "loki", "uid": "partner-loki"},
+          "editorMode": "code",
+          "expr": "{service_name=~\"${service:regex}\"} | event_id=\"${event_id}\" | json",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Selected Record Detail",
+      "type": "logs"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 37},
+      "id": 6,
+      "panels": [],
+      "title": "Measured SLI — no contractual SLA thresholds",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "partner-prometheus"},
+      "description": "Completed partner interactions in the selected dashboard time range. No data remains distinct from zero.",
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 4, "x": 0, "y": 38},
+      "id": 7,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"datasource": {"type": "prometheus", "uid": "partner-prometheus"}, "editorMode": "code", "expr": "sum(partner_observability_http_interactions_total)", "instant": true, "legendFormat": "requests", "range": false, "refId": "A"}],
+      "title": "Request Count",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "partner-prometheus"},
+      "description": "Repository recording rule: eligible outbound success divided by eligible completions. No target is fabricated.",
+      "fieldConfig": {"defaults": {"max": 1, "min": 0, "unit": "percentunit"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 4, "x": 4, "y": 38},
+      "id": 8,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"datasource": {"type": "prometheus", "uid": "partner-prometheus"}, "editorMode": "code", "expr": "avg(partner_observability:outbound_availability:ratio5m)", "instant": true, "legendFormat": "availability", "range": false, "refId": "A"}],
+      "title": "Availability / Success Rate",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "partner-prometheus"},
+      "description": "Technical failures divided by completed outbound interactions.",
+      "fieldConfig": {"defaults": {"max": 1, "min": 0, "unit": "percentunit"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 4, "x": 8, "y": 38},
+      "id": 9,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"datasource": {"type": "prometheus", "uid": "partner-prometheus"}, "editorMode": "code", "expr": "avg(partner_observability:outbound_error_rate:ratio5m)", "instant": true, "legendFormat": "errors", "range": false, "refId": "A"}],
+      "title": "Error Rate",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "partner-prometheus"},
+      "description": "Timeout terminal outcomes divided by completed outbound interactions.",
+      "fieldConfig": {"defaults": {"max": 1, "min": 0, "unit": "percentunit"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 4, "x": 12, "y": 38},
+      "id": 10,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"datasource": {"type": "prometheus", "uid": "partner-prometheus"}, "editorMode": "code", "expr": "avg(partner_observability:outbound_timeout_rate:ratio5m)", "instant": true, "legendFormat": "timeouts", "range": false, "refId": "A"}],
+      "title": "Timeout Rate",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "partner-prometheus"},
+      "description": "Trusted host retry attempts divided by completed interactions; the SDK never retries business traffic.",
+      "fieldConfig": {"defaults": {"max": 1, "min": 0, "unit": "percentunit"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 4, "x": 16, "y": 38},
+      "id": 11,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"datasource": {"type": "prometheus", "uid": "partner-prometheus"}, "editorMode": "code", "expr": "avg(partner_observability:outbound_retry_rate:ratio5m)", "instant": true, "legendFormat": "retries", "range": false, "refId": "A"}],
+      "title": "Retry Rate",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "partner-prometheus"},
+      "description": "Repository five-minute throughput recording rule.",
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 4, "x": 20, "y": 38},
+      "id": 12,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"datasource": {"type": "prometheus", "uid": "partner-prometheus"}, "editorMode": "code", "expr": "sum(partner_observability:outbound_throughput_per_second:rate5m)", "instant": true, "legendFormat": "throughput", "range": false, "refId": "A"}],
+      "title": "Throughput",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "partner-prometheus"},
+      "description": "p50, p95, and p99 HTTP latency from the approved fixed histogram buckets and recording rules.",
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 43},
+      "id": 13,
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "targets": [
+        {"datasource": {"type": "prometheus", "uid": "partner-prometheus"}, "editorMode": "code", "expr": "avg(partner_observability:outbound_latency_seconds:p50_5m)", "legendFormat": "p50", "range": true, "refId": "A"},
+        {"datasource": {"type": "prometheus", "uid": "partner-prometheus"}, "editorMode": "code", "expr": "avg(partner_observability:outbound_latency_seconds:p95_5m)", "legendFormat": "p95", "range": true, "refId": "B"},
+        {"datasource": {"type": "prometheus", "uid": "partner-prometheus"}, "editorMode": "code", "expr": "avg(partner_observability:outbound_latency_seconds:p99_5m)", "legendFormat": "p99", "range": true, "refId": "C"}
+      ],
+      "title": "Outbound Latency p50 / p95 / p99",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "partner-prometheus"},
+      "description": "Authenticated callback volume, retry/duplicate delivery rates, processing success/failure, response-write outcome, and p50/p95/p99 processing latency remain separate SLIs.",
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 43},
+      "id": 14,
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "targets": [
+        {"datasource": {"type": "prometheus", "uid": "partner-prometheus"}, "editorMode": "code", "expr": "sum(partner_observability:callback_throughput_per_second:rate5m)", "legendFormat": "callback throughput", "range": true, "refId": "A"},
+        {"datasource": {"type": "prometheus", "uid": "partner-prometheus"}, "editorMode": "code", "expr": "avg(partner_observability:callback_processing_success:ratio5m)", "legendFormat": "processing success", "range": true, "refId": "B"},
+        {"datasource": {"type": "prometheus", "uid": "partner-prometheus"}, "editorMode": "code", "expr": "sum(partner_observability:callback_retry:rate5m)", "legendFormat": "retry", "range": true, "refId": "C"},
+        {"datasource": {"type": "prometheus", "uid": "partner-prometheus"}, "editorMode": "code", "expr": "avg(partner_observability:callback_processing_latency_seconds:p95_5m)", "legendFormat": "processing p95", "range": true, "refId": "D"}
+      ],
+      "title": "Callback SLI — volume / retry / processing / latency",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 40,
+  "tags": ["partner-safe", "operations", "journey", "sli"],
+  "templating": {
+    "list": [
+      {
+        "current": {"selected": false, "text": "synthetic-partner-service", "value": "synthetic-partner-service"},
+        "datasource": {"type": "loki", "uid": "partner-loki"},
+        "definition": "label_values({event_domain=~\".+\"}, service_name)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Service",
+        "multi": false,
+        "name": "service",
+        "options": [],
+        "query": "label_values({event_domain=~\".+\"}, service_name)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {"selected": true, "text": "Application ID", "value": "application_id"},
+        "hide": 0,
+        "includeAll": false,
+        "label": "Search field",
+        "multi": false,
+        "name": "identifier_type",
+        "options": [
+          {"selected": true, "text": "Application ID", "value": "application_id"},
+          {"selected": false, "text": "Loan ID", "value": "loan_id"},
+          {"selected": false, "text": "Correlation ID", "value": "original_correlation_id"},
+          {"selected": false, "text": "Partner reference ID", "value": "partner_reference_id"},
+          {"selected": false, "text": "Callback reference ID", "value": "callback_reference_id"}
+        ],
+        "query": "Application ID : application_id, Loan ID : loan_id, Correlation ID : original_correlation_id, Partner reference ID : partner_reference_id, Callback reference ID : callback_reference_id",
+        "skipUrlSync": false,
+        "type": "custom"
+      },
+      {
+        "current": {"selected": true, "text": "", "value": ""},
+        "hide": 0,
+        "label": "Exact identifier",
+        "name": "identifier_value",
+        "options": [{"selected": true, "text": "", "value": ""}],
+        "query": "",
+        "skipUrlSync": false,
+        "type": "textbox"
+      },
+      {
+        "current": {"selected": true, "text": "", "value": ""},
+        "hide": 0,
+        "label": "Selected event ID",
+        "name": "event_id",
+        "options": [{"selected": true, "text": "", "value": ""}],
+        "query": "",
+        "skipUrlSync": false,
+        "type": "textbox"
+      }
+    ]
+  },
+  "time": {"from": "now-24h", "to": "now"},
+  "timepicker": {"refresh_intervals": ["30s", "1m", "5m"], "time_options": ["15m", "1h", "6h", "24h", "7d", "16d"]},
+  "timezone": "utc",
+  "title": "Partner Operations",
+  "uid": "partner-operations",
+  "version": 1,
+  "weekStart": "monday"
+}

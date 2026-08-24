@@ -58,7 +58,7 @@ The following matrix is normative. “Required completion runner” identifies t
 | 32 | Alloy health | Compose dependency/health wait, Alloy config validation, and live self-metrics | `test/integration/run-local-data-plane.sh` |
 | 33 | Loki health | Loki config verification, Compose health wait, ingest, and query assertions | `test/integration/run-local-data-plane.sh` |
 | 34 | Prometheus health | Promtool validation, Compose health wait, live query/flags/rules assertions | `test/integration/run-local-metrics-plane.sh` |
-| 35 | Grafana health | Real provisioned Grafana health/authentication runner required; missing assets must return `NOT IMPLEMENTED` | `scripts/test-grafana.sh` |
+| 35 | Grafana health | Grafana `/api/health`, generated local-account authentication, one Viewer-only organization per synthetic partner, fixed datasource provisioning, and authorization denial are exercised against real containers | `scripts/test-grafana.sh` |
 | 36 | End-to-end outbound request/response visibility | Must originate in the test application and be visible through the authorized Grafana path; direct OTLP injection is insufficient | `scripts/test-end-to-end.sh` |
 | 37 | End-to-end async request -> acknowledgement -> callback journey | Must originate in the test application and traverse Alloy/Loki/query/Grafana | `scripts/test-end-to-end.sh` |
 | 38 | Transaction search | Supporting exact structured-metadata search exists in the data-plane test; completion requires the authorized UI/query path | `scripts/test-end-to-end.sh` |
@@ -71,8 +71,10 @@ The following matrix is normative. “Required completion runner” identifies t
 | 45 | Same `applicationId` across partners isolation | Core batching, test-app, and real Loki tenant collision assertions; final UI/query path remains mandatory | `scripts/test-end-to-end.sh` |
 | 46 | Same `callbackReferenceId` across partners isolation | Test-app and real Loki tenant collision assertions; final UI/query path remains mandatory | `scripts/test-end-to-end.sh` |
 | 47 | Terraform fmt/validate | Recursive format, every root/module provider-schema validation, static policy, and mocked network plan test | `scripts/test-terraform.sh` |
-| 48 | Dashboard/provisioning validation | JSON parsing plus real provisioned authentication/org/datasource/dashboard validation required | `scripts/test-grafana.sh --validate-only` |
+| 48 | Dashboard/provisioning validation | JSON/provisioning/topology lint plus real Grafana API validation proves both organizations receive only their read-only fixed datasources and the generic Partner Operations dashboard | `scripts/test-grafana.sh --validate-only` |
 | 49 | Documentation/configuration consistency | Mapping completeness, JSON/shell syntax, version, retention, tenancy, no-Kubernetes/Helm, and mandatory-command checks | `scripts/test-docs.sh` |
+
+Requirements 35 and 48 are implemented as of 2026-08-24. The same full Grafana runner also provides M7-local supporting evidence for typed A/B search, `SHARED-APP-001` collision isolation, ordered callback timeline/detail, prohibited-content absence, fixed-tenant Loki queries, fixed-slot Prometheus SLI queries, and Grafana API/datasource/Explore/header/PromQL bypass denial. Requirements 36–46 remain owned by `scripts/test-end-to-end.sh` because their acceptance boundary starts in the synthetic Spring application; direct synthetic OTLP seeding in the Grafana runner does not replace that proof.
 
 The existing performance profiles remain cross-cutting completion criteria even though they are outside the numbered 1-49 task list. `verify-all.sh` therefore also requires `scripts/test-performance.sh`; a smoke or shortened run is not a substitute for the exact acceptance table below.
 

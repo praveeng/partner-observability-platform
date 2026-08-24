@@ -70,9 +70,13 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 - Verification on 2026-08-23: focused Micrometer tests pass across all requested outcome cases and 100,000 callbacks without meter growth; `promtool` validates all configuration/rules; the real Compose test proves scrape/relabel/remote-write, trusted label overwrite, unknown slot/metric and transaction-label removal, A/B/C slot series, retention flags, rules, and Alloy self-metrics. Full build/security/aggregate results are recorded in the M6 evidence file; M7 query authorization and M9 performance remain separate gates.
 - Acceptance: metric contract tests, cardinality budgets, scrape integration checks, documentation, and state are current.
 
-### M7 — Grafana and journey query
+### M7 — Grafana and journey query (B001 boundary ready for review)
 
-- Provision datasources, the tenant-fixed bounded journey resolver, callback-aware search/timeline/detail/SLI dashboards, and server-enforced partner access patterns without client-side isolation assumptions.
+- Implemented real Grafana 11.6.5 provisioning with one organization per synthetic partner, generated local Viewer accounts, no anonymous/signup/Explore/Viewer editing, and the same generic Partner Operations dashboard loaded into both isolated organizations.
+- Each organization has only fixed, non-editable Loki and Prometheus proxy datasources. Datasource secrets come from generated environment values through `secureJsonData`; Nginx strips client routing headers and injects a server-fixed Loki tenant or Prometheus slot through the internal `prom-label-proxy`. Loki, Prometheus, and the label proxy have no partner-reachable network path.
+- The generic dashboard implements typed transaction search, first/last/current overview with elapsed-time reduction, an ascending timeline that keeps callback receipt and processing distinct, selected sanitized detail including omission/retry/error fields, and outbound/callback SLI panels without fabricated contractual thresholds.
+- `test/integration/run-local-grafana.sh` is the executable boundary. It validates live health/provisioning/authentication, exact single-Viewer membership, datasource/dashboard secrecy, A/B searches and colliding application IDs, timeline/detail/payload absence, fixed-tenant/slot queries, API/Explore/org/header/UID/PromQL bypasses, SLI values, and safe gateway audit records. `scripts/verify-all.sh` invokes the full runner at requirement 35 and the live `--validate-only` mode at requirement 48.
+- Verification on 2026-08-24: `./scripts/test-grafana.sh`, `./scripts/test-grafana.sh --validate-only`, `./scripts/test-security.sh --data-plane`, and `./scripts/test-security.sh --metrics-plane` pass in the current worktree. This closes only B001/requirements 35 and 48; application-originated requirements 36–46 remain B002.
 - Acceptance: partner access tests and dashboard/query validation pass using synthetic tenants.
 
 ### M8 — Terraform and AWS ECS (ready for review)
@@ -90,7 +94,7 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 - Preparatory fixture complete: two partner lanes, colliding application and callback-reference IDs, bounded synchronous/reactive/callback concurrency, multiple callbacks, and async lifecycle failure modes are covered by test-app integration tests. This does not claim the M9 duration/throughput gates.
 - Extend the M3 trusted/untrusted/wrong-host client suite with expired/not-yet-valid and incomplete-chain certificates, redirect/downgrade policy, callback forwarding-header/direct-task denial, ALB/ACM/SG policy, certificate/custom-CA rotation, end-to-end TLS secret absence, and proof that local HTTP fixtures cannot escape `LOCAL_SYNTHETIC` isolation.
 - Acceptance: explicit thresholds in `docs/acceptance-criteria.md` pass with retained test evidence and no real data.
-- The 2026-08-23 adversarial review and all 84 requested attack dispositions are recorded in `docs/security-review.md`. Implemented SDK, Alloy/Loki, Prometheus, and Terraform security scopes pass, but the production verdict remains BLOCKED by missing Grafana/query authorization, application-to-authorized-query end to end, callback ALB staging evidence, redirect/chain/rotation drills, and full-duration resilience/performance tests.
+- The 2026-08-24 adversarial review update closes the local Grafana/query-authorization blocker. The production verdict remains BLOCKED by missing application-to-authorized-query end to end, callback ALB staging evidence, redirect/chain/rotation drills, and full-duration resilience/performance tests.
 
 ### M10 — Release documentation and package readiness
 
@@ -99,4 +103,4 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 
 ## Current focus
 
-The current focus is closing the critical security blockers from `docs/security-review.md`: M7 Grafana/query authorization, application-originated authorized-path end to end, host callback ALB staging evidence, redirect/certificate lifecycle drills, and exact M9 saturation/soak profiles. The SDK now binds automatic outbound observations to exact configured HTTPS origins and rejects ambiguous callback routes. M8 Terraform remains ready for review with private ECS tasks and 443-only Grafana ingress, but no deployment, production-readiness, whole-platform security, or performance claim is made.
+The current focus is the blockers that remain after B001: application-originated authorized-path end to end, host callback ALB staging evidence, redirect/certificate lifecycle drills, and exact M9 saturation/soak profiles. The local Grafana organization/query boundary is ready for review, and the SDK binds automatic outbound observations to exact configured HTTPS origins and rejects ambiguous callback routes. M8 Terraform remains ready for review with private ECS tasks and 443-only Grafana ingress, but no deployment, production-readiness, whole-platform security, or performance claim is made.

@@ -3,14 +3,15 @@
 ## Verdict and scope
 
 **Production security verdict: REJECTED / BLOCKED.** The implemented SDK, Alloy/Loki,
-Prometheus, and Terraform boundaries passed their available local security suites, and
-two confirmed isolation defects were fixed with failing-first regressions. The platform
-still has no runnable Grafana provisioning, partner account/organization authorization,
-datasource/query gateway, or application-to-authorized-query end-to-end suite. Those are
-mandatory security boundaries, not optional presentation work. Partner access must remain
-disabled until they exist and pass.
+Prometheus, local Grafana/query gateway, and Terraform boundaries passed their available
+local security suites, and two confirmed isolation defects were fixed with failing-first
+regressions. The local Grafana completion boundary now has real provisioning, isolated
+organizations, Viewer accounts, fixed datasources, and adversarial API/query tests. The
+application-to-authorized-query end-to-end suite, exact performance profiles, and staging-owned
+callback/TLS evidence remain mandatory release blockers. Partner access must remain disabled
+outside the validated local synthetic boundary until those separate gates pass.
 
-This review was performed on 2026-08-23 against the current worktree. It covered the Java
+This review was performed on 2026-08-23 and updated on 2026-08-24 against the current worktree. It covered the Java
 17/Spring Boot 2.7 SDK, callback fixture and filters, selected SLF4J compatibility, Alloy,
 Loki, Prometheus, local gateways, Docker Compose, Terraform/ECS policy, documentation, and
 completion scripts. No AWS account, production credential, deployment, push, or production
@@ -21,6 +22,8 @@ Evidence commands executed during the review:
 - `./scripts/test-security.sh --core` — PASS after fixes.
 - `./scripts/test-security.sh --data-plane` — PASS using real Alloy/Loki containers.
 - `./scripts/test-security.sh --metrics-plane` — PASS using real Alloy/Prometheus containers.
+- `./scripts/test-grafana.sh` — PASS using real Grafana/Loki/Prometheus/gateway containers and generated local users/secrets.
+- `./scripts/test-grafana.sh --validate-only` — PASS using live Grafana provisioning/API validation.
 - `TERRAFORM_BIN=/tmp/partner-observability-terraform-1.11.4/terraform ./scripts/test-security.sh --terraform` — PASS, including the mocked network plan.
 - `./test/security/run-adversarial-static.sh` — PASS; it rejects production TLS bypass/downgrade primitives, tracked private keys, sensitive Terraform outputs, and missing origin/route guards.
 
@@ -38,10 +41,11 @@ TERRAFORM_BIN=/tmp/partner-observability-terraform-1.11.4/terraform \
 ./scripts/verify-all.sh
 ```
 
-Result: `FINAL RESULT: FAIL (5 of 22 stages failed)`. The 17 implemented stages passed.
-The five expected failures were Grafana health/auth/datasource isolation, application
-end to end, the aggregate security gate (because Grafana is mandatory), full-duration
-performance, and dashboard/provisioning validation. No implemented stage regressed.
+Result on 2026-08-24: `FINAL RESULT: FAIL (3 of 22 stages failed)`. Nineteen stages passed,
+including requirements 35 and 48 and the real Grafana boundary inside the aggregate security
+command. The three expected failures were application end to end (B002), the aggregate security
+gate only because it includes that same missing B002 suite, and full-duration performance (B003).
+No implemented stage regressed.
 
 Status terms: **PASS** means the implemented local boundary resisted the attack; **FIXED**
 means this review first reproduced and then repaired a defect; **PARTIAL** means bounded
@@ -63,10 +67,11 @@ plaintext partner origin, public internal-backend listener, or SDK HTTPS downgra
 
 | ID | Severity | Blocker | Security effect |
 | --- | --- | --- | --- |
-| SR-03 | Critical | Grafana provisioning, dashboards, local users/organizations, fixed datasources, and `test/integration/run-local-grafana.sh` are absent. | Partner A/B UI, API, variable, datasource, and direct-query attacks cannot be exercised. There is no evidence that a partner-facing query path is safe. |
 | SR-04 | High | `test/integration/run-local-end-to-end.sh` is absent. | Application-originated outbound/callback records have not been proven through the authorized query boundary; same-ID and callback-reference isolation are supporting-layer claims only. |
 | SR-05 | Medium | Exact saturation, callback-flood, soak, reactive-cancellation, and heap/GC profiles are `NOT IMPLEMENTED`. | Queues are bounded and business calls are isolated in unit/integration tests, but cross-workload telemetry starvation and long-duration memory behavior are not accepted. |
 | SR-06 | High | Callback ALB/DNS/ACM/security-group infrastructure is host-service-owned and has no deployed staging evidence in this repository. | Inbound HTTPS-only behavior, forwarding-header spoof denial, direct-task reachability, certificate rotation, and WAF/rate controls require onboarding and staging tests before any external callback exposure. |
+
+Resolved on 2026-08-24: **SR-03 / B001**. `grafana/provisioning`, the generic Partner Operations dashboard, the fixed Loki/Prometheus query routes, and `test/integration/run-local-grafana.sh` now exercise PARTNER_A/PARTNER_B local authentication, exactly-one-organization Viewer membership, datasource/dashboard provisioning, secret non-disclosure, cross-tenant searches, colliding IDs, timeline/detail/SLI results, and API/Explore/org/header/UID/PromQL bypasses.
 
 ## Attack scenario results
 
@@ -74,19 +79,19 @@ plaintext partner origin, public internal-backend listener, or SDK HTTPS downgra
 
 | # | Attack | Result | Evidence / limitation |
 | ---: | --- | --- | --- |
-| 1 | Partner A reads Partner B logs | PASS at Loki boundary | Fixed tenant gateway and real A/B/C Loki queries deny cross-tenant records. Grafana path remains SR-03. |
-| 2 | Partner A reads Partner B events | PASS at Loki boundary | Real tenant-fixed event ingest/query denial. Grafana path remains blocked. |
-| 3 | Partner A reads Partner B metrics | PARTIAL | Alloy overwrites slots and Prometheus contains bounded A/B/C series; partner-authenticated query enforcement is absent. |
-| 4 | Partner A reads Partner B callbacks | PASS at Loki boundary | Callback records remain in the fixed tenant; public UI/query proof is blocked. |
+| 1 | Partner A reads Partner B logs | PASS | Grafana resolves the authenticated organization datasource to a fixed gateway identity; A/B exact and header-spoof queries return only the fixed Loki tenant. |
+| 2 | Partner A reads Partner B events | PASS | Real tenant-fixed ingest plus authenticated Grafana datasource-proxy queries deny foreign event IDs and transaction searches. |
+| 3 | Partner A reads Partner B metrics | PASS | Grafana uses organization-local fixed datasources; the gateway injects the slot and `prom-label-proxy` rejects/intersects conflicting, regex, absent, and header-spoof selectors. |
+| 4 | Partner A reads Partner B callbacks | PASS | Callback records remain tenant-fixed and are retrieved only through the authenticated organization's datasource path. |
 | 5 | Same `applicationId` across tenants | PASS | Core batches, test app, and real Loki collision queries remain partner-pure. |
 | 6 | Same `partnerReferenceId` across tenants | PASS | Typed metadata is queried only after tenant fixation; it is never an authorization key or label. |
 | 7 | Same `callbackReferenceId` across tenants | PASS | Synthetic A/B collisions remain isolated in test-app and Loki evidence. |
 | 8 | Spoofed `partnerId` | PASS | Context resolver rejects client identity; body spoof cannot select an Alloy route or callback tenant. |
 | 9 | Spoofed `X-Scope-OrgID` | PASS | Ingest/query gateways overwrite the header; real query-header spoof returned no foreign data. |
-| 10 | Grafana variable manipulation | BLOCKED | Grafana assets/runner do not exist (SR-03). |
-| 11 | Direct datasource/query manipulation | BLOCKED | Fixed datasource/query gateway is not runnable (SR-03). |
-| 12 | Grafana API access | BLOCKED | No real partner users, sessions, or API suite (SR-03). |
-| 13 | Insecure local-user permissions | BLOCKED | No provisioned local-user/account lifecycle implementation (SR-03). |
+| 10 | Grafana variable manipulation | PASS | The generic dashboard exposes no partner/tenant/slot selector; typed search values remain inside the already-fixed datasource tenant. Saved dashboard edits are denied. |
+| 11 | Direct datasource/query manipulation | PASS | Header injection, foreign UID guesses, datasource proxy queries, conflicting/regex PromQL, label enumeration, unsupported endpoints, and direct gateway authentication are exercised and remain fixed or denied. |
+| 12 | Grafana API access | PASS | Generated Viewer sessions cannot create datasources, administer users/organizations, switch to the foreign org, edit provisioned dashboards, or retrieve datasource secure values. |
+| 13 | Insecure local-user permissions | PASS | PARTNER_A and PARTNER_B users authenticate with generated passwords, are non-server-admin Viewers in exactly one organization, and invalid credentials/logout behavior is verified. |
 
 ### Callback-specific attacks
 
@@ -208,7 +213,7 @@ for private target hops.
 
 ## Residual risks
 
-- No partner-facing Grafana/query authorization implementation exists; this is a release blocker.
+- The local Grafana boundary uses generated basic-auth accounts. Production identity lifecycle, rotation, recovery, and external HTTPS exposure remain deployment/onboarding responsibilities and are not claimed by B001.
 - The shared dispatcher intentionally prioritizes bounded business impact over telemetry delivery;
   sustained callback traffic can reduce other success-event visibility until fairness/rate evidence
   is defined.
@@ -221,8 +226,7 @@ for private target hops.
 
 ## Staging-only or externally owned tests
 
-- Partner Grafana user provisioning, password/session lifecycle, organization switching, API access,
-  datasource proxy manipulation, and browser variable attacks (blocked locally because M7 is absent).
+- Production partner Grafana identity provisioning, password rotation/recovery/session revocation, and onboarding/offboarding lifecycle beyond the generated local accounts.
 - Public DNS/ACM hostname, callback ALB 443-only listener, trusted-proxy behavior, WAF/rate policy,
   private task reachability, and direct Loki/Prometheus/Alloy reachability from the internet.
 - HTTPS-to-HTTP redirect denial for each service-owned production client configuration, incomplete

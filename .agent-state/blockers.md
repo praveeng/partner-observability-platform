@@ -1,7 +1,7 @@
 # Authoritative Local Completion Gate Blockers
 
-Validated on 2026-08-23 in the adversarial-security-review worktree based on commit
-`096ea42593089a5d4fe7ba1c56653ba1329c6760`, with Java 17, Gradle 7.6.4,
+Originally validated on 2026-08-23 in the adversarial-security-review worktree and
+updated on 2026-08-24 for the B001 implementation, with Java 17, Gradle 7.6.4,
 Docker Compose 2.40.3-desktop.1, Terraform 1.11.4, and AWS provider 6.61.0.
 
 Command:
@@ -12,23 +12,25 @@ TERRAFORM_BIN=/tmp/partner-observability-terraform-1.11.4/terraform \
 ./scripts/verify-all.sh
 ```
 
-The command completed with `FINAL RESULT: FAIL (5 of 22 stages failed)`.
-Build/core, outbound clients, encrypted flows, callbacks/async, payload/log safety,
-Alloy/Loki, Prometheus, Terraform, and documentation/configuration stages passed.
+The updated command completed with `FINAL RESULT: FAIL (3 of 22 stages failed)`.
+Nineteen stages passed, including requirements 35 and 48 and the real Grafana boundary
+inside the aggregate security command. The remaining failures are B002, the aggregate
+security stage because it invokes B002, and B003.
 
-## B001 — Grafana completion boundary is not implemented
+## Resolved: B001 — Grafana completion boundary
 
-Missing mandatory assets:
+Resolved on 2026-08-24. The mandatory assets are implemented:
 
 - `grafana/provisioning`
 - `grafana/dashboards`
 - `test/integration/run-local-grafana.sh`
 
-This blocks requirements 35 and 48 and the full security gate. Completion needs real
-local Grafana health, authentication, one-organization-per-partner Viewer access,
-fixed datasource/query-gateway isolation, bypass denial, search/timeline/detail/SLI
-results, and dashboard/provisioning validation. Static placeholders or direct Loki
-queries are not acceptable substitutes.
+`test/integration/run-local-grafana.sh` passes real local Grafana health,
+authentication, one-organization-per-partner Viewer access, fixed
+datasource/query-gateway isolation, bypass denial, search/timeline/detail/SLI results,
+and dashboard/provisioning validation. Requirements 35 and 48 pass. The B002
+application-originated end-to-end boundary remains separate; direct synthetic OTLP
+injection in the Grafana runner is not counted as requirements 36-46 evidence.
 
 ## B002 — Application-to-platform end-to-end suite is not implemented
 
@@ -50,8 +52,8 @@ machine-readable evidence. A smoke test or reduced duration cannot unblock this 
 
 ## Required next action
 
-Implement M7 Grafana/query authorization and the M9 end-to-end and full-duration
-performance harnesses, then rerun `./scripts/verify-all.sh` with the pinned prerequisites.
+Implement the M9 application-originated end-to-end and full-duration performance
+harnesses, then rerun `./scripts/verify-all.sh` with the pinned prerequisites.
 Do not claim local completion until every stage passes.
 
 The requested adversarial security-review snapshot may be committed locally in its

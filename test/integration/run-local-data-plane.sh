@@ -24,6 +24,10 @@ compose() {
   LOCAL_OTLP_PORT="$otlp_port" \
     LOCAL_QUERY_PORT="$query_port" \
     LOCAL_ALLOY_METRICS_PORT="$metrics_port" \
+    GRAFANA_ADMIN_PASSWORD="unused-${project_name}" \
+    GRAFANA_SECRET_KEY="unused-secret-key-${project_name}" \
+    GRAFANA_PARTNER_A_QUERY_PASSWORD="unused-a-${project_name}" \
+    GRAFANA_PARTNER_B_QUERY_PASSWORD="unused-b-${project_name}" \
     docker compose -p "$project_name" -f "$compose_file" "$@"
 }
 

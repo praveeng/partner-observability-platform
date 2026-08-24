@@ -1,0 +1,78 @@
+apiVersion: 1
+
+prune: true
+
+datasources:
+  - name: Partner Loki
+    uid: partner-loki
+    type: loki
+    access: proxy
+    orgId: $GRAFANA_PARTNER_A_ORG_ID
+    url: http://tenant-gateway:8081
+    basicAuth: true
+    basicAuthUser: query-partner-a
+    isDefault: true
+    editable: false
+    jsonData:
+      timeout: 10
+      maxLines: 500
+    secureJsonData:
+      basicAuthPassword: $GRAFANA_PARTNER_A_QUERY_PASSWORD
+    version: 1
+
+  - name: Partner Prometheus
+    uid: partner-prometheus
+    type: prometheus
+    access: proxy
+    orgId: $GRAFANA_PARTNER_A_ORG_ID
+    url: http://tenant-gateway:8081/prometheus
+    basicAuth: true
+    basicAuthUser: query-partner-a
+    isDefault: false
+    editable: false
+    jsonData:
+      httpMethod: GET
+      prometheusType: Prometheus
+      prometheusVersion: 3.12.0
+      timeInterval: 5s
+      manageAlerts: false
+    secureJsonData:
+      basicAuthPassword: $GRAFANA_PARTNER_A_QUERY_PASSWORD
+    version: 1
+
+  - name: Partner Loki
+    uid: partner-loki
+    type: loki
+    access: proxy
+    orgId: $GRAFANA_PARTNER_B_ORG_ID
+    url: http://tenant-gateway:8081
+    basicAuth: true
+    basicAuthUser: query-partner-b
+    isDefault: true
+    editable: false
+    jsonData:
+      timeout: 10
+      maxLines: 500
+    secureJsonData:
+      basicAuthPassword: $GRAFANA_PARTNER_B_QUERY_PASSWORD
+    version: 1
+
+  - name: Partner Prometheus
+    uid: partner-prometheus
+    type: prometheus
+    access: proxy
+    orgId: $GRAFANA_PARTNER_B_ORG_ID
+    url: http://tenant-gateway:8081/prometheus
+    basicAuth: true
+    basicAuthUser: query-partner-b
+    isDefault: false
+    editable: false
+    jsonData:
+      httpMethod: GET
+      prometheusType: Prometheus
+      prometheusVersion: 3.12.0
+      timeInterval: 5s
+      manageAlerts: false
+    secureJsonData:
+      basicAuthPassword: $GRAFANA_PARTNER_B_QUERY_PASSWORD
+    version: 1

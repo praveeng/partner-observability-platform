@@ -59,7 +59,7 @@ services:
     image: nginx:1.28.0-alpine@sha256:30f1c0d78e0ad60901648be663a710bdadf19e4c10ac6782c235200619158284
     volumes:
       - ./nginx/local-metrics-fixture.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/local-metrics.prom:/usr/share/nginx/html/local-metrics.prom:ro
+      - ${LOCAL_METRICS_FIXTURE_FILE:-./nginx/local-metrics.prom}:/usr/share/nginx/html/local-metrics.prom:ro
     networks:
       - backend
     healthcheck:
@@ -97,15 +97,17 @@ services:
     image: nginx:1.28.0-alpine@sha256:30f1c0d78e0ad60901648be663a710bdadf19e4c10ac6782c235200619158284
     volumes:
       - ./nginx/local-gateway.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/local-synthetic.htpasswd:/etc/nginx/local-synthetic.htpasswd:ro
+      - ${LOCAL_GATEWAY_HTPASSWD_FILE:-./nginx/local-synthetic.htpasswd}:/etc/nginx/local-synthetic.htpasswd:ro
     ports:
       - "127.0.0.1:${LOCAL_OTLP_PORT:-14318}:8080"
       - "127.0.0.1:${LOCAL_QUERY_PORT:-13101}:8081"
     networks:
       - edge
       - backend
+      - portal
     depends_on:
       - alloy
+      - prom-label-proxy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
       interval: 5s
@@ -113,12 +115,62 @@ services:
       retries: 20
     restart: unless-stopped
 
+  prom-label-proxy:
+    image: quay.io/prometheuscommunity/prom-label-proxy:v0.13.0@sha256:11ccecc8f08d0ff8f978ada9de7f3a31518c9bb0ce8e15e6cf97dd5251b84f59
+    command:
+      - -upstream=http://prometheus:9090
+      - -label=partner_slot
+      - -header-name=X-Partner-Slot
+      - -error-on-replace
+      - -enable-label-apis
+      - -insecure-listen-address=0.0.0.0:8080
+      - -internal-listen-address=0.0.0.0:8081
+    networks:
+      - backend
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    restart: unless-stopped
+
+  grafana:
+    profiles: ["grafana"]
+    image: grafana/grafana:11.6.5-ubuntu@sha256:2eeac86c724444877fc953dde591c9371447356bf60ec67cd6a1ba0172e5359b
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-local-grafana-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD for LOCAL_SYNTHETIC Grafana}
+      GF_SECURITY_SECRET_KEY: ${GRAFANA_SECRET_KEY:?set GRAFANA_SECRET_KEY for LOCAL_SYNTHETIC Grafana}
+      GRAFANA_PARTNER_A_QUERY_PASSWORD: ${GRAFANA_PARTNER_A_QUERY_PASSWORD:?set GRAFANA_PARTNER_A_QUERY_PASSWORD}
+      GRAFANA_PARTNER_B_QUERY_PASSWORD: ${GRAFANA_PARTNER_B_QUERY_PASSWORD:?set GRAFANA_PARTNER_B_QUERY_PASSWORD}
+      GRAFANA_PARTNER_A_ORG_ID: ${GRAFANA_PARTNER_A_ORG_ID:-2}
+      GRAFANA_PARTNER_B_ORG_ID: ${GRAFANA_PARTNER_B_ORG_ID:-3}
+    volumes:
+      - ../grafana/grafana.ini:/etc/grafana/grafana.ini:ro
+      - ${GRAFANA_PROVISIONING_DIR:-../grafana/provisioning}:/etc/grafana/provisioning:ro
+      - ../grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:${LOCAL_GRAFANA_PORT:-13000}:3000"
+    networks:
+      - portal
+    depends_on:
+      tenant-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/api/health >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+    restart: unless-stopped
+
 networks:
   edge: {}
   backend:
     internal: true
+  portal: {}
 
 volumes:
   alloy-data: {}
   loki-data: {}
   prometheus-data: {}
+  grafana-data: {}

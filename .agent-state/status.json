@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "project": "partner-observability-platform",
+  "project": "sure-partner-observability",
   "lifecycle": {
     "allowedStates": [
       "BOOTSTRAPPING",

@@ -1,5 +1,9 @@
 # Delivery Plan
 
+## Repository identity
+
+The repository/project is Sure Partner Observability (`sure-partner-observability`). The established `partner-observability-*` SDK modules, artifacts, public configuration, telemetry contracts, and runtime identifiers remain unchanged for compatibility.
+
 ## Plan rules
 
 Milestones are ordered; later exploratory work must not redefine an earlier security or availability contract without an ADR. A milestone can be marked complete only when its acceptance evidence is recorded and `.agent-state/status.json` is updated. `NOT IMPLEMENTED` checks are expected during foundation work and are not evidence of success.

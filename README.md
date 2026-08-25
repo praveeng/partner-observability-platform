@@ -1,4 +1,6 @@
-# Partner Observability Platform
+# Sure Partner Observability
+
+Repository machine name: `sure-partner-observability`.
 
 Repository for a partner-isolated observability SDK and platform targeting Java 17, Spring Boot 2.7.x, Grafana Alloy, Loki, Prometheus, Grafana, Terraform, and AWS ECS.
 

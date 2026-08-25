@@ -1,4 +1,4 @@
-rootProject.name = 'partner-observability-platform'
+rootProject.name = 'sure-partner-observability'
 
 include 'partner-observability-core'
 include 'partner-observability-spring-boot-autoconfigure'

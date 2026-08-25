@@ -4,6 +4,8 @@
 
 This file governs the entire repository. It is the highest-authority repository-local instruction for autonomous agents. More specific `AGENTS.md` files may add constraints but may not weaken this constitution. If code, configuration, documentation, or a task request conflicts with these rules, stop and record the conflict in `docs/decisions-needed.md`.
 
+The repository/project identity is Sure Partner Observability (`sure-partner-observability`). Existing `partner-observability-*` modules, artifacts, packages, configuration properties, telemetry names, and runtime identifiers are compatibility contracts, not stale repository names.
+
 The project supplies partner-isolated application observability for Java 17 / Spring Boot 2.7 services, with asynchronous telemetry collection and an AWS ECS deployment target. It is not a business transaction system and must never become part of the success path for business traffic.
 
 ## Required reading before changing the repository

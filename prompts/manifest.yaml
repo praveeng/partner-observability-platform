@@ -1,0 +1,135 @@
+version: 1
+pilotService: sure-nbfc-unionbank-ph
+platformProject: sure-partner-observability
+monorepo: SureWebServices
+profileModel:
+  - local
+  - dev
+  - stage
+  - prod
+springConfigurationFormat: properties
+prompts:
+  prompt1:
+    order: 1
+    file: prompt1.md
+    mode: assessment
+    requiresHumanApproval: false
+    mayModifyFiles: false
+    mayCommit: false
+    mayPush: false
+    mayDeploy: false
+    mayRunTerraformApply: false
+  prompt2:
+    order: 2
+    file: prompt2.md
+    mode: implementation
+    conditional: "approved generic gaps exist"
+    requiresHumanApproval: true
+    requiresHumanApprovalBeforeModification: true
+    mayModifyFiles: true
+    mayCommit: true
+    mayPush: false
+    mayDeploy: false
+    mayRunTerraformApply: false
+  prompt3:
+    order: 3
+    file: prompt3.md
+    mode: implementation
+    requiresHumanApproval: true
+    requiresHumanApprovalBeforeModification: true
+    mayModifyFiles: true
+    mayCommit: true
+    mayPush: false
+    mayDeploy: false
+    mayRunTerraformApply: false
+  prompt4:
+    order: 4
+    file: prompt4.md
+    mode: implementation
+    requiresHumanApproval: true
+    requiresHumanApprovalBeforeModification: true
+    mayModifyFiles: true
+    mayCommit: true
+    mayPush: false
+    mayDeploy: false
+    mayRunTerraformApply: false
+  prompt5:
+    order: 5
+    file: prompt5.md
+    mode: quality-gate
+    requiresHumanApproval: false
+    approvalRequiredOnAmbiguity: true
+    mayModifyFiles: true
+    mayCommit: true
+    mayPush: false
+    mayDeploy: false
+    mayRunTerraformApply: false
+  prompt6:
+    order: 6
+    file: prompt6.md
+    mode: gha-integration
+    requiresHumanApproval: true
+    requiresHumanApprovalBeforeModification: true
+    mayModifyFiles: true
+    mayCommit: true
+    mayPush: false
+    mayDeploy: false
+    mayRunTerraformApply: false
+  prompt7:
+    order: 7
+    file: prompt7.md
+    mode: local-validation
+    requiresHumanApproval: false
+    approvalRequiredForMaterialServiceChange: true
+    mayModifyFiles: true
+    mayCommit: true
+    mayPush: false
+    mayDeploy: false
+    mayRunTerraformApply: false
+  prompt8:
+    order: 8
+    file: prompt8.md
+    mode: terraform-integration
+    requiresHumanApproval: true
+    requiresHumanApprovalBeforeModification: true
+    scope:
+      local: unchanged
+      dev: unchanged
+      stage: modify-as-required
+      prod: modify-as-required
+    mayModifyFiles: true
+    mayCommit: true
+    mayPush: false
+    mayDeploy: false
+    mayRunTerraformApply: false
+  prompt9:
+    order: 9
+    file: prompt9.md
+    mode: assessment
+    requiresHumanApproval: false
+    mayModifyFiles: false
+    mayCommit: false
+    mayPush: false
+    mayDeploy: false
+    mayRunTerraformApply: false
+  prompt10:
+    order: 10
+    file: prompt10.md
+    mode: adversarial-review
+    requiresHumanApproval: false
+    approvalRequiredForMaterialRedesign: true
+    mayModifyFiles: true
+    mayCommit: true
+    mayPush: false
+    mayDeploy: false
+    mayRunTerraformApply: false
+  prompt11:
+    order: 11
+    file: prompt11.md
+    mode: assessment
+    requiresHumanApproval: false
+    mayModifyFiles: false
+    mayCommit: false
+    mayPush: false
+    mayDeploy: false
+    mayRunTerraformApply: false

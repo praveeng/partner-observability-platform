@@ -225,7 +225,7 @@ public final class LocalSyntheticOtlpTelemetryPublisher {
         attribute(attributes, "service.name", envelope.service().serviceName());
         attribute(attributes, "service.version", envelope.service().serviceVersion());
         attribute(attributes, "market", envelope.partnerContext().market());
-        attribute(attributes, "deployment.environment", envelope.partnerContext().environment().name());
+        attribute(attributes, "deployment.environment", envelope.partnerContext().environment().canonicalValue());
         return attributes;
     }
 

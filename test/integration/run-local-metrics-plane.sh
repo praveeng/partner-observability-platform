@@ -101,7 +101,7 @@ jq -e '
   .data.result | length == 2 and
   all(.[];
     .metric.market == "LOCAL" and
-    .metric.environment == "LOCAL_SYNTHETIC" and
+    .metric.environment == "local" and
     .metric.service == "synthetic-partner-service" and
     .metric.partner_slot == "p001" and
     (.metric | has("applicationId") | not)

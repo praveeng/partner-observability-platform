@@ -24,21 +24,19 @@ The required HTTPS `origin` binds automatic transport joining to the intended pa
 host. Explicit logical observation by API name does not authorize a different transport
 origin; the host service remains responsible for calling only its reviewed endpoint.
 
-```yaml
-partner-observability:
-  enabled: true
-  events-enabled: true
-  payloads-enabled: true
-  explicit-observations-enabled: true
-  outbound:
-    - name: PARTNER_ALPHA_ENCRYPTED
-      origin: https://partner-alpha.example
-      path: /partner/encrypted
-      method: POST
-      partner: partner-alpha
-      correlation-profile: ENCRYPTED_SUBMISSION
-      capture-mode: FULL_SANITIZED
-      safe-fields: [amount, product, fixtureClassification]
+```properties
+partner-observability.enabled=true
+partner-observability.events-enabled=true
+partner-observability.payloads-enabled=true
+partner-observability.explicit-observations-enabled=true
+partner-observability.outbound[0].name=PARTNER_ALPHA_ENCRYPTED
+partner-observability.outbound[0].origin=https://partner-alpha.example
+partner-observability.outbound[0].path=/partner/encrypted
+partner-observability.outbound[0].method=POST
+partner-observability.outbound[0].partner=partner-alpha
+partner-observability.outbound[0].correlation-profile=ENCRYPTED_SUBMISSION
+partner-observability.outbound[0].capture-mode=FULL_SANITIZED
+partner-observability.outbound[0].safe-fields=amount,product,fixtureClassification
 ```
 
 `METADATA_ONLY` is supported, but contains no logical payload values.

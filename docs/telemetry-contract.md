@@ -68,7 +68,7 @@ There is no safe binary, raw JSON string, arbitrary object, throwable, stream, p
 | `serviceName` | configured token, 1-63 | label | Never derived from a request |
 | `serviceVersion` | configured token, 1-63 | structured metadata | Build/release identity |
 | `market` | configured token | label | Fixed per deployment |
-| `environment` | `DEV`, `STAGE`, `PROD` | `deployment_environment` label | Fixed per ECS stack |
+| `environment` | `local`, `dev`, `stage`, `prod` | `deployment_environment` label | Fixed per runtime stack |
 | `partnerKey` | configured canonical key | routing only | Removed by Alloy; never displayed or used as tenant header |
 | `direction` | enum | label | `OUTBOUND_TO_PARTNER` or `INBOUND_FROM_PARTNER` |
 | `interactionKind` | enum | line/metadata | `SYNC_OUTBOUND`, `ASYNC_INITIATION`, or `CALLBACK` |

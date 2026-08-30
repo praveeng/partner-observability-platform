@@ -42,6 +42,8 @@ The project supplies partner-isolated application observability for Java 17 / Sp
 20. Production deployment and production credentials are prohibited from agent activity in this repository.
 21. Autonomous agents may commit locally and may push completed, verified work under the Git policy below, but must not merge.
 22. All Partner Observability Java code must use package namespace `com.samsung.sure.partner.observability.*`. Java/Spring module names must use `sure-partner-observability-*`.
+23. All runnable Spring Boot applications use exactly the canonical `local`, `dev`, `stage`, and
+    `prod` profiles, and Spring application configuration uses `.properties` files only.
 
 These invariants are acceptance gates. Tests that contradict them are defective; an agent must not relax an invariant merely to make a check pass.
 
@@ -87,6 +89,23 @@ Dependencies must point inward: the starter may expose autoconfiguration, autoco
   applies only to STAGE and PROD.
 - Agents must not add enterprise `.tf` files, Terraform state/plan/lock/provider artifacts, or AWS
   Terraform execution to this repository or its GitHub Actions.
+
+## Spring profile standard
+
+- Every runnable Spring Boot application has `application.properties` plus
+  `application-local.properties`, `application-dev.properties`, `application-stage.properties`, and
+  `application-prod.properties`. Pure libraries do not acquire application configuration files.
+- `local` means local VM, LocalStack/Testcontainers/Docker where applicable, and a mock partner. It
+  has no live AWS dependency.
+- `dev` means an AWS DEV ECS cluster/VPC and a mocked partner.
+- `stage` means an isolated AWS STAGE ECS cluster/VPC and the real partner staging environment.
+- `prod` means AWS production and the real partner production environment.
+- DEV and STAGE may share a market AWS account, but their ECS clusters, VPCs, resources, runtime
+  configuration, partner routes, and secrets remain isolated.
+- Spring application YAML, profile aliases, embedded active production-like profiles, and blurred
+  environment semantics are prohibited. Runtime/GHA supplies `SPRING_PROFILES_ACTIVE` explicitly.
+- Secrets are runtime-injected. Stage and production partner traffic is HTTPS-only; the guarded
+  loopback HTTP fixture belongs only to `local`.
 
 ## Agent workflow and lifecycle
 

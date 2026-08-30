@@ -93,7 +93,7 @@ The existing performance profiles remain cross-cutting completion criteria even 
 - Core has no Spring dependency. Optional RestTemplate, WebClient, OkHttp, Logback, Reactor, Actuator, and Micrometer integrations are classpath/bean conditional.
 - Schema-2 outbound request/response, async acknowledgement, callback request/response/processing, business event, context, correlation identifiers, safe value, capture decision, and SLI models match `telemetry-contract.md`.
 - RestTemplate/WebClient/OkHttp execute business I/O exactly once and preserve response bytes, streaming, cancellation, and exception semantics.
-- Automatic outbound selection requires a configuration-owned HTTPS origin and exact scheme/host/effective-port/method/path match. Missing/plaintext origins fail startup; only explicit `local-synthetic=true` DEV literal-loopback fixtures may use HTTP.
+- Automatic outbound selection requires a configuration-owned HTTPS origin and exact scheme/host/effective-port/method/path match. Missing/plaintext origins fail startup; only explicit `local-synthetic=true` LOCAL literal-loopback fixtures may use HTTP.
 - RestTemplate/WebClient/OkHttp use the service-owned HTTPS transport unchanged. Starter activation does not create, install, replace, or mutate SSL contexts/socket factories, trust/hostname managers, WebClient connectors/SSL providers, OkHttp pinners/connection specifications, proxies, DNS, redirects, or TLS policies.
 - Async client mappings emit one outbound request and one acknowledgement terminal record without double-counting a generic response; accepted, rejected, timeout, cancellation, and transport failure mappings are tested.
 - Configured MVC/WebFlux callback interception preserves authentication/signature ordering, route mapping, body bytes, status, exceptions, async dispatch, backpressure, cancellation, and buffer ownership. Unconfigured inbound traffic emits no partner callback record.
@@ -153,7 +153,10 @@ The existing performance profiles remain cross-cutting completion criteria even 
   logs, or telemetry.
 - Partner-safe failure records contain only the fixed TLS security/failure enums and allowed metadata. Certificate chain/subject/issuer/SAN/serial/fingerprint, peer URL/host/address, cipher debug, exception text/stack, trust-store path/bytes/password, client/private key, and signature/session material are absent at queue, wire, Loki, metrics, dashboards, and diagnostics.
 - ALB handshake failures before trusted callback context remain internal-only and create no partner record or expected-partner fallback.
-- The local HTTP exception works only under an isolated `LOCAL_SYNTHETIC` loopback/Docker profile with synthetic data and cannot be selected by any ECS environment manifest.
+- The local HTTP exception works only under the canonical `local` Spring profile with the isolated
+  `LOCAL_SYNTHETIC` loopback/Docker fixture guard and cannot be selected by DEV/STAGE/PROD.
+- The runnable Spring Boot application has properties-only `local`, `dev`, `stage`, and `prod`
+  configuration; context/binding and static isolation gates pass for every profile.
 
 ## Labels, metadata, metrics, and dashboards
 

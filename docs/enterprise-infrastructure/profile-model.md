@@ -1,50 +1,41 @@
 # Runtime Profile and Environment Model
 
-## Discovery result
+## Canonical model
 
-Repository-wide inspection found no Spring profile definitions or selectors:
+The canonical Spring profiles are `local`, `dev`, `stage`, and `prod`. Runnable applications use
+`application.properties` and one `application-{profile}.properties` file for each profile; Spring
+application YAML is prohibited. Profile activation is external through
+`SPRING_PROFILES_ACTIVE=<profile>`, so the same immutable artifact is promoted between environments.
 
-- no `spring.profiles.active` or `SPRING_PROFILES_ACTIVE`;
-- no `spring.config.activate.on-profile`;
-- no `@Profile` annotations;
-- no `application-{profile}.yml` files.
+The Java `DeploymentEnvironment` enum uses `LOCAL`, `DEV`, `STAGE`, and `PROD`. Its canonical
+telemetry/configuration values are lowercase: `local`, `dev`, `stage`, and `prod`. The
+`LOCAL_SYNTHETIC` wording may still identify synthetic fixtures or test credentials, but it is not
+a Spring profile or a `deployment.environment` value.
 
-The SDK's actual application environment enum is `DEV`, `STAGE`, and `PROD` in
-`DeploymentEnvironment`. The synthetic test application sets
-`partner-observability.environment: DEV` and `partner-observability.local-synthetic: true` in its
-single `application.yml`. Local Alloy and Docker fixtures stamp `LOCAL_SYNTHETIC`; this is a guarded
-execution/test identity, not a Spring profile or deployable ECS environment.
+| Profile | Runtime | Partner | Enterprise infrastructure effect |
+| --- | --- | --- | --- |
+| `local` | Local VM and local Docker components; LocalStack/Testcontainers only where needed | Local/in-process mock | No AWS or enterprise Terraform dependency |
+| `dev` | Dedicated AWS DEV ECS cluster and VPC | AWS-hosted mock | No new infrastructure requirement from the Stage/Prod contract |
+| `stage` | Dedicated AWS STAGE ECS cluster and VPC | Real partner staging | Central Terraform requirements apply |
+| `prod` | AWS production cluster and network | Real partner production | Central Terraform requirements apply with production controls |
 
-Therefore the expected `local/dev/stage/prod` model matches the repository only as deployment
-intent. It does not match as Spring profiles:
+DEV and STAGE for a market may be in the same AWS account. That does not permit shared clusters,
+VPCs, environment resources, runtime configuration, tenants, partner endpoints, or secrets.
 
-| Intent | Actual repository representation | Contract effect |
-| --- | --- | --- |
-| LOCAL | Docker Compose, loopback test app, `local-synthetic=true`, `LOCAL_SYNTHETIC` telemetry label | No change; no AWS dependency |
-| DEV | `DeploymentEnvironment.DEV`; AWS DEV is documented as HTTPS mock-partner only | No new infrastructure requirement |
-| STAGE | `DeploymentEnvironment.STAGE` | Central Terraform requirements apply |
-| PROD | `DeploymentEnvironment.PROD` | Central Terraform requirements apply with production controls |
+## Local safety boundary
 
-No `staging`, `production`, or UAT runtime aliases were found. This task does not introduce or
-rename Spring profiles. Adding Spring profile files later would be a separate application
-configuration change and must preserve the enum and telemetry wire values.
+The synthetic test application activates `local` explicitly. Its loopback mock partner, local
+Alloy, Loki, Prometheus, Grafana, query gateway, integration tests, security tests, and performance
+fixtures require no live AWS service. The `partner-observability.local-synthetic=true` HTTP
+exception validates only with `DeploymentEnvironment.LOCAL` and a literal loopback origin.
 
-## LOCAL
+## Non-local configuration
 
-LOCAL remains entirely self-contained: the synthetic application, mock partners, Alloy, Loki,
-Prometheus, Grafana, query gateway, integration/security/performance fixtures, Docker networks, and
-disposable volumes run without AWS or enterprise Terraform. The isolated HTTP exception remains
-limited to local loopback/Docker synthetic traffic.
+The checked-in DEV/STAGE/PROD profile files provide canonical identity and safe disabled defaults.
+The approved runtime/GHA configuration artifact supplies the non-secret partner/tenant/API manifest
+and secret references before enabling capture. DEV points only to its HTTPS mock partner. STAGE and
+PROD point only to their corresponding real partner environment and use runtime-injected secrets.
+No test or context validation makes a real network or AWS call.
 
-## DEV
-
-DEV remains the existing AWS mock-partner environment. This contract adds no DEV service, storage,
-networking, IAM, secret, DNS, or load-balancer requirement. DEV is not a prerequisite for central
-Terraform changes under this task. Existing HTTPS and isolation rules still apply to DEV.
-
-## STAGE and PROD
-
-STAGE and PROD use the same component architecture and application artifacts. Central Terraform
-supplies environment-specific base infrastructure; configuration selects market, sizing, scaling,
-DNS/certificates, partners, allowlists, secret references, task counts, thresholds, and maintenance
-controls. Infrastructure and telemetry must never cross an account/market/environment boundary.
+Spring profile alignment changes application configuration only. It does not add DEV Terraform or
+move Stage/Prod infrastructure ownership into this repository.

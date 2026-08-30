@@ -14,9 +14,11 @@ import io.micrometer.core.instrument.MeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 
 /** Compiles and starts exactly as a one-starter Spring Boot 2.7 partner-service consumer. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@ActiveProfiles("local")
 class EnterpriseNamespaceStarterConsumerIntegrationTest {
 
     @Autowired PartnerObservabilityProperties properties;

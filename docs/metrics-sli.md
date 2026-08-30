@@ -13,7 +13,7 @@ All label values must come from startup configuration or bounded enums:
 | Label | Bound |
 | --- | --- |
 | `market` | One value per deployment, stamped by Alloy |
-| `environment` | One of `DEV`, `STAGE`, `PROD`, stamped by Alloy |
+| `environment` | One of `local`, `dev`, `stage`, `prod`, stamped by Alloy |
 | `service` | At most 32 configured services per market stack |
 | `partner_slot` | `p001`-`p064`; opaque mapping, at most 64 |
 | `api` | At most 64 configured API IDs per service |
@@ -121,7 +121,7 @@ The calculation includes the nine finite histogram buckets, `+Inf`, `_sum`, `_co
 - Prometheus enables only the remote-write receiver needed for Alloy, binds it privately, disables admin/lifecycle APIs, and applies 16-day time retention plus a storage-size cap.
 - Recording rules precompute dashboard rates and quantiles without adding transaction identifiers.
 
-The LOCAL_SYNTHETIC Compose profile uses the same scrape/relabel/remote-write shape with a fixed synthetic endpoint, a five-second test scrape interval, `16d` retention, and a `1GB` volume cap. Production uses Cloud Map discovery, the contractual 30-second/10-second scrape settings, private network paths, EFS-backed state, and an environment-sized cap. The local fixture is evidence for pipeline shape, not a production durability or capacity claim.
+The `local` profile's LOCAL_SYNTHETIC Compose fixture uses the same scrape/relabel/remote-write shape with a fixed synthetic endpoint, a five-second test scrape interval, `16d` retention, and a `1GB` volume cap. Production uses Cloud Map discovery, the contractual 30-second/10-second scrape settings, private network paths, EFS-backed state, and an environment-sized cap. The local fixture is evidence for pipeline shape, not a production durability or capacity claim.
 
 Missing Alloy/Prometheus never affects business recording; Micrometer updates stay in process. A scrape or write outage causes metric gaps rather than application retries.
 

@@ -10,31 +10,29 @@ dependencies {
 
 Minimal metadata-only outbound configuration:
 
-```yaml
-partner-observability:
-  enabled: true
-  service-name: credit-service
-  service-version: 1.0.0
-  market: uk
-  environment: DEV
-  partners:
-    - key: PARTNER_A
-      tenant-route-id: opaque-tenant-a
-      slot: p001
-  outbound:
-    - name: CREDIT_SUBMISSION
-      origin: https://partner-a.example
-      path: /partner-api/applications
-      method: POST
-      partner: PARTNER_A
-      correlation-profile: CREDIT_ASYNC
-      capture-mode: METADATA_ONLY
+```properties
+partner-observability.enabled=true
+partner-observability.service-name=credit-service
+partner-observability.service-version=1.0.0
+partner-observability.market=uk
+partner-observability.environment=dev
+partner-observability.partners[0].key=PARTNER_A
+partner-observability.partners[0].tenant-route-id=opaque-tenant-a
+partner-observability.partners[0].slot=p001
+partner-observability.outbound[0].name=CREDIT_SUBMISSION
+partner-observability.outbound[0].origin=https://partner-a.example
+partner-observability.outbound[0].path=/partner-api/applications
+partner-observability.outbound[0].method=POST
+partner-observability.outbound[0].partner=PARTNER_A
+partner-observability.outbound[0].correlation-profile=CREDIT_ASYNC
+partner-observability.outbound[0].capture-mode=METADATA_ONLY
 ```
 
 `origin` is a security boundary for automatic capture: scheme, host, effective port,
 method, and path must all match before a record is attributed to the configured partner.
 Only HTTPS origins validate. The test-only `local-synthetic=true` exception is restricted
-to DEV and literal loopback HTTP; it must never appear in a deployed partner service.
+to `local`/`DeploymentEnvironment.LOCAL` and literal loopback HTTP; it must never appear in a
+deployed partner service.
 
 Full sanitized capture additionally requires an exact `safe-fields` allowlist. Callback entries use the same partner/profile model plus a fixed callback path and either an authenticated principal mapping or a host-provided trusted resolver. See the auto-configuration README for the capture and trust boundaries.
 

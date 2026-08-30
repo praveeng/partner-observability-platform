@@ -154,6 +154,11 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 
 ## Current focus
 
+The canonical Spring runtime model is now `local`, `dev`, `stage`, and `prod`, with properties-only
+configuration for the runnable synthetic application, external activation, lowercase telemetry
+identity, and a permanent isolation gate. This configuration migration does not change B001/B002
+evidence or close B003.
+
 The current focus after B001 and B002 is the remaining host callback ALB staging evidence,
 redirect/certificate lifecycle drills, and exact M9 saturation/soak profiles. The local Grafana
 organization/query boundary and application-originated requirements 36–46 boundary are ready for

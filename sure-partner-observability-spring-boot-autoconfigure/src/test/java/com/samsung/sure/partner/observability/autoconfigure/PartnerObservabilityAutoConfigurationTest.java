@@ -14,7 +14,8 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 class PartnerObservabilityAutoConfigurationTest {
 
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(PartnerObservabilityAutoConfiguration.class));
+            .withConfiguration(AutoConfigurations.of(PartnerObservabilityAutoConfiguration.class))
+            .withPropertyValues("partner-observability.environment=dev");
 
     @Test
     void disabledStarterCreatesNoRuntimeIntegrationBeans() {
@@ -163,7 +164,7 @@ class PartnerObservabilityAutoConfigurationTest {
     }
 
     @Test
-    void insecureLoopbackRequiresAnExplicitDevOnlyException() {
+    void insecureLoopbackRequiresAnExplicitLocalOnlyException() {
         String[] loopback = java.util.Arrays.stream(validProperties())
                 .map(value -> value.contains(".origin=")
                         ? "partner-observability.outbound[0].origin=http://127.0.0.1"
@@ -172,14 +173,18 @@ class PartnerObservabilityAutoConfigurationTest {
         runner.withPropertyValues(loopback).run(context -> assertThat(context).hasFailed());
 
         runner.withPropertyValues(loopback)
-                .withPropertyValues("partner-observability.local-synthetic=true")
-                .run(context -> assertThat(context).hasNotFailed());
-
-        runner.withPropertyValues(loopback)
                 .withPropertyValues(
                         "partner-observability.local-synthetic=true",
-                        "partner-observability.environment=STAGE")
-                .run(context -> assertThat(context).hasFailed());
+                        "partner-observability.environment=local")
+                .run(context -> assertThat(context).hasNotFailed());
+
+        for (String environment : new String[] {"dev", "stage", "prod"}) {
+            runner.withPropertyValues(loopback)
+                    .withPropertyValues(
+                            "partner-observability.local-synthetic=true",
+                            "partner-observability.environment=" + environment)
+                    .run(context -> assertThat(context).hasFailed());
+        }
     }
 
     @Test

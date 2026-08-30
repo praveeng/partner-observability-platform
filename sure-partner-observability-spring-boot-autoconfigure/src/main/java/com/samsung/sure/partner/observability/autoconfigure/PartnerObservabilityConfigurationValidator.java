@@ -74,10 +74,10 @@ final class PartnerObservabilityConfigurationValidator {
             boolean secure = "https".equals(scheme);
             boolean loopback = "127.0.0.1".equals(host) || "::1".equals(host);
             if (!secure && !("http".equals(scheme)
-                    && properties.getEnvironment() == com.samsung.sure.partner.observability.core.context.DeploymentEnvironment.DEV
+                    && properties.getEnvironment() == com.samsung.sure.partner.observability.core.context.DeploymentEnvironment.LOCAL
                     && properties.isLocalSynthetic()
                     && loopback)) {
-                fail("outbound origin must use HTTPS; DEV loopback HTTP requires local-synthetic");
+                fail("outbound origin must use HTTPS; LOCAL loopback HTTP requires local-synthetic");
             }
             String route = definition.getMethod() + " " + normalizedOrigin(origin) + definition.getPath();
             if (!routes.add(route)) {

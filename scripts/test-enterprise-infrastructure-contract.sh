@@ -34,7 +34,7 @@ for required_line in \
   'infrastructureOwner: central-enterprise-terraform-repository' \
   'awsActionsAllowedFromThisRepository: false' \
   'LOCAL: false' 'DEV: false' 'STAGE: true' 'PROD: true' \
-  'springProfilesDefined: []' 'databaseRequired: false' \
+  'springProfilesDefined: [local, dev, stage, prod]' 'databaseRequired: false' \
   'externalIngress: HTTPS_443_ONLY' 'lokiRetentionHours: 384' \
   'prometheusRetentionDays: 16'; do
   rg -q -F "$required_line" "$contract" || fail "machine contract missing: $required_line"
@@ -44,26 +44,17 @@ rg -q 'AWS enterprise Terraform does not belong to this repository' AGENTS.md ||
   fail 'AGENTS.md lacks the permanent enterprise infrastructure ownership rule'
 rg -q 'NO DATABASE REQUIRED FOR CURRENT ARCHITECTURE' "$contract_root/requirements.md" ||
   fail 'database determination is missing'
-rg -q 'no Spring profile definitions' "$contract_root/profile-model.md" ||
-  fail 'actual Spring profile discovery is not documented'
+rg -q 'canonical Spring profiles are `local`, `dev`, `stage`, and `prod`' "$contract_root/profile-model.md" ||
+  fail 'canonical Spring profile model is not documented'
 rg -q 'centralized enterprise Terraform repository is changed' "$contract_root/github-actions-contract.md" ||
   fail 'manual infrastructure-before-GHA sequence is missing'
 
 enum_file='sure-partner-observability-core/src/main/java/com/samsung/sure/partner/observability/core/context/DeploymentEnvironment.java'
-for environment in DEV STAGE PROD; do
-  rg -q "^[[:space:]]*${environment}[,]?$" "$enum_file" ||
-    fail "runtime environment enum is missing $environment"
+for mapping in 'LOCAL("local")' 'DEV("dev")' 'STAGE("stage")' 'PROD("prod")'; do
+  rg -q -F "$mapping" "$enum_file" ||
+    fail "runtime environment enum is missing $mapping"
 done
-if rg -n -i 'spring[._-]profiles|profiles[._-]active|activate[._-]on-profile|@Profile|SPRING_PROFILES_ACTIVE' \
-    sure-partner-observability-* docker scripts test --glob '!**/build/**' \
-    --glob '!test-enterprise-infrastructure-contract.sh'; then
-  fail 'Spring profiles were introduced without a separate application configuration decision'
-fi
-
-rg -q 'local-synthetic:[[:space:]]*true' sure-partner-observability-test-app/src/main/resources/application.yml ||
-  fail 'LOCAL_SYNTHETIC test guard changed unexpectedly'
-rg -q 'environment:[[:space:]]*DEV' sure-partner-observability-test-app/src/main/resources/application.yml ||
-  fail 'local test application environment changed unexpectedly'
+./scripts/validate-profiles.sh
 
 terraform_word='terra''form'
 execution_pattern="${terraform_word}[[:space:]]+(apply|plan|init|validate|fmt|test|destroy|import)"

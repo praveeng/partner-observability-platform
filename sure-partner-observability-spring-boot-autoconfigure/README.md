@@ -24,33 +24,32 @@ Metrics are in-process Micrometer updates and are scraped from private `/actuato
 
 Log compatibility is off unless both global observability and `logs-enabled` are true. Enabling it without a selection fails startup. Every selection requires an exact unformatted message template and an exact logger name or trailing `.*`/`.**` package pattern; an optional marker narrows it further. A package pattern alone never copies logs.
 
-```yaml
-partner-observability:
-  enabled: true
-  payloads-enabled: true
-  logs-enabled: true
-  service-name: credit-service
-  service-version: 1.0.0
-  market: uk
-  environment: DEV
-  partners:
-    - key: PARTNER_A
-      tenant-route-id: opaque-tenant-a
-      slot: p001
-  log-selections:
-    - category: PARTNER_SUBMISSION_ACCEPTED
-      logger-pattern: com.example.partner.service.**
-      message-template: 'Submission accepted for operation {}'
-      minimum-level: INFO
-      marker: PARTNER_SAFE # optional; omit only after explicit review
-      journey-stage: SUBMISSION_ACCEPTED
-      outcome: SUCCESS
-      arguments:
-        - index: 0
-          name: operation
-          type: STRING
-          policy: ALLOW
+```properties
+partner-observability.enabled=true
+partner-observability.payloads-enabled=true
+partner-observability.logs-enabled=true
+partner-observability.service-name=credit-service
+partner-observability.service-version=1.0.0
+partner-observability.market=uk
+partner-observability.environment=dev
+partner-observability.partners[0].key=PARTNER_A
+partner-observability.partners[0].tenant-route-id=opaque-tenant-a
+partner-observability.partners[0].slot=p001
+partner-observability.log-selections[0].category=PARTNER_SUBMISSION_ACCEPTED
+partner-observability.log-selections[0].logger-pattern=com.example.partner.service.**
+partner-observability.log-selections[0].message-template=Submission accepted for operation {}
+partner-observability.log-selections[0].minimum-level=INFO
+partner-observability.log-selections[0].marker=PARTNER_SAFE
+partner-observability.log-selections[0].journey-stage=SUBMISSION_ACCEPTED
+partner-observability.log-selections[0].outcome=SUCCESS
+partner-observability.log-selections[0].arguments[0].index=0
+partner-observability.log-selections[0].arguments[0].name=operation
+partner-observability.log-selections[0].arguments[0].type=STRING
+partner-observability.log-selections[0].arguments[0].policy=ALLOW
 ```
+
+The marker is optional and may be omitted only after explicit review. Spring application examples
+use `.properties`; activate `local`, `dev`, `stage`, or `prod` externally.
 
 The log statement still follows its original SLF4J/Logback appenders and formatting. The observer does not mutate logger levels, filters, additivity, appenders, or the event, so ECS/CloudWatch remains unchanged if compatibility capture is disabled, drops, saturates, or export fails.
 

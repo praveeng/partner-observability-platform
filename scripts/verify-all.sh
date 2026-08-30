@@ -190,6 +190,7 @@ if (( failed_stages != 0 )); then
 fi
 run_stage 'Repository input and generated-state baseline' repository_baseline
 run_stage 'Enterprise Java namespace and module naming gate' ./scripts/test-enterprise-naming.sh
+run_stage 'Enterprise Spring profile and properties-only configuration gate' ./scripts/validate-profiles.sh
 
 section 'BUILD / CORE'
 run_stage '1. Gradle clean build' ./gradlew --no-daemon clean build

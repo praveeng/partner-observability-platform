@@ -38,7 +38,7 @@ otelcol.processor.filter "partner_a" {
     log_record = [
       `not (resource.attributes["service.name"] == "synthetic-partner-service" or resource.attributes["service.name"] == "partner-observability-test-app")`,
       `not (resource.attributes["market"] == "LOCAL" or resource.attributes["market"] == "synthetic")`,
-      `not (resource.attributes["deployment.environment"] == "LOCAL_SYNTHETIC" or resource.attributes["deployment.environment"] == "DEV")`,
+      `resource.attributes["deployment.environment"] != "local"`,
       `not (attributes["partner.key"] == "partner-a" or attributes["partner.key"] == "partner-alpha-fixture")`,
       `not IsString(body)`,
       `Len(body) > 65536`,
@@ -81,7 +81,7 @@ otelcol.processor.filter "partner_b" {
     log_record = [
       `not (resource.attributes["service.name"] == "synthetic-partner-service" or resource.attributes["service.name"] == "partner-observability-test-app")`,
       `not (resource.attributes["market"] == "LOCAL" or resource.attributes["market"] == "synthetic")`,
-      `not (resource.attributes["deployment.environment"] == "LOCAL_SYNTHETIC" or resource.attributes["deployment.environment"] == "DEV")`,
+      `resource.attributes["deployment.environment"] != "local"`,
       `not (attributes["partner.key"] == "partner-b" or attributes["partner.key"] == "partner-beta-fixture")`,
       `not IsString(body)`,
       `Len(body) > 65536`,
@@ -124,7 +124,7 @@ otelcol.processor.filter "partner_c" {
     log_record = [
       `resource.attributes["service.name"] != "synthetic-partner-service"`,
       `resource.attributes["market"] != "LOCAL"`,
-      `resource.attributes["deployment.environment"] != "LOCAL_SYNTHETIC"`,
+      `resource.attributes["deployment.environment"] != "local"`,
       `attributes["partner.key"] != "partner-c"`,
       `not IsString(body)`,
       `Len(body) > 65536`,
@@ -182,7 +182,7 @@ otelcol.processor.transform "partner_a" {
       `set(instrumentation_scope.name, "")`,
       `set(instrumentation_scope.version, "")`,
       `keep_keys(instrumentation_scope.attributes, [])`,
-      `set(resource.attributes["deployment.environment"], "LOCAL_SYNTHETIC")`,
+      `set(resource.attributes["deployment.environment"], "local")`,
       `set(resource.attributes["market"], "LOCAL")`,
       `set(resource.attributes["event.domain"], log.attributes["event.domain"])`,
       `set(resource.attributes["event.type"], log.attributes["event.type"])`,
@@ -219,7 +219,7 @@ otelcol.processor.transform "partner_b" {
       `set(instrumentation_scope.name, "")`,
       `set(instrumentation_scope.version, "")`,
       `keep_keys(instrumentation_scope.attributes, [])`,
-      `set(resource.attributes["deployment.environment"], "LOCAL_SYNTHETIC")`,
+      `set(resource.attributes["deployment.environment"], "local")`,
       `set(resource.attributes["market"], "LOCAL")`,
       `set(resource.attributes["event.domain"], log.attributes["event.domain"])`,
       `set(resource.attributes["event.type"], log.attributes["event.type"])`,
@@ -257,7 +257,7 @@ otelcol.processor.transform "partner_c" {
       `set(instrumentation_scope.version, "")`,
       `keep_keys(instrumentation_scope.attributes, [])`,
       `set(resource.attributes["service.name"], "synthetic-partner-service")`,
-      `set(resource.attributes["deployment.environment"], "LOCAL_SYNTHETIC")`,
+      `set(resource.attributes["deployment.environment"], "local")`,
       `set(resource.attributes["market"], "LOCAL")`,
       `set(resource.attributes["event.domain"], log.attributes["event.domain"])`,
       `set(resource.attributes["event.type"], log.attributes["event.type"])`,
@@ -429,7 +429,7 @@ prometheus.relabel "synthetic_sdk_contract" {
   }
   rule {
     target_label = "environment"
-    replacement  = "LOCAL_SYNTHETIC"
+    replacement  = "local"
   }
   rule {
     target_label = "service"

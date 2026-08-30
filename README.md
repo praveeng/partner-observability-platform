@@ -42,6 +42,7 @@ required or executed by this repository. A Gradle wrapper is included for reprod
 ./scripts/build.sh
 ./scripts/test.sh
 ./scripts/test-enterprise-naming.sh
+./scripts/validate-profiles.sh
 ./scripts/test-enterprise-infrastructure-contract.sh
 ./scripts/test-security.sh --core  # implemented M2 pre-queue/trusted-context scope
 ./scripts/test-security.sh --data-plane  # implemented M5 real Alloy/Loki scope
@@ -68,5 +69,24 @@ jq empty .agent-state/status.json
 - No Kubernetes and no Helm.
 - No production deployment, production credentials, or real partner/customer data.
 - Agents may commit locally and may push completed, verified work from a `READY_FOR_REVIEW` or `COMPLETE` scope to an existing remote branch. Force pushes, merges, protected-branch bypass, releases, and deployments remain prohibited.
+
+## Spring Boot profiles
+
+Runnable applications use `.properties` configuration only and exactly these externally activated
+profiles:
+
+| Profile | Runtime | Partner |
+| --- | --- | --- |
+| `local` | Local VM + LocalStack/Testcontainers/Docker where applicable | Mock/local |
+| `dev` | AWS DEV cluster/VPC | Mock |
+| `stage` | AWS STAGE cluster/VPC | Partner staging |
+| `prod` | AWS production | Partner production |
+
+LOCAL is fully self-contained. DEV and STAGE for one market may share an AWS account, but use
+separate ECS clusters, VPCs, resources, configuration, and secrets. Activate the same artifact with
+`SPRING_PROFILES_ACTIVE=local|dev|stage|prod`; no production-like profile is embedded in the JAR.
+Secrets and environment manifests are injected at runtime, Stage/Prod partner traffic is HTTPS,
+and enterprise Terraform remains separate, manually reviewed, and manually executed outside this
+repository.
 
 The project is licensed under Apache License 2.0; see [LICENSE](LICENSE).

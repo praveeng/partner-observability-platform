@@ -12,14 +12,14 @@
     ],
     "currentState": "READY_FOR_REVIEW"
   },
-  "milestone": "Enterprise infrastructure requirements ownership contract",
-  "summary": "READY_FOR_REVIEW: the Stage/Prod enterprise infrastructure requirements contract and centralized Terraform ownership boundary are implemented and locally verified. Repository-owned AWS Terraform has been retired; LOCAL/DEV behavior and B001/B002/B003 status remain unchanged. Clean build and all change-specific gates pass; aggregate verification passed 20/23 stages, with the pre-existing B003/Q015 guard plus a known transient Grafana SLI readiness timeout that passed on standalone rerun.",
+  "milestone": "Enterprise Spring Boot profile alignment",
+  "summary": "READY_FOR_REVIEW: the runnable Spring Boot application now uses properties-only local/dev/stage/prod profiles with external activation, isolated semantics, lowercase telemetry identity, four-profile context/binding evidence, and a permanent validation gate. Clean build, local end-to-end, security, and all change-specific checks pass. Aggregate verification passed 23/24 stages; only the pre-existing B003/Q015 guard remains non-zero. One standalone Grafana run hit its known bounded SLI readiness timeout and passed on immediate rerun and twice inside aggregate verification.",
   "blockers": [
     "B003 / Q015: the exact Disabled and Journey query run lengths, retained journey dataset/resolver, fixed CPU/memory/JVM/GC/JFR environment, warm-up/cool-down, repetition/baseline verdict method, several load shapes, and resource/statistical measurement rules are not specified. scripts/test-performance.sh must remain non-zero."
   ],
   "nextActions": [
-    "Enterprise owners must resolve Q016 and implement/review the generic contract in the centralized Terraform repository for STAGE before any application rollout; no implementation or deployment is claimed here.",
-    "After this migration, performance, application, and platform owners must still resolve Q015 before implementing and running the authoritative B003 profiles."
+    "Enterprise runtimes/GHA must inject one explicit SPRING_PROFILES_ACTIVE value and the approved non-secret environment manifest/secret references; no deployment is performed here.",
+    "Performance, application, and platform owners must still resolve Q015 before implementing and running the authoritative B003 profiles."
   ],
-  "lastUpdated": "2026-08-30T09:52:00Z"
+  "lastUpdated": "2026-08-30T10:49:26Z"
 }

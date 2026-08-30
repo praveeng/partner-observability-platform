@@ -23,10 +23,12 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.client.ResourceAccessException;
 import reactor.core.publisher.Flux;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@ActiveProfiles("local")
 class SyntheticPartnerClientsIntegrationTest {
 
     @Autowired

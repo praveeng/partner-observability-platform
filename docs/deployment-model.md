@@ -2,6 +2,13 @@
 
 ## Deployment unit and environments
 
+Spring runtime selection uses exactly `local`, `dev`, `stage`, and `prod`. LOCAL is self-contained;
+DEV uses its dedicated AWS cluster/VPC and a mock partner; STAGE uses an isolated cluster/VPC and
+the real partner staging environment; PROD uses production infrastructure and the real production
+partner. DEV and STAGE may share an AWS account but never a cluster, VPC, resource set, runtime
+manifest, tenant mapping, or secret. Profile activation is external and Spring application
+configuration is properties-only.
+
 One complete observability stack is deployed per `(AWS account, market, environment, ECS cluster)` and shares that ECS cluster/VPC with the market's partner integration services.
 
 | AWS account | ECS clusters | Partner target |

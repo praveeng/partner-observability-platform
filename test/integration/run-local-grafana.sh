@@ -207,7 +207,7 @@ make_event() {
     '{resourceLogs:[{resource:{attributes:[
         {key:"service.name",value:{stringValue:"synthetic-partner-service"}},
         {key:"market",value:{stringValue:"LOCAL"}},
-        {key:"deployment.environment",value:{stringValue:"LOCAL_SYNTHETIC"}}
+        {key:"deployment.environment",value:{stringValue:"local"}}
       ]},scopeLogs:[{scope:{name:"partner-observability-sdk",version:"0.1.0"},logRecords:[{
         timeUnixNano:$timestamp_nanos,observedTimeUnixNano:$timestamp_nanos,severityText:"INFO",
         body:{stringValue:$body},attributes:([

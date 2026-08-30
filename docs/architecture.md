@@ -81,7 +81,7 @@ Application threads never perform the network hop. Alloy, Loki, Prometheus, Graf
 
 ## External HTTPS/TLS architecture
 
-HTTPS/TLS is a hard boundary for all external partner traffic in DEV, STAGE, and PROD. Synchronous calls, asynchronous initiations and acknowledgements, callbacks/webhooks, ECS DEV mock partners, and partner Grafana access never use plaintext HTTP. The sole exception is an isolated `LOCAL_SYNTHETIC` Docker/loopback fixture with synthetic data and no path to a deployed environment or real partner.
+HTTPS/TLS is a hard boundary for all external partner traffic in `dev`, `stage`, and `prod`. Synchronous calls, asynchronous initiations and acknowledgements, callbacks/webhooks, ECS DEV mock partners, and partner Grafana access never use plaintext HTTP. The sole exception is the `local` profile's guarded `LOCAL_SYNTHETIC` Docker/loopback fixture with synthetic data and no path to a deployed environment or real partner.
 
 ```text
 Outbound: private ECS task -- service-owned validated HTTPS client --> partner API

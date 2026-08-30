@@ -97,7 +97,7 @@ make_event() {
         resource: {attributes: [
           {key: "service.name", value: {stringValue: "synthetic-partner-service"}},
           {key: "market", value: {stringValue: "LOCAL"}},
-          {key: "deployment.environment", value: {stringValue: "LOCAL_SYNTHETIC"}},
+          {key: "deployment.environment", value: {stringValue: "local"}},
           {key: "unapproved.resource", value: {stringValue: "must-be-removed"}}
         ]},
         scopeLogs: [{

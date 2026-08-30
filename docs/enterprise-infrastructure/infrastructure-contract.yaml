@@ -9,11 +9,13 @@ appliesTo:
   STAGE: true
   PROD: true
 runtimeEnvironmentValues:
-  - DEV
-  - STAGE
-  - PROD
-springProfilesDefined: []
-localExecutionIdentity: LOCAL_SYNTHETIC
+  - local
+  - dev
+  - stage
+  - prod
+internalEnvironmentEnumValues: [LOCAL, DEV, STAGE, PROD]
+springProfilesDefined: [local, dev, stage, prod]
+localExecutionIdentity: local
 databaseRequired: false
 deploymentUnit: aws-account-market-environment-dedicated-ecs-cluster
 baseComponents:

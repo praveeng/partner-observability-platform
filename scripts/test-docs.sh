@@ -29,6 +29,7 @@ for required_command in \
   './gradlew --no-daemon clean build' \
   './scripts/test-security.sh' \
   './scripts/test-enterprise-naming.sh' \
+  './scripts/validate-profiles.sh' \
   './scripts/test-enterprise-infrastructure-contract.sh' \
   './scripts/test-performance.sh' \
   './scripts/test-grafana.sh' \

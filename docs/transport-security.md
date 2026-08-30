@@ -4,7 +4,7 @@
 
 Every external partner-facing connection is HTTPS/TLS. This includes synchronous and asynchronous calls from a partner integration service to a partner API, acknowledgements returned on those connections, callbacks/webhooks from a partner to a Samsung/service endpoint, and partner access to Grafana. Plain HTTP partner traffic is prohibited in DEV, STAGE, and PROD. There is no automatic or operator-configurable downgrade from HTTPS to HTTP.
 
-The only plaintext HTTP exception is a synthetic fixture on an isolated local Docker network or loopback interface. It must use the `LOCAL_SYNTHETIC` profile, synthetic data, no route to a real partner, and configuration that cannot be promoted to an ECS environment. ECS DEV mock partners use HTTPS.
+The only plaintext HTTP exception is a synthetic fixture on an isolated local Docker network or loopback interface. It must use the `local` Spring profile, the explicit `local-synthetic` guard, synthetic data, no route to a real partner, and configuration that cannot be promoted to an ECS environment. ECS DEV mock partners use HTTPS.
 
 TLS protects transport; it does not establish callback business identity by itself. Callback authentication/signature validation and trusted partner resolution remain the host service's responsibility unless a future approved mTLS adapter supplies an authenticated identity.
 
@@ -55,7 +55,7 @@ The observability SDK does not create, terminate, configure, or inspect TLS sess
 
 Every automatic outbound telemetry definition has a required configuration-owned `origin` containing only scheme, host, and optional port. Startup rejects a missing origin, user-info, path, query, fragment, and any non-HTTPS scheme. Selection requires exact scheme/host/effective-port, method, and path, so a different host with the same path cannot be attributed to the configured partner. Raw endpoint URLs and query strings never become telemetry.
 
-The sole SDK configuration exception is `local-synthetic=true` with environment `DEV` and a literal `127.0.0.1` or `::1` HTTP origin. It exists for generated local fixtures with dynamic ports. It cannot validate in STAGE or PROD, does not accept a non-loopback host, and is not an ECS DEV mock exception. Onboarding and service CI still own proof that every business endpoint is represented and that client redirect policy cannot transition from HTTPS to HTTP; observability is not an egress firewall.
+The sole SDK configuration exception is `local-synthetic=true` with environment `LOCAL` and a literal `127.0.0.1` or `::1` HTTP origin. It exists for generated local fixtures with dynamic ports. It cannot validate in DEV, STAGE, or PROD, does not accept a non-loopback host, and is not an ECS DEV mock exception. Onboarding and service CI still own proof that every business endpoint is represented and that client redirect policy cannot transition from HTTPS to HTTP; observability is not an egress firewall.
 
 The host integration owns DNS, proxy, connect/read timeouts, TLS versions, cipher policy, certificate trust, hostname verification, certificate pinning if approved, and redirects. The starter may observe a request but cannot replace the transport, rebuild the client, or change these settings. The service must retain the standard JDK/client certificate-path validation and RFC-compliant hostname verification. Trust-all managers and permissive hostname verifiers are prohibited.
 

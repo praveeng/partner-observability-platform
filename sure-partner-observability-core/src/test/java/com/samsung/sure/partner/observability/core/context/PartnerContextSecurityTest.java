@@ -6,10 +6,20 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.samsung.sure.partner.observability.core.TestFixtures;
+import java.util.Arrays;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class PartnerContextSecurityTest {
+
+    @Test
+    void exposesExactlyTheFourCanonicalEnvironmentValues() {
+        assertEquals(
+                java.util.List.of("local", "dev", "stage", "prod"),
+                Arrays.stream(DeploymentEnvironment.values())
+                        .map(DeploymentEnvironment::canonicalValue)
+                        .toList());
+    }
 
     @Test
     void onlyResolvesConfiguredServerOwnedSubjects() {

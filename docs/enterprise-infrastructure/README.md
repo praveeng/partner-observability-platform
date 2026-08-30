@@ -21,7 +21,8 @@ deployment patterns. Nothing here authorizes an AWS action.
 | STAGE | Central enterprise Terraform must satisfy this contract. |
 | PROD | Central enterprise Terraform must satisfy this contract with production approvals and sizing. |
 
-The runtime environment vocabulary implemented by the SDK is `DEV`, `STAGE`, and `PROD`. There are
+The runtime environment vocabulary implemented by the SDK is `local`, `dev`, `stage`, and `prod`,
+backed by the Java enum values `LOCAL`, `DEV`, `STAGE`, and `PROD`. There are
 no Spring profiles in the repository. See [profile-model.md](profile-model.md) for the exact
 discovery result and the separate LOCAL execution convention.
 

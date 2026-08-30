@@ -15,7 +15,8 @@ Read `AGENTS.md`, `.agent-state/status.json`, `docs/architecture.md`, `docs/tele
 
 1. Trace ingest from trusted partner context through the application envelope, Alloy routing, tenant header injection, Loki, and S3.
 2. Trace queries from a local Grafana user through org-bound datasource and query gateway to a fixed tenant.
-3. Compare onboarding configuration across application, Alloy, query gateway, Grafana, Terraform, and audit records; require one consistent mapping.
+3. Compare onboarding configuration across application, Alloy, query gateway, Grafana, the central
+   infrastructure contract/evidence, and audit records; require one consistent mapping.
 4. Exercise two synthetic tenants with colliding transaction identifiers and distinct canaries.
 5. Verify retention, deletion, storage encryption, and rollback behavior without applying production changes.
 
@@ -34,9 +35,9 @@ Run:
 
 ```bash
 git diff --check
-rg -n -i "auth_enabled|X-Scope-OrgID|tenant|structured_metadata|schema|retention|delete|s3" alloy loki terraform docker grafana test
+rg -n -i "auth_enabled|X-Scope-OrgID|tenant|structured_metadata|schema|retention|delete|s3" alloy loki docker grafana test docs/enterprise-infrastructure
 rg -n "applicationId|loanId|correlationId|requestId" alloy loki grafana test sure-partner-observability-*
-rg -n -i "publicly_accessible|assign_public_ip|0\.0\.0\.0/0|ingress|security_group" terraform docker
+rg -n -i "publicly_accessible|assign_public_ip|0\.0\.0\.0/0|ingress|security_group" docker docs/enterprise-infrastructure
 ./scripts/test-security.sh
 ./scripts/verify-all.sh
 ```

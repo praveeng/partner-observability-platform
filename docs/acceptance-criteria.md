@@ -11,14 +11,23 @@ M1 is ready for review when:
 - Every M0 security-critical decision plus the HTTPS/TLS ownership and ingress boundary has a concrete design and ADR; remaining questions are external policy/sizing inputs and do not permit unsafe implementation defaults.
 - Queue/event/payload/cardinality/timeout/retention defaults and hard maxima agree across documents.
 - One Loki tenant and Grafana organization per partner plus server-side Loki/Prometheus query isolation are specified.
-- Java 17/Spring Boot 2.7, AWS ECS, Terraform, Docker Compose, no Kubernetes/Helm, and no production action remain explicit.
+- Java 17/Spring Boot 2.7, AWS ECS, centrally owned Terraform, Docker Compose, no Kubernetes/Helm,
+  and no production action from this repository remain explicit.
 - Documentation consistency checks pass and M1 is one clean local commit.
 
 M1 approval authorizes implementation planning, not production deployment or production payload capture.
 
 ## Authoritative local completion gate
 
-`./scripts/verify-all.sh` is the authoritative local completion gate. It requires Java 17, the pinned Gradle 7.6.4 wrapper, Docker with the Compose v2 plugin and a reachable daemon, the locally validated Terraform 1.11.4 CLI, Bash, Git, curl, jq, and ripgrep. A missing or wrong-version prerequisite fails preflight; no suite is silently skipped. The gate uses a Gradle clean build, reruns focused test tasks, a task-specific Gradle cache, digest-pinned Compose images for both runtime and configuration validation, unique Compose projects with disposable volumes, tracked-file Terraform snapshots with temporary data directories and the approved AWS provider 6.61.0, UTC/C locale, and a final per-stage `PASS`/`FAIL` summary. Ignored Terraform files from earlier runs cannot affect validation. Every security command is a normal mandatory stage, so any non-zero security result fails the aggregate gate.
+`./scripts/verify-all.sh` is the authoritative local completion gate. It requires Java 17, the
+pinned Gradle 7.6.4 wrapper, Docker with the Compose v2 plugin and a reachable daemon, Bash, Git,
+curl, jq, and ripgrep. A missing or wrong-version prerequisite fails preflight; no suite is silently
+skipped. The gate uses a Gradle clean build, reruns focused test tasks, a task-specific Gradle cache,
+digest-pinned Compose images for runtime and configuration validation, unique Compose projects with
+disposable volumes, UTC/C locale, and a final per-stage `PASS`/`FAIL` summary. It validates the
+enterprise infrastructure requirements contract and rejects repository-owned Terraform artifacts;
+it does not require or invoke a Terraform CLI. Every security command is a normal mandatory stage,
+so any non-zero security result fails the aggregate gate.
 
 The following matrix is normative. “Required completion runner” identifies the command that must provide the final automated evidence. Supporting evidence does not turn a missing end-to-end boundary into a pass.
 
@@ -70,7 +79,7 @@ The following matrix is normative. “Required completion runner” identifies t
 | 44 | Callback tenant-isolation tests | Each Viewer can retrieve only its own real callback/event records; foreign callback and loan searches return none | `scripts/test-security.sh` and `scripts/test-end-to-end.sh` |
 | 45 | Same `applicationId` across partners isolation | Real A/B application traffic with the shared application ID remains partner-pure through both Viewer query paths | `scripts/test-end-to-end.sh` |
 | 46 | Same `callbackReferenceId` across partners isolation | Real A/B callback traffic with the shared callback reference remains partner-pure through both Viewer query paths | `scripts/test-end-to-end.sh` |
-| 47 | Terraform fmt/validate | Recursive format, every root/module provider-schema validation, static policy, and mocked network plan test | `scripts/test-terraform.sh` |
+| 47 | Enterprise infrastructure ownership contract | Required STAGE/PROD capabilities, inputs/outputs, centralized ownership, no repository Terraform artifacts, no database, discovered profile model, and LOCAL/DEV independence | `scripts/test-enterprise-infrastructure-contract.sh` |
 | 48 | Dashboard/provisioning validation | JSON/provisioning/topology lint plus real Grafana API validation proves both organizations receive only their read-only fixed datasources and the generic Partner Operations dashboard | `scripts/test-grafana.sh --validate-only` |
 | 49 | Documentation/configuration consistency | Mapping completeness, JSON/shell syntax, version, retention, tenancy, no-Kubernetes/Helm, and mandatory-command checks | `scripts/test-docs.sh` |
 
@@ -139,7 +148,9 @@ The existing performance profiles remain cross-cutting completion criteria even 
 - External callback and Grafana ALBs have only a 443 HTTPS listener, an ACM certificate ARN, a pinned approved TLS-1.2-or-newer policy, and no port-80 listener/security-group rule.
 - Callback/Grafana ECS tasks use private subnets, `assign_public_ip=false`, no internet-gateway route, and target ingress only from the owning ALB security group. Direct task connection attempts fail.
 - Callback tests prove spoofed forwarding headers cannot establish TLS or partner context and that ALB TLS does not replace signature/authentication/decryption.
-- ACM/custom-CA rotation attaches new trust/certificate before old removal, verifies hostname/chain, supports rollback, and never exposes a private key in ECS, Git, Terraform plan/output, logs, or telemetry.
+- ACM/custom-CA rotation attaches new trust/certificate before old removal, verifies hostname/chain,
+  supports rollback, and never exposes a private key in ECS, Git, central Terraform plan/output,
+  logs, or telemetry.
 - Partner-safe failure records contain only the fixed TLS security/failure enums and allowed metadata. Certificate chain/subject/issuer/SAN/serial/fingerprint, peer URL/host/address, cipher debug, exception text/stack, trust-store path/bytes/password, client/private key, and signature/session material are absent at queue, wire, Loki, metrics, dashboards, and diagnostics.
 - ALB handshake failures before trusted callback context remain internal-only and create no partner record or expected-partner fallback.
 - The local HTTP exception works only under an isolated `LOCAL_SYNTHETIC` loopback/Docker profile with synthetic data and cannot be selected by any ECS environment manifest.
@@ -157,14 +168,21 @@ The existing performance profiles remain cross-cutting completion criteria even 
 ## Deployment and retention gates
 
 - Docker Compose provides a synthetic logical stack with the same security/sanitization/tenant shape before end-to-end acceptance.
-- Terraform modules match `deployment-model.md`, format/validate/static-security checks pass, and reviewed non-production plans contain no unexpected public exposure or plaintext secrets.
-- Terraform policy tests prove 443-only Grafana ALB/ACM attachment, approved TLS policy, private targets/no public task IP, exact ALB-to-target security-group edges, certificate ARN-only inputs, and no port-80 listener/rule. Callback ALB evidence remains owned by the host service and is an onboarding prerequisite.
-- PROD/STAGE/DEV stacks are independent; DEV fixtures/endpoints refer only to mocks.
+- The centralized enterprise Terraform repository implements the generic capabilities in
+  `docs/enterprise-infrastructure/`; its reviewed STAGE/PROD plan/policy evidence must show no
+  unexpected public exposure, plaintext secrets, or cross-market sharing.
+- Central infrastructure evidence proves 443-only Grafana ALB/ACM attachment, approved TLS policy,
+  private targets/no public task IP, exact ALB-to-target security-group edges, certificate ARN-only
+  inputs, and no port-80 listener/rule. Callback ALB evidence remains host-service-owned and is an
+  onboarding prerequisite.
+- STAGE and PROD stacks are independent. Existing AWS DEV mock behavior and the local Docker stack
+  are unchanged and are not prerequisites for the central Stage/Prod integration.
 - Loki uses S3 TSDB v13, structured metadata, compactor retention 384h, two-hour delete delay, and an 18-day lifecycle backstop with telemetry versioning disabled.
 - A synthetic aged-data test proves data is inaccessible after the retention window plus deletion delay/backstop tolerance.
 - Prometheus retention is 16 days plus size cap; Grafana/EFS/backup/internal audit policies remain separate.
 - ECS task failure/restart and state restore drills document expected non-HA downtime without business impact.
-- No Kubernetes, Helm, production credentials/state, or autonomous production apply exists.
+- No Kubernetes, Helm, production credentials/state, repository-owned enterprise Terraform, or
+  autonomous production apply exists.
 
 ## Test strategy
 
@@ -186,7 +204,9 @@ The existing performance profiles remain cross-cutting completion criteria even 
 - Direct cross-tenant ingest/query, Grafana organization/API, proxy/header/PromQL bypass, credential rotation, stale config, and network-denial tests.
 - Backend fault injection for latency, reset, invalid response, auth denial, full disk/limits, component restart, and compactor failure.
 - Dashboard JSON/query linting and browser tests for typed search, bounded graph resolution, late/out-of-order/duplicate callback timeline, detail, SLI, and isolation.
-- Terraform format, validate, TFLint/Checkov-equivalent approved static checks, policy tests, and non-production plan assertions.
+- This repository validates the machine-readable enterprise infrastructure contract and absence of
+  Terraform implementation/state. The centralized repository supplies its own format, validate,
+  approved static-policy, and reviewed STAGE/PROD plan evidence before application deployment.
 - ALB/ACM/SG route policy, spoofed forwarded-header, direct-task denial, certificate/trust rotation, and isolated-local-HTTP end-to-end tests.
 
 ## Performance strategy and thresholds

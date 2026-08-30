@@ -2,7 +2,7 @@
 
 Repository machine name: `sure-partner-observability`.
 
-Repository for a partner-isolated observability SDK and platform targeting Java 17, Spring Boot 2.7.x, Grafana Alloy, Loki, Prometheus, Grafana, Terraform, and AWS ECS.
+Repository for a partner-isolated observability SDK and platform targeting Java 17, Spring Boot 2.7.x, Grafana Alloy, Loki, Prometheus, Grafana, and AWS ECS. Enterprise AWS Terraform is owned by a separate centralized repository; this repository publishes its STAGE/PROD [infrastructure requirements contract](docs/enterprise-infrastructure/README.md).
 
 Partner services consume `com.samsung.sure:sure-partner-observability-spring-boot-starter:<version>` and import public SDK types only from `com.samsung.sure.partner.observability.*`. See the [enterprise naming migration record](docs/enterprise-naming-migration.md).
 
@@ -21,10 +21,10 @@ Observability must never reduce business availability. Application traffic write
 | `sure-partner-observability-spring-boot-starter` | Single-dependency consumer entry point |
 | `sure-partner-observability-test-app` | Synthetic verification application |
 | `alloy`, `loki`, `prometheus`, `grafana` | Local/integration observability component configuration |
-| `terraform` | AWS ECS modules and non-production examples |
 | `docker` | Docker Compose local integration environment |
 | `test` | Cross-component integration, security, performance, and synthetic fixtures |
 | `docs` | Product, architecture, security, telemetry, deployment, and acceptance contracts |
+| `docs/enterprise-infrastructure` | STAGE/PROD requirements for the centralized enterprise Terraform repository and GHA handoff |
 | `docs/transport-security.md` | HTTPS-only client, ALB/ACM, certificate, secret, and TLS ownership contract |
 | `docs/security-review.md` | Adversarial production-security findings, 84 attack dispositions, fixes, and blockers |
 | `.agent-state` | Machine-readable autonomous-agent handoff state |
@@ -35,12 +35,14 @@ Read [AGENTS.md](AGENTS.md) in full before making changes. Then inspect `.agent-
 
 ## Verification commands
 
-Prerequisites are Java 17, Bash, and Docker Compose/Terraform only when their milestones are implemented. A Gradle wrapper is included for reproducibility.
+Prerequisites are Java 17, Bash, and Docker Compose for the local platform suites. Terraform is not
+required or executed by this repository. A Gradle wrapper is included for reproducibility.
 
 ```bash
 ./scripts/build.sh
 ./scripts/test.sh
 ./scripts/test-enterprise-naming.sh
+./scripts/test-enterprise-infrastructure-contract.sh
 ./scripts/test-security.sh --core  # implemented M2 pre-queue/trusted-context scope
 ./scripts/test-security.sh --data-plane  # implemented M5 real Alloy/Loki scope
 ./scripts/test-security.sh --metrics-plane  # implemented M6 Alloy/Prometheus scope
@@ -61,7 +63,8 @@ jq empty .agent-state/status.json
 
 - Java 17; Spring Boot 2.7.x; Gradle Groovy DSL.
 - SLF4J/Logback for application-side logging.
-- Docker Compose locally; Terraform and AWS ECS as the deployment model.
+- Docker Compose locally; AWS ECS for STAGE/PROD, provisioned by the separate centralized
+  enterprise Terraform repository under `docs/enterprise-infrastructure/`.
 - No Kubernetes and no Helm.
 - No production deployment, production credentials, or real partner/customer data.
 - Agents may commit locally and may push completed, verified work from a `READY_FOR_REVIEW` or `COMPLETE` scope to an existing remote branch. Force pushes, merges, protected-branch bypass, releases, and deployments remain prohibited.

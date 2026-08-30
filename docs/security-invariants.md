@@ -70,7 +70,7 @@ These properties are non-configurable acceptance gates. ADRs and onboarding mani
 ## Authentication, credentials, and audit
 
 - Grafana local accounts are individual, non-shared, partner-Viewer accounts; anonymous access and self-signup are disabled.
-- Datasource/source passwords, certificates, and keys live in AWS Secrets Manager and never in manifests, Terraform state values committed to Git, logs, dashboards, or telemetry.
+- Datasource/source passwords, certificates, and keys live in AWS Secrets Manager and never in manifests, central Terraform outputs/state exposed to this repository, Git, logs, dashboards, or telemetry.
 - TLS protects external/private load-balancer hops; S3/EFS and backups are encrypted.
 - Partner-visible actions cannot mutate provisioned dashboards/datasources or access internal operator surfaces.
 - Configuration, infrastructure, secret access, account lifecycle, gateway denial, and operator access produce internal-only evidence; no claim of a tamper-proof audit ledger is made.
@@ -94,9 +94,10 @@ These properties are non-configurable acceptance gates. ADRs and onboarding mani
 
 - Partner Loki telemetry is logically deleted after 384 hours by the compactor, with only the documented two-hour deletion delay; S3 lifecycle is a backstop, not an extension.
 - Telemetry-object S3 versioning is disabled so deleted data is not retained as noncurrent versions.
-- Each account/market/environment stack is independent; no cross-market/environment bucket, tenant, credential, or datasource.
+- Each account/market/environment stack is independent; no cross-market/environment bucket, tenant, credential, or datasource. The centralized enterprise Terraform repository owns AWS implementation/state; this repository owns the STAGE/PROD requirements contract and post-infrastructure application assets.
 - DEV calls only mock partner services.
-- AWS ECS and Terraform are mandatory. Kubernetes and Helm are prohibited.
+- AWS ECS and centrally owned enterprise Terraform are mandatory for STAGE/PROD. This repository
+  owns only their requirements contract; Kubernetes and Helm are prohibited.
 - Agents never deploy to production, obtain production credentials, push, or merge.
 
 ## Verification rule

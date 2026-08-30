@@ -4,7 +4,7 @@
 
 This architecture defines contracts for M2-M10, including asynchronous acknowledgements, callbacks, and HTTPS/TLS transport ownership. The schema-2 core, scoped M3 Spring integration, selected-log bridge, and explicit encrypted-plaintext hooks are implemented; backend, query, deployment, remaining transport-policy evidence, and full performance work remain later milestones.
 
-The supported runtime is Java 17 and Spring Boot 2.7.x. The platform uses SLF4J/Logback, Grafana Alloy, Loki, Prometheus, Grafana, Docker Compose locally, and Terraform-managed AWS ECS. Kubernetes and Helm are prohibited.
+The supported runtime is Java 17 and Spring Boot 2.7.x. The platform uses SLF4J/Logback, Grafana Alloy, Loki, Prometheus, Grafana, Docker Compose locally, and AWS ECS provisioned by the separate centralized enterprise Terraform repository. Kubernetes and Helm are prohibited.
 
 ## Architectural priorities
 
@@ -95,7 +95,7 @@ Inbound:  partner -- HTTPS :443 --> ALB + ACM
 
 The host integration owns endpoint URI, redirect behavior, TLS versions/ciphers, `SSLContext`, trust manager, hostname verifier, custom CA, proxy, certificate pinning, and future client keys. The starter does not create, install, replace, mutate, relax, or inspect those settings. It uses the already-configured client and may classify only a structured terminal failure. It never retries a TLS handshake independently and never falls back or redirects from HTTPS to HTTP.
 
-External callback and Grafana ALBs expose an HTTPS listener on port 443 only, use an approved TLS-1.2-or-newer policy and ACM certificate, and expose no port-80 listener or ingress rule. The ALB is the approved external termination boundary; it is not callback authentication. Callback ECS tasks use private subnets, no public IP, and an inbound rule only from the ALB security group. Host-service infrastructure owns callback ALBs; the observability Terraform network module owns the Grafana ALB. Full certificate, custom trust, failure, rotation, local-fixture, and future-mTLS contracts are normative in `transport-security.md` and ADR 0011.
+External callback and Grafana ALBs expose an HTTPS listener on port 443 only, use an approved TLS-1.2-or-newer policy and ACM certificate, and expose no port-80 listener or ingress rule. The ALB is the approved external termination boundary; it is not callback authentication. Callback ECS tasks use private subnets, no public IP, and an inbound rule only from the ALB security group. Host-service infrastructure owns callback ALBs; the centralized enterprise Terraform repository owns the Grafana ALB. Full certificate, custom trust, failure, rotation, local-fixture, and future-mTLS contracts are normative in `transport-security.md` and ADR 0011.
 
 ## Supported business interaction shapes
 
@@ -398,7 +398,7 @@ Loki objects use an encrypted S3 bucket per stack. Compactor retention is exactl
 
 A versioned market manifest is the single non-secret source of truth. It contains market/environment, service principals and Cloud Map scrape names, partners, opaque tenant ID, `partner_slot`, Grafana organization, outbound and callback API IDs, interaction kind, approved HTTPS endpoint/host/port references, server-owned route templates, callback ALB/DNS ownership reference, callback trust-adapter ID, supported Spring stack, per-leg capture modes, field/path/type schemas, correlation profiles linking compatible APIs with the seven typed identifier validators/extractors and stable/weak/singleton rules, bounded outcome/stage mappings, rate/sample limits, local-user references, and secret/certificate ARNs. It never contains URI credentials, passwords, signature keys, private/client keys, trust-store passwords or bytes, tokens, or encryption material.
 
-Validation enforces uniqueness, naming regexes, one tenant/slot/org per partner, no more than 64 partners, no more than 64 APIs per service, safe defaults, known record types/callback stages/capture modes/data classes, fixed retention, source-to-partner authorization, HTTPS for every deployed partner endpoint, no port-80 listener or downgrade redirect, a trust adapter for every enabled callback, and no full callback capture without a reviewed schema/order test. A reviewed manifest change generates Alloy/gateway/journey-resolver/Grafana artifacts and Terraform inputs. Onboarding order is local synthetic HTTP only when explicitly isolated, then ECS DEV mocks over HTTPS, STAGE, and PROD; removal disables capture/query first, waits 16 days, then removes tenant configuration and credentials.
+Validation enforces uniqueness, naming regexes, one tenant/slot/org per partner, no more than 64 partners, no more than 64 APIs per service, safe defaults, known record types/callback stages/capture modes/data classes, fixed retention, source-to-partner authorization, HTTPS for every deployed partner endpoint, no port-80 listener or downgrade redirect, a trust adapter for every enabled callback, and no full callback capture without a reviewed schema/order test. A reviewed manifest change generates Alloy/gateway/journey-resolver/Grafana artifacts and the application deployment inputs consumed after central infrastructure exists. Onboarding order is local synthetic HTTP only when explicitly isolated, then ECS DEV mocks over HTTPS, STAGE, and PROD; removal disables capture/query first, waits 16 days, then removes tenant configuration and credentials.
 
 ## Upgrade and compatibility strategy
 
@@ -412,7 +412,7 @@ Validation enforces uniqueness, naming regexes, one tenant/slot/org per partner,
 
 ## Auditability
 
-Git history and ADRs record schema, policy, dashboard, manifest, and Terraform changes. CI artifacts retain validation results and image/config digests. AWS CloudTrail covers infrastructure and secret access; ALB access logs and ECS/CloudWatch internal logs cover ingress and admin actions. Grafana provisioning is immutable to partner Viewers; server-admin and local-account actions use named operator identities and a ticket/approver reference. Partner telemetry is operational evidence, not an audit ledger.
+Git history and ADRs record schema, policy, dashboard, manifest, and infrastructure-contract changes. Central Terraform review/apply evidence records infrastructure changes; application CI artifacts retain validation results and image/config digests. AWS CloudTrail covers infrastructure and secret access; ALB access logs and ECS/CloudWatch internal logs cover ingress and admin actions. Grafana provisioning is immutable to partner Viewers; server-admin and local-account actions use named operator identities and a ticket/approver reference. Partner telemetry is operational evidence, not an audit ledger.
 
 Grafana OSS does not provide a complete tamper-proof audit/MFA solution. Production identity assurance and formal audit-retention requirements remain explicit questions in `decisions-needed.md`; they cannot be inferred from local accounts.
 
@@ -450,7 +450,7 @@ Cost is controlled through 16-day retention, S3 single-store Loki, single statef
 
 ## Verification and rollout
 
-Testing is layered across unit/property/fuzz, framework contract, concurrency, Docker Compose, tenant security, dashboard/query, Terraform/static, failure injection, and performance suites. Async/callback suites include late/out-of-order callbacks, duplicate/retry attempts, acknowledgement bridges, missing/unknown/conflicting IDs, wrong partners, auth/signature/parsing/processing/write failures, accepted-before-complete, MVC async dispatch, WebFlux cancellation/backpressure, and bounded correlation queries. Transport suites use synthetic certificates to cover valid/untrusted/expired/hostname-mismatch chains, HTTPS-to-HTTP downgrade denial, unchanged RestTemplate/WebClient/OkHttp TLS settings, ALB 443-only/ACM/private-target policy, spoofed forwarding headers, secret absence, and local-HTTP isolation. Exact gates are in `acceptance-criteria.md`.
+Testing is layered across unit/property/fuzz, framework contract, concurrency, Docker Compose, tenant security, dashboard/query, enterprise-infrastructure contract validation, failure injection, and performance suites. The centralized Terraform repository owns plan/policy evidence for AWS resources. Async/callback suites include late/out-of-order callbacks, duplicate/retry attempts, acknowledgement bridges, missing/unknown/conflicting IDs, wrong partners, auth/signature/parsing/processing/write failures, accepted-before-complete, MVC async dispatch, WebFlux cancellation/backpressure, and bounded correlation queries. Transport suites use synthetic certificates to cover valid/untrusted/expired/hostname-mismatch chains, HTTPS-to-HTTP downgrade denial, unchanged RestTemplate/WebClient/OkHttp TLS settings, ALB 443-only/ACM/private-target policy, spoofed forwarding headers, secret absence, and local-HTTP isolation. Exact gates are in `acceptance-criteria.md`.
 
 Existing partner services roll out in phases: inventory outbound and callback routes/authentication/encryption/idempotency/completion semantics; deploy empty backends; add starter disabled; enable health metrics; enable metadata-only for one DEV mock synchronous API; enable one mock async acknowledgement/callback journey; validate tenant/correlation/timeline/dashboards; enable explicit plaintext/processing hooks where needed; approve full-sanitized fields per leg; expand partner-by-partner; retain kill-switch and rollback evidence. Callback capture remains disabled until its trusted resolver and filter/decryption ordering are tested. No phase enables production payload capture without security and service-owner approval.
 
@@ -508,7 +508,7 @@ This map is a completeness index; the linked contracts are normative and contain
 | 46 | SLA/SLI dashboard | `metrics-sli.md`; Loki experience above |
 | 47 | S3/Loki retention | deployment topology; `deployment-model.md` |
 | 48 | ECS topology | market deployment topology; `deployment-model.md` |
-| 49 | Terraform boundaries | `deployment-model.md` |
+| 49 | Enterprise Terraform ownership and requirements boundary | `deployment-model.md`; `enterprise-infrastructure/` |
 | 50 | Upgrade strategy | upgrade/compatibility section above |
 | 51 | Configuration-driven onboarding | onboarding section above; ADR 0008 |
 | 52 | Auditability | audit section above; `threat-model.md` |
@@ -555,7 +555,7 @@ This map is a completeness index; the linked contracts are normative and contain
 | Sync plus first-class async/callback semantics | PASS | Schema-2 contract, inbound/outbound interception, ADRs 0009-0010 |
 | Trusted identity, one-tenant routing, datasource and correlation isolation | PASS | `partner-isolation.md`, ADRs 0004-0005/0009 |
 | Low-cardinality logs/metrics and partner dashboards | PASS | Loki model, `metrics-sli.md`, query/dashboard contracts |
-| ECS/Terraform/retention/no-Helm deployment design | PASS | Market topology, `deployment-model.md`, ADR 0007 |
+| ECS/central-Terraform contract/retention/no-Helm deployment design | PASS | Market topology, `deployment-model.md`, ADRs 0007/0013, `enterprise-infrastructure/` |
 | Threat, failure, test, performance, rollout, and unresolved-input treatment | PASS | `threat-model.md`, `acceptance-criteria.md`, `decisions-needed.md`, ADR 0008 |
 | Schema-2 core and scoped Spring runtime | IMPLEMENTED / separately verified | Seven schema-2 record types, immutable correlation, bounded dispatcher, three outbound adapters, configured callback transport/semantic API, synthetic integration tests |
 | Runtime implementation outside the M1 verdict | NOT APPLICABLE to this architecture verdict | Local Alloy/Loki M5 and Prometheus/Micrometer M6 are separately implemented and verified; Grafana query authorization, deployment, and full-performance work remain pending M7-M9 |

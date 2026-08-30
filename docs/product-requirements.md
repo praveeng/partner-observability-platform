@@ -18,7 +18,9 @@ Partner-facing Spring Boot services need useful operational telemetry for synchr
 4. Payload handling removes prohibited data, masks restricted identifiers, rejects binary/Base64 content before queue admission, and fails closed for unknown unsafe content.
 5. Trusted server-side partner identity selects exactly one Loki tenant per partner.
 6. Operators can observe platform health and defined SLIs without high-cardinality metric or Loki label explosions.
-7. The system can be exercised locally with Docker Compose and provisioned for non-production AWS ECS with Terraform.
+7. The system can be exercised locally with Docker Compose. STAGE/PROD AWS ECS base infrastructure
+   is provisioned by the separate centralized enterprise Terraform repository from this
+   repository's requirements contract; DEV remains unchanged.
 8. Async acknowledgements and callbacks/webhooks are first-class interactions with distinct receipt, authentication/validation, processing, and response facts.
 9. A callback arriving minutes or hours later can be correlated through all available validated business/protocol identifiers without relying solely on the original HTTP correlation ID.
 10. Every external partner API, acknowledgement/response, callback/webhook, and partner-facing Grafana connection uses HTTPS/TLS without the observability starter mutating certificate validation, hostname verification, redirect, trust-store, or other TLS settings.

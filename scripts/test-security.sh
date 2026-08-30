@@ -30,8 +30,8 @@ run_metrics_plane_security() {
   ./test/integration/run-local-metrics-plane.sh
 }
 
-run_terraform_security() {
-  ./scripts/test-terraform.sh
+run_enterprise_infrastructure_contract_security() {
+  ./scripts/test-enterprise-infrastructure-contract.sh
 }
 
 if [[ "${1:-}" == "--core" ]]; then
@@ -56,17 +56,17 @@ if [[ "${1:-}" == "--metrics-plane" ]]; then
 fi
 
 if [[ "${1:-}" == "--terraform" ]]; then
-  echo "Running the implemented M8 Terraform/ECS static and mocked-provider security gate."
-  run_terraform_security
-  echo "PASS: M8 configuration scope. No AWS plan, apply, credential, or runtime reachability claim is made."
+  echo "Running the compatibility alias for the enterprise infrastructure ownership/requirements gate."
+  run_enterprise_infrastructure_contract_security
+  echo "PASS: requirements-contract scope. No Terraform CLI or AWS action was used."
   exit 0
 fi
 
-echo "Running the complete local security gate: pre-queue safety, data/metrics planes, Terraform policy, Grafana/query authorization, and application end to end."
+echo "Running the complete local security gate: pre-queue safety, data/metrics planes, enterprise infrastructure contract, Grafana/query authorization, and application end to end."
 run_core_security
 run_data_plane_security
 run_metrics_plane_security
-run_terraform_security
+run_enterprise_infrastructure_contract_security
 ./scripts/test-grafana.sh
 ./scripts/test-end-to-end.sh
 echo "PASS: complete local disclosure and partner-isolation security gate."

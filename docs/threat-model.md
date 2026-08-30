@@ -2,7 +2,7 @@
 
 ## Method and scope
 
-This STRIDE-oriented model covers outbound clients, inbound MVC/WebFlux callbacks, explicit plaintext/processing hooks, context propagation, bounded queues/dispatcher, Alloy ingress and processing, Loki, Prometheus, Grafana, tenant-fixed correlation/query gateways, S3/EFS, ECS/IAM/networking, Terraform/configuration, and operator/account workflows. Partner business systems and host callback authentication/idempotency/business processing are outside the platform boundary, but their exchanged data and claimed identifiers are hostile input.
+This STRIDE-oriented model covers outbound clients, inbound MVC/WebFlux callbacks, explicit plaintext/processing hooks, context propagation, bounded queues/dispatcher, Alloy ingress and processing, Loki, Prometheus, Grafana, tenant-fixed correlation/query gateways, S3/EFS, ECS/IAM/networking, the application-to-central-Terraform requirements boundary, configuration, and operator/account workflows. Partner business systems and host callback authentication/idempotency/business processing are outside the platform boundary, but their exchanged data and claimed identifiers are hostile input.
 
 ## Assets
 
@@ -13,7 +13,7 @@ This STRIDE-oriented model covers outbound clients, inbound MVC/WebFlux callback
 - Business-service availability/latency and bounded JVM resources.
 - Telemetry integrity, SLI definitions, dashboards, and configuration provenance.
 - Callback authentication outcomes, lifecycle semantics, typed correlation graph, and confidence/coverage presentation.
-- Loki S3 objects, Prometheus/Grafana state, internal audit evidence, and Terraform state.
+- Loki S3 objects, Prometheus/Grafana state, internal audit evidence, and centrally owned Terraform state.
 
 ## Actors
 
@@ -36,7 +36,7 @@ This STRIDE-oriented model covers outbound clients, inbound MVC/WebFlux callback
 8. Partner browser/local account to Grafana organization.
 9. Grafana datasource credential to query gateway, fixed tenant/slot, and bounded journey resolver.
 10. ECS task roles/network to S3, EFS, Secrets Manager, KMS, and CloudWatch.
-11. Terraform/config pipeline to non-production AWS APIs and artifacts.
+11. Requirements/GHA handoff to the centralized Terraform/config pipeline and AWS artifacts.
 12. Private ECS egress through controlled NAT/proxy to the partner's validated HTTPS endpoint.
 13. Partner callback/browser ingress through the 443-only ALB/ACM boundary to a private ECS target.
 
@@ -51,7 +51,7 @@ This STRIDE-oriented model covers outbound clients, inbound MVC/WebFlux callback
 | TLS server impersonation | Untrusted/expired/wrong-host certificate, forged DNS/endpoint, private-CA misuse | Standard client chain and hostname validation; reviewed scoped custom CA; approved endpoint manifest | Synthetic unknown-CA, expired, chain, hostname, and DNS/endpoint tests for all three clients |
 | TLS downgrade or bypass | HTTP endpoint, HTTPS-to-HTTP redirect, trust-all manager, permissive hostname verifier | HTTPS-only validation; no port 80; redirect downgrade denial; source/static checks; SDK TLS immutability | Configuration mutation, redirect, trust-all source scan, and enabled/disabled behavior comparison |
 | TLS-setting mutation by instrumentation | Starter replaces client/connector/request factory or changes SSL/pinning/redirect behavior | Filter/interceptor-only ownership contract; exactly-once client reuse; no SSL setter calls | TLS configuration identity/effective behavior before and after starter activation |
-| Direct ECS ingress | Bypass ALB/WAF/TLS by reaching task ENI/public IP | Private subnets, no public IP, ALB-SG-only target ingress, no public task DNS/route | Terraform plan/reachability tests and external connection denial |
+| Direct ECS ingress | Bypass ALB/WAF/TLS by reaching task ENI/public IP | Private subnets, no public IP, ALB-SG-only target ingress, no public task DNS/route | Central Terraform plan/reachability evidence and external connection denial |
 | Callback forwarding-header spoof | Send `X-Forwarded-Proto=https` over an untrusted path | Trusted-proxy configuration plus ALB SG path; TLS not callback identity | Direct/spoofed header tests with no trusted receipt/tenant fallback |
 | TLS secret disclosure | Key/trust-store bytes/password/path, certificate chain/private material in config, error, telemetry, state | Secrets Manager/ACM, ARN references, pre-queue removal, no message/chain emission | Git/config/plan/queue/wire/Loki/metric/dashboard sentinel scans |
 | Certificate renewal/rotation failure | Expired ACM/custom CA, partial trust rollout, listener outage | ACM managed renewal, expiry alarms, attach-before-remove, bounded CA overlap, staged rollback | Synthetic ACM/custom-CA rotation and rollback drills |

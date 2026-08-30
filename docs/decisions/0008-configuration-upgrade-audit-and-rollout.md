@@ -10,7 +10,7 @@ Markets, partners, services, APIs, capture policies, tenants, datasources, and c
 
 ## Decision
 
-Use one versioned non-secret manifest per market/environment as source of truth. It declares configured services/Cloud Map names, partners, opaque tenant/slot/org mappings, outbound/callback API and event schemas, approved HTTPS endpoint and callback ALB/ACM ownership references, callback trust-adapter IDs and route/filter ordering, typed correlation extractors/validators, per-leg capture/rate/sample policy, source authorizations, SLO inputs, local-user references, and secret/certificate ARNs. Validation enforces uniqueness, tombstones, hard caps, safe defaults, HTTPS-only deployed endpoints/no port 80 or downgrade, authenticated callback context, and no secret/certificate values. Generated artifacts have content digests and feed Alloy/gateway/journey-resolver/Grafana/Terraform.
+Use one versioned non-secret manifest per market/environment as source of truth. It declares configured services/Cloud Map names, partners, opaque tenant/slot/org mappings, outbound/callback API and event schemas, approved HTTPS endpoint and callback ALB/ACM ownership references, callback trust-adapter IDs and route/filter ordering, typed correlation extractors/validators, per-leg capture/rate/sample policy, source authorizations, SLO inputs, local-user references, and secret/certificate ARNs. Validation enforces uniqueness, tombstones, hard caps, safe defaults, HTTPS-only deployed endpoints/no port 80 or downgrade, authenticated callback context, and no secret/certificate values. Generated artifacts have content digests and feed application-owned Alloy/gateway/journey-resolver/Grafana configuration and the post-infrastructure GHA deployment.
 
 Pin SDK/container/dependency versions and container digests. Promote identical artifacts DEV->STAGE->PROD. Alloy supports event schema N/N-1. Loki schema entries are append-only/future-dated. Stateless services roll/blue-green; stateful upgrades use compatibility/backup/maintenance steps. Kill switches reduce capture independently of rollback.
 
@@ -35,7 +35,11 @@ Migrate existing services disabled -> health/metrics -> metadata-only sync DEV/S
 
 ## Implementation and migration
 
-M1 defines a JSON-Schema-equivalent manifest contract; M5-M8 add generators/validators and environment artifacts; M10 publishes onboarding/upgrade/offboarding runbooks. Tombstones prevent tenant/slot reuse. Production actions remain human-controlled external workflows.
+M1 defines a JSON-Schema-equivalent manifest contract; M5-M8 add generators/validators,
+application environment artifacts, and the central-infrastructure requirements handoff; M10
+publishes onboarding/upgrade/offboarding runbooks. Tombstones prevent tenant/slot reuse.
+Infrastructure is manually provisioned from the central Terraform repository before application
+GHA. Production actions remain human-controlled external workflows.
 
 ## Verification evidence required
 

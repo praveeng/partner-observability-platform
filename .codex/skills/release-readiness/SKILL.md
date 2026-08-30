@@ -16,7 +16,9 @@ Read `AGENTS.md`, `PLANS.md`, `.agent-state/status.json`, `README.md`, every doc
 1. Identify the intended version, supported upgrade path, included modules/artifacts, and claimed milestone scope.
 2. Require a clean, reviewable worktree or explain every intentional uncommitted file. Do not push or merge.
 3. Verify Java/Spring compatibility, one-dependency starter adoption, dependency convergence, reproducible archives, checksums, sources/Javadoc, license notices, SBOM/provenance if configured, and absence of credentials or environment-specific data.
-4. Trace every acceptance criterion to current test evidence. Invoke the payload-safety, partner-security, Loki-isolation, performance-validation, test-adequacy, Terraform/ECS, and dashboard gates when their scope is release-relevant.
+4. Trace every acceptance criterion to current test evidence. Invoke the payload-safety,
+   partner-security, Loki-isolation, performance-validation, test-adequacy, enterprise
+   infrastructure/ECS, and dashboard gates when their scope is release-relevant.
 5. Verify configuration reference, onboarding, upgrade, rollback, compatibility, troubleshooting, retention, security, and known-limit documentation.
 6. Build artifacts locally and inspect their contents. Do not publish to a registry or repository and do not deploy infrastructure.
 
@@ -25,7 +27,7 @@ Read `AGENTS.md`, `PLANS.md`, `.agent-state/status.json`, `README.md`, every doc
 ```bash
 git status --short --branch
 git diff --check
-rg -n "NOT IMPLEMENTED|TODO|TBD|FIXME" README.md PLANS.md docs scripts sure-partner-observability-* terraform alloy loki prometheus grafana docker test
+rg -n "NOT IMPLEMENTED|TODO|TBD|FIXME" README.md PLANS.md docs scripts sure-partner-observability-* alloy loki prometheus grafana docker test
 ./scripts/build.sh
 ./scripts/test.sh
 ./scripts/test-security.sh

@@ -14,7 +14,7 @@ done
 git diff --check
 git diff --cached --check
 jq empty .agent-state/status.json
-for shell_file in scripts/*.sh test/integration/*.sh test/terraform/*.sh; do
+for shell_file in scripts/*.sh test/integration/*.sh; do
   bash -n "$shell_file"
 done
 
@@ -29,8 +29,8 @@ for required_command in \
   './gradlew --no-daemon clean build' \
   './scripts/test-security.sh' \
   './scripts/test-enterprise-naming.sh' \
+  './scripts/test-enterprise-infrastructure-contract.sh' \
   './scripts/test-performance.sh' \
-  './scripts/test-terraform.sh' \
   './scripts/test-grafana.sh' \
   './scripts/test-end-to-end.sh'; do
   rg -q -F "$required_command" scripts/verify-all.sh || {
@@ -41,20 +41,18 @@ done
 
 rg -q 'JavaLanguageVersion\.of\(17\)' build.gradle
 rg -q "org\.springframework\.boot.*2\.7\.18" build.gradle
-rg -q 'LOKI_RETENTION_PERIOD.*384h' terraform/modules/ecs-loki/main.tf
+rg -q 'lokiRetentionHours:[[:space:]]*384' docs/enterprise-infrastructure/infrastructure-contract.yaml
 rg -q 'retention_period:[[:space:]]*24h' loki/local-config.yaml
 rg -q -- '--storage\.tsdb\.retention\.time=16d' docker/compose.yml
 rg -q 'auth_enabled:[[:space:]]*true' loki/local-config.yaml
-rg -q 'REQUIRED_TERRAFORM_VERSION="1\.11\.4"' scripts/verify-all.sh
-rg -q 'required_aws_provider_version="6\.61\.0"' scripts/test-terraform.sh
-rg -q 'tracked-file Terraform snapshots isolate generated state' scripts/verify-all.sh
+rg -q 'enterprise Terraform is outside this repository' scripts/verify-all.sh
 if rg -n 'grafana/(alloy|loki):|prom/prometheus:|nginx:[0-9]' test/integration --glob '*.sh'; then
   echo 'ERROR: integration validators must use the digest-pinned image resolved from Compose, not a mutable tag.' >&2
   exit 1
 fi
 
 if rg -n -i '(helm_release|kubernetes_|apiVersion:[[:space:]]*(apps/|v1))' \
-    sure-partner-observability-* alloy loki prometheus grafana terraform docker \
+    sure-partner-observability-* alloy loki prometheus grafana docker \
     --glob '!*.md' --glob '!**/build/**'; then
   echo 'ERROR: prohibited Kubernetes/Helm implementation artifact found.' >&2
   exit 1

@@ -1,6 +1,6 @@
 # ADR 0007: ECS market topology and Terraform boundaries
 
-- Status: Accepted for M8 implementation
+- Status: Accepted topology; repository implementation ownership superseded by ADR 0013
 - Date: 2026-08-16
 - Decision owners: Cloud platform architecture
 
@@ -16,7 +16,10 @@ Use encrypted S3 for Loki TSDB objects and encrypted EFS access points for Loki 
 
 ADR 0011 refines external transport: the observability network module creates only the 443-only ACM-backed Grafana ALB, while host-service infrastructure owns callback ALBs. All targets are private/no-public-IP and accept only their ALB security group. Port 80 is absent. Outbound partner HTTPS and client trust remain host-service concerns, not observability Terraform or SDK behavior.
 
-Terraform modules are the exact boundaries in `deployment-model.md`, composed by `market-observability-stack`. Inputs reference an existing VPC/ECS cluster and immutable image/config digests. No module creates production credentials or automatically applies.
+The infrastructure capabilities and inputs are defined in `deployment-model.md` and the enterprise
+infrastructure requirements contract. The centralized enterprise Terraform repository implements
+them by reusing its established patterns. This repository owns no enterprise Terraform modules,
+state, plans, or execution.
 
 ## Security and availability consequences
 
@@ -35,12 +38,19 @@ Terraform modules are the exact boundaries in `deployment-model.md`, composed by
 
 ## Implementation and migration
 
-M8 creates modules/non-production examples and plans only. Same digests promote DEV->STAGE->PROD. At 70% sustained resource/storage, partner cap approach, or approved HA SLO, create a migration ADR for simple-scalable Loki, external Grafana DB, and/or metrics architecture.
+The former M8 modules/examples were retired under ADR 0013 after their requirements were migrated.
+Application digests promote through the enterprise release process after base infrastructure
+exists. At 70% sustained resource/storage, partner cap approach, or approved HA SLO, create a
+migration ADR for simple-scalable Loki, external Grafana DB, and/or metrics architecture.
 
 ## Verification evidence required
 
-Terraform format/validate/lint/security/policy and non-production plan tests; SG reachability; IAM least privilege; secret/state scan; restore/restart; no cross-stack paths; DEV mock-only assertions; no Helm/Kubernetes artifacts.
+The centralized Terraform change supplies format/validate/lint/security/policy, reviewed plan,
+SG-reachability, least-privilege, secret/state, cost/replacement, restore/restart, and cross-stack
+isolation evidence. This repository validates the requirements contract and application-owned
+runtime/local behavior only.
 
 ## References and supersession
 
-Normative details: `../deployment-model.md`, `../transport-security.md`, and ADR 0011. No ADR is superseded.
+Normative details: `../deployment-model.md`, `../transport-security.md`, ADR 0011, ADR 0013, and
+`../enterprise-infrastructure/README.md`. ADR 0013 supersedes repository implementation ownership.

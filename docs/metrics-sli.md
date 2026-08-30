@@ -115,7 +115,8 @@ The calculation includes the nine finite histogram buckets, `+Inf`, `_sum`, `_co
 ## Collection and storage
 
 - Applications expose a management-network-only Prometheus endpoint; it is not partner/public accessible.
-- Terraform/onboarding supplies Cloud Map DNS target groups to Alloy `discovery.dns`/scrape configuration.
+- Central enterprise infrastructure outputs/onboarding supply service-discovery target groups to the
+  application-owned Alloy `discovery.dns`/scrape configuration.
 - Alloy scrapes every 30 seconds with a 10-second timeout, applies allowlist/relabel/drop rules, and remote-writes to Prometheus.
 - Prometheus enables only the remote-write receiver needed for Alloy, binds it privately, disables admin/lifecycle APIs, and applies 16-day time retention plus a storage-size cap.
 - Recording rules precompute dashboard rates and quantiles without adding transaction identifiers.

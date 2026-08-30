@@ -49,9 +49,18 @@ Partner integration services remain private ECS services. Outbound RestTemplate,
 
 External callbacks enter a service-owned internet-facing ALB. The callback ALB has only a 443 HTTPS listener, an approved TLS policy with TLS 1.2 minimum, and an ACM-managed certificate matching the approved DNS name. Port 80 is absent rather than redirected. Its target group contains private service tasks with `assign_public_ip=false`; the task security group accepts the application target port only from the callback ALB security group. The ALB termination boundary is not callback authentication, so host signature/authentication/decryption still precedes trusted partner telemetry.
 
-The `observability-network` module owns the equivalent 443-only ALB/ACM attachment for Grafana. It does not create or change callback ALBs belonging to partner integration services. Callback onboarding records an ownership/evidence reference so M8/M9 policy checks can prove compliant listener, certificate, target, routing, and security-group posture without importing TLS ownership into the SDK.
+The centralized enterprise Terraform repository owns the equivalent 443-only ALB/ACM attachment
+for Grafana. It does not create or change callback ALBs belonging to partner integration services.
+Callback onboarding records an ownership/evidence reference so platform verification can prove
+compliant listener, certificate, target, routing, and security-group posture without importing TLS
+ownership into the SDK.
 
-Terraform receives an approved ACM certificate ARN and pins a reviewed listener security policy. Public ACM certificates use the account's approved DNS-validation workflow and managed renewal. Expiry/renewal alarms are internal-only. Replacement attaches and validates the new certificate before removing the still-valid old certificate; rollback reattaches the prior certificate. ACM private keys are not exportable to ECS/Terraform and never appear in plans, outputs, manifests, telemetry, or logs.
+The centralized Terraform implementation receives an approved ACM certificate ARN and pins a
+reviewed listener security policy. Public ACM certificates use the account's approved DNS-validation
+workflow and managed renewal. Expiry/renewal alarms are internal-only. Replacement attaches and
+validates the new certificate before removing the still-valid old certificate; rollback reattaches
+the prior certificate. ACM private keys are not exportable to ECS/Terraform and never appear in
+plans, outputs, manifests, telemetry, or logs.
 
 ## Network boundaries
 
@@ -78,7 +87,7 @@ No observability component participates in an application load balancer health c
 | Internal component/application logs | CloudWatch/internal account controls | Separate internal retention set by security/operations policy |
 | ALB/audit/config evidence | Separate internal S3/CloudWatch | Not governed by the 16-day partner telemetry rule; unresolved policy input |
 
-Secrets live in AWS Secrets Manager and are injected/retrieved with ECS task roles. Certificate/client private keys, keystore/trust-store bytes/passwords, session/signature material, and URI credentials are never manifest values or Terraform outputs. ACM listener configuration uses certificate ARNs only. Terraform state uses an approved encrypted remote backend with locking outside this repository. Neither secrets nor state are committed.
+Secrets live in AWS Secrets Manager and are injected/retrieved with ECS task roles. Certificate/client private keys, keystore/trust-store bytes/passwords, session/signature material, and URI credentials are never manifest values or Terraform outputs. ACM listener configuration uses certificate ARNs only. The centralized Terraform repository owns its approved encrypted remote backend and locking. Neither secrets nor state are committed here.
 
 ## Configuration artifacts
 
@@ -90,32 +99,28 @@ The versioned non-secret market manifest generates:
 - journey-resolver typed identifier schemas, bounded query templates, and record/stage allowlists;
 - ECS task configuration locations/digests;
 - approved HTTPS endpoint/host/port and callback/Grafana ALB/ACM ownership references, never certificate or trust-store content;
-- Terraform variables for partner slots, Cloud Map services, storage, and service sizing.
+- application deployment inputs and central-infrastructure references for partner slots, Cloud Map
+  services, storage, and service sizing.
 
 Generated configuration is validated, assigned a content digest, stored in a versioned deployment artifact location, and mounted/downloaded at task startup. An invalid/missing config makes that observability task unhealthy; it never affects partner-service health. Sensitive runtime maps are readable only by the relevant task role.
 
-## Terraform module boundaries
+## Enterprise Terraform ownership and capability boundaries
 
-`terraform/modules` will contain these composable modules:
+The separate centralized enterprise Terraform repository is the exclusive owner of AWS Terraform,
+state, planning, and manual execution. This repository defines capabilities and inputs rather than
+module names. The required boundaries cover stack composition, VPC/security groups/load balancers,
+IAM/KMS/secrets, Loki S3/EFS, ECS services for Alloy/Loki/Prometheus/Grafana/query gateway,
+persistent storage/backup, DNS/service discovery, health checks, and infrastructure alarms.
 
-| Module | Responsibility |
-| --- | --- |
-| `market-observability-stack` | Composition and cross-module outputs; no resources hidden outside child modules |
-| `observability-network` | Existing VPC/cluster inputs, private task/security-group boundaries, private NLB, 443-only Grafana ALB/WAF/ACM attachment, DNS, VPC endpoints; no callback-service ALB ownership |
-| `observability-identity` | ECS task/execution roles, least-privilege policies, KMS grants, secret references |
-| `loki-storage` | S3 bucket/policy/lifecycle and encrypted EFS access point |
-| `ecs-alloy-ingest` | Task/service/autoscaling/config/health/logging for proxy + Alloy |
-| `ecs-loki` | Loki task/service, EFS mount, S3/IAM wiring, private discovery |
-| `ecs-prometheus` | Prometheus task/service, EFS, retention/size flags, private discovery |
-| `ecs-grafana` | Grafana task/service, EFS, ALB target, config/secret wiring, backup policy |
-| `ecs-query-gateway` | Nginx + prom-label-proxy + stateless journey-resolver task/service, fixed identity maps, query limits, private discovery |
-| `observability-alerts` | ECS/LB/EFS/S3/platform CloudWatch alarms and notification inputs |
+The central implementation consumes the existing ECS cluster/VPC/subnets, approved DNS/ACM/WAF
+inputs, immutable image/config digests, sizing, manifest digest, and secret reference ARNs. It does
+not create partner integration services or callback ALBs, import private-key data, create credential
+values through application configuration, or expose secret values/state to this repository.
 
-Modules take existing ECS cluster, private/public subnets by role, VPC, DNS zone, approved ACM certificate ARN, pinned TLS policy, image digests, sizing, manifest digest, and approved secret ARNs as inputs. They do not create partner integration services or callback ALBs, import certificate/private key data, create users/password values, Terraform backends, production credentials, or perform deployments from documentation checks.
-
-The M8 module set implements these boundaries for an existing market ECS cluster. The composition also includes the architecture-required query gateway even though partner dashboard/query behavior remains an M7 runtime concern: Grafana must never gain a direct Loki or Prometheus network path while M7 is incomplete. The module creates exact SG-to-SG paths, a private TLS Alloy NLB, the single 443-only Grafana ALB, encrypted state, fixed stateful task counts, bounded stateless autoscaling, and exact secret/artifact ARN grants. Provider-schema validation and a mocked local network plan are evidence of configuration correctness only; they are not an AWS plan or deployment-readiness approval for any real environment.
-
-Examples under `terraform/examples/dev`, `stage`, and `prod` eventually demonstrate composition with placeholders. `plan` requires explicit account/environment confirmation; `apply` is never an autonomous default.
+Exact Stage/Prod inputs, outputs, connectivity, ownership, and GHA handoff are normative in
+`enterprise-infrastructure/`. LOCAL and DEV receive no new requirement. The prior repository-owned
+modules/examples were retired under ADR 0013 after their requirements and historical evidence were
+captured. No command in this repository runs enterprise Terraform.
 
 ## Sizing and autoscaling
 
@@ -126,7 +131,9 @@ Application queue/rate limits are the first protection against ingest-cost spike
 ## Upgrade and rollback
 
 - Pin every container to an approved version and immutable digest.
-- Pin and policy-test external ALB TLS policy, HTTPS-only listeners, ACM ARN attachment, and private target reachability; never inherit a permissive mutable listener default.
+- The central infrastructure change pins and policy-tests external ALB TLS policy, HTTPS-only
+  listeners, ACM ARN attachment, and private target reachability; it never inherits a permissive
+  mutable listener default.
 - Build and validate configurations against the exact image before task rollout.
 - Promote identical artifacts through DEV, STAGE, and PROD with soak evidence.
 - Roll stateless services before SDK enablement; retain N/N-1 event schema support.
@@ -134,7 +141,9 @@ Application queue/rate limits are the first protection against ingest-cost spike
 - Loki schema entries are append-only with future UTC activation dates; do not edit a historical entry.
 - Rollback uses the prior task definition/config when storage schemas permit. Kill switches turn capture metadata-only/off when rollback is unsafe.
 
-No document or Terraform example authorizes a production deployment. Production change approval, credentials, account IDs, domains, and maintenance windows remain external inputs.
+No document in this repository authorizes a production infrastructure action. Production change
+approval, credentials, account IDs, domains, and maintenance windows remain external inputs to the
+central Terraform and enterprise release workflows.
 
 ## Operational failure expectations
 

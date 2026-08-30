@@ -25,7 +25,7 @@ Read `AGENTS.md`, `.agent-state/status.json`, `docs/architecture.md`, `docs/secu
 ```bash
 git diff --check
 find grafana -type f -name '*.json' -print -exec jq empty {} \;
-rg -n -i "anonymous|sign.?up|role|org|datasource|proxy|tenant|partner_slot|explore" grafana terraform docker test
+rg -n -i "anonymous|sign.?up|role|org|datasource|proxy|tenant|partner_slot|explore" grafana docker test docs/enterprise-infrastructure
 rg -n "applicationId|loanId|correlationId|requestId|X-Scope-OrgID" grafana
 ./scripts/test-security.sh
 ./scripts/test.sh

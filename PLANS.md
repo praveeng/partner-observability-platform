@@ -20,7 +20,10 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 
 - Resolved D001-D015 through ADRs 0001-0010 and added ADR 0011 plus the normative HTTPS/TLS contract for outbound clients, callback/Grafana ALB ingress, ACM rotation, private ECS targets, TLS ownership, custom CA trust, safe failure metadata, local-fixture isolation, and future mTLS extensibility.
 - Schema 2 defines distinct outbound request/response, async acknowledgement, callback request/response/processing, and business-event records. Read-time correlation uses typed co-occurring identifiers in a tenant-fixed bounded graph resolver, with no application-side correlation database.
-- Added repository-local Codex skills for repeatable architecture, starter, payload, partner-security, Loki, Grafana, performance, test, Terraform/ECS, and release gates. Each skill reads the authoritative contracts, produces an explicit verdict, and records valid findings in repository state.
+- Added repository-local Codex skills for repeatable architecture, starter, payload, partner-security,
+  Loki, Grafana, performance, test, enterprise-infrastructure/ECS, and release gates. Each skill reads
+  the authoritative contracts, produces an explicit verdict, and records valid findings in
+  repository state.
 - Challenged contradictory/insufficient requirements explicitly: full sanitized is not raw capture; arbitrary rendered SLF4J logs remain internal while only exact startup-approved statement mappings may create sanitized category events; Grafana OSS requires backend query enforcement; initial stateful ECS topology is not HA; local-account production policy remains external.
 - Selected 443-only external ALB listeners rather than port-80 redirects because a plaintext first hop violates the invariant and redirects can alter callback POST/authentication semantics. The starter is deliberately not a TLS policy enforcement proxy and never mutates host client TLS configuration.
 - Remaining questions in `docs/decisions-needed.md` are accountable organizational/deployment/onboarding/callback-semantic inputs with safe defaults, not silent security-critical design gaps.
@@ -83,14 +86,38 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 - Verification on 2026-08-24: `./scripts/test-grafana.sh`, `./scripts/test-grafana.sh --validate-only`, `./scripts/test-security.sh --data-plane`, and `./scripts/test-security.sh --metrics-plane` pass in the current worktree. This closes B001/requirements 35 and 48; the separately implemented M9 runner owns the application-originated requirements 36–46 proof.
 - Acceptance: partner access tests and dashboard/query validation pass using synthetic tenants.
 
-### M8 — Terraform and AWS ECS (ready for review)
+### M8 — Enterprise infrastructure requirements and AWS ECS boundary (ready for review)
 
-- Implemented the exact reusable module boundaries for an existing market VPC/ECS cluster: composition, network, identity, Loki storage, Alloy, Loki, Prometheus, Grafana, query gateway, and internal alarms. All five services use private subnets and no public IP; stateful services remain single-task while only stateless Alloy/query gateway have bounded CPU autoscaling.
-- Grafana has one allowlisted/WAF-hooked public ALB listener on HTTPS 443 with ACM and a pinned approved TLS policy. Port 80 is absent. Alloy uses a private TLS NLB; Grafana, Loki, Prometheus, Alloy, query gateway, Actuator targets, EFS, S3, Secrets Manager/SSM, and AWS endpoints have explicit SG/prefix-list paths without unrestricted internal rules.
-- Loki uses encrypted S3/EFS, fixed 384-hour compactor retention, two-hour delete delay, disabled object versioning, and an 18-day S3 expiration backstop. Prometheus has encrypted EFS plus fixed 16-day and environment-size retention; Grafana has encrypted EFS SQLite and daily seven-day backup selection. CloudWatch is limited to configurable-retention internal container/platform logs and alarms.
-- DEV/STAGE/PROD validation examples use three synthetic partners and versioned artifact/secret ARN inputs. DEV is mock-only; PROD is disabled unless an external human workflow supplies explicit enablement and a change reference. Partner callback ALBs remain service-owned 443/ACM/private-target paths recorded as onboarding evidence; observability creates no callback or plaintext listener.
-- Verification on 2026-08-23: Terraform 1.11.4 formatting and AWS-provider schema validation pass; repository policy tests prove listener/ACM/private-task/SG/IAM/storage/secret/onboarding boundaries; a fully mocked provider `command = plan` test passes without AWS access, credentials, state, or apply. TFLint, Checkov, and Trivy were unavailable locally. Evidence and scoped review verdicts are recorded under `terraform/M8-EVIDENCE.md`.
-- Acceptance: formatting, validation, static security checks, and the permitted fully local/mock plan review pass. No real-account plan or deployment was performed.
+- The separate centralized enterprise Terraform repository exclusively owns ECS base services,
+  networking, IAM, encrypted persistence, ingress, service discovery, and base Alloy/Loki/Prometheus/
+  Grafana runtime for STAGE and PROD. This repository owns the generic, implementation-neutral
+  requirements and GHA handoff in `docs/enterprise-infrastructure/`.
+- The contract requires private tasks/subnets, least-privilege security-group edges and IAM,
+  HTTPS-443 Grafana ingress with ACM, WAF/IP-allowlist hooks, encrypted Loki S3 storage, bounded
+  infrastructure logging, health checks, secret references, and stable outputs for the application
+  release workflow. It preserves one market/environment deployment with multiple isolated partners.
+- LOCAL remains the existing Docker topology and requires no AWS. DEV remains AWS plus mocked
+  partners and receives no new infrastructure requirement. Only STAGE and PROD consume this
+  enterprise integration contract.
+- This repository continues to own application-level Alloy policy, Loki tenant/retention policy,
+  Prometheus rules/metrics, Grafana dashboards/alerts, Java artifacts, and tests. After a manually
+  reviewed and manually executed central Terraform change, enterprise GHA deploys or updates those
+  application assets. The current architecture requires no relational database or Liquibase.
+- The former repository-owned Terraform modules and mocked provider test were classified as
+  enterprise implementation, their useful constraints were migrated into the contract and ADR 0013,
+  and the active Terraform trees were retired. Their 2026-08-23 validation remains historical
+  evidence only and is not a claim about the centralized repository.
+- Acceptance: `scripts/test-enterprise-infrastructure-contract.sh` passes, no Terraform
+  implementation/state exists here, local workflows remain independent, and reviewed central
+  STAGE/PROD plan/policy evidence is required before any real rollout. No AWS access or deployment
+  was performed.
+- Verification on 2026-08-30: the contract validator, compatibility alias, adversarial static gate,
+  documentation gate, and clean Gradle build pass. The aggregate local gate passed 20/23 stages,
+  including all Java/Spring, Alloy/Loki, Prometheus, application end-to-end, contract, live
+  Grafana validate-only, and documentation stages. B003 failed exactly at the pre-existing Q015
+  guard; the full Grafana stage and its repetition inside security hit the known bounded SLI
+  readiness timeout, then the unchanged full Grafana runner passed standalone. No regression is
+  attributed to this documentation/ownership change.
 
 ### M9 — Security, performance, and end-to-end verification
 
@@ -116,7 +143,9 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
   the Gradle group to `com.samsung.sure`, and updated build, Docker, integration, documentation,
   and repository-local agent references without changing public configuration or telemetry names.
 - Added the permanent enterprise naming gate and a one-starter consumer context test. The naming
-  gate, clean build, packaged startup, security, Terraform, Grafana, and end-to-end checks pass.
+  gate, clean build, packaged startup, security, the then-existing Terraform validation, Grafana,
+  and end-to-end checks passed. That Terraform result is retained only as historical evidence after
+  the enterprise ownership boundary changed in ADR 0013.
   Aggregate verification passed 21/23 stages: the known B003/Q015 blocker remained non-zero and
   one Grafana SLI readiness check timed out transiently even though the unchanged full Grafana
   runner passed standalone and again within the aggregate security gate.
@@ -125,4 +154,11 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 
 ## Current focus
 
-The current focus after B001 and B002 is the remaining host callback ALB staging evidence, redirect/certificate lifecycle drills, and exact M9 saturation/soak profiles. The local Grafana organization/query boundary and application-originated requirements 36–46 boundary are ready for review, and the SDK binds automatic outbound observations to exact configured HTTPS origins and rejects ambiguous callback routes. M8 Terraform remains ready for review with private ECS tasks and 443-only Grafana ingress, but no deployment, production-readiness, whole-platform security, or performance claim is made.
+The current focus after B001 and B002 is the remaining host callback ALB staging evidence,
+redirect/certificate lifecycle drills, and exact M9 saturation/soak profiles. The local Grafana
+organization/query boundary and application-originated requirements 36–46 boundary are ready for
+review, and the SDK binds automatic outbound observations to exact configured HTTPS origins and
+rejects ambiguous callback routes. M8 now records a ready-for-review central-enterprise-infrastructure
+requirements boundary for STAGE/PROD; it does not claim that the central repository has implemented
+or deployed it, nor does it make a production-readiness, whole-platform security, or performance
+claim.

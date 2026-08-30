@@ -1,18 +1,17 @@
 # Authoritative Local Completion Gate Blockers
 
 Originally validated on 2026-08-23 in the adversarial-security-review worktree and
-updated on 2026-08-24 for the B001 and B002 implementations, with Java 17, Gradle 7.6.4,
-Docker Compose 2.40.3-desktop.1, Terraform 1.11.4, and AWS provider 6.61.0.
+updated on 2026-08-24 for the B001 and B002 implementations. That historical run included
+the then-repository-owned Terraform implementation. ADR 0013 retired that ownership; current local
+verification requires no Terraform CLI, provider, AWS credential, or AWS access.
 
 Command:
 
 ```bash
-GRADLE_USER_HOME=/tmp/partner-observability-gradle \
-TERRAFORM_BIN=/tmp/partner-observability-terraform-1.11.4/terraform \
-./scripts/verify-all.sh
+GRADLE_USER_HOME=/tmp/partner-observability-gradle ./scripts/verify-all.sh
 ```
 
-The updated command completed with `FINAL RESULT: FAIL (1 of 22 stages failed)`.
+The historical updated command completed with `FINAL RESULT: FAIL (1 of 22 stages failed)`.
 Twenty-one stages passed, including requirements 35, 36–46, 48, and the complete local
 security gate. The sole remaining failure is B003.
 
@@ -54,7 +53,7 @@ machine-readable evidence. A smoke test or reduced duration cannot unblock this 
 
 ## Required next action
 
-Implement the M9 full-duration performance harnesses, then rerun
+Resolve Q015, implement the M9 full-duration performance harnesses, then rerun
 `./scripts/verify-all.sh` with the pinned prerequisites.
 Do not claim local completion until every stage passes.
 

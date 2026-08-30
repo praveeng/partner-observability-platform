@@ -23,7 +23,9 @@ Treat those files as authoritative. Do not copy their mutable numeric settings i
 
 1. Identify the claimed scope, affected data boundary, request-thread behavior, dependency direction, and deployment exposure.
 2. Trace data from partner exchange through sanitization, bounded dispatch, Alloy, storage, query gateways, and Grafana.
-3. Inspect source, configuration, Terraform, dashboards, and tests relevant to that trace. Do not infer safety from design prose when implementation exists.
+3. Inspect source, configuration, the enterprise infrastructure requirements/available central
+   evidence, dashboards, and tests relevant to that trace. Do not infer safety from design prose
+   when implementation evidence exists.
 4. Run the deterministic searches and the applicable repository checks below.
 5. Produce a requirement-to-evidence table with `PASS`, `FAIL`, or `NOT APPLICABLE` per row. `NOT IMPLEMENTED`, missing evidence, or an untested required path is `FAIL`.
 
@@ -40,7 +42,9 @@ Return `FAIL` if any of these exists:
 - an observability exception, queue wait, or backend outage able to change business response behavior;
 - any Kubernetes or Helm dependency.
 
-Also verify bounded queues, drop-on-saturation behavior, exception containment, data-class separation, server-side partner isolation, and the configuration-driven onboarding and ECS/Terraform model required by the authoritative documents.
+Also verify bounded queues, drop-on-saturation behavior, exception containment, data-class
+separation, server-side partner isolation, and the configuration-driven onboarding and centralized
+ECS/Terraform contract required by the authoritative documents.
 
 ## Deterministic checks
 
@@ -48,7 +52,7 @@ Run from the repository root and inspect every hit in changed production paths:
 
 ```bash
 git diff --check
-rg -n -i 'loki|alloy|grafana|prometheus|X-Scope-OrgID' sure-partner-observability-* alloy loki prometheus grafana terraform docker
+rg -n -i 'loki|alloy|grafana|prometheus|X-Scope-OrgID' sure-partner-observability-* alloy loki prometheus grafana docker docs/enterprise-infrastructure
 rg -n 'applicationId|loanId|correlationId|requestId' alloy loki grafana sure-partner-observability-* test
 rg -n 'LinkedBlockingQueue|SynchronousQueue|newCachedThreadPool|Executors\.|block\(|join\(|get\(' sure-partner-observability-* --glob '*.java'
 rg -n -i 'kubernetes|k8s|helm' . --glob '!docs/**' --glob '!.git/**'

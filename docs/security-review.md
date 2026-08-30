@@ -3,7 +3,7 @@
 ## Verdict and scope
 
 **Production security verdict: REJECTED / BLOCKED.** The implemented SDK, Alloy/Loki,
-Prometheus, local Grafana/query gateway, and Terraform boundaries passed their available
+Prometheus, local Grafana/query gateway, and the then-repository-owned Terraform boundary passed their available
 local security suites, and two confirmed isolation defects were fixed with failing-first
 regressions. The local Grafana completion boundary has real provisioning, isolated
 organizations, Viewer accounts, fixed datasources, and adversarial API/query tests. The
@@ -14,7 +14,7 @@ validated local synthetic boundary until those separate gates pass.
 
 This review was performed on 2026-08-23 and updated on 2026-08-24 against the current worktree. It covered the Java
 17/Spring Boot 2.7 SDK, callback fixture and filters, selected SLF4J compatibility, Alloy,
-Loki, Prometheus, local gateways, Docker Compose, Terraform/ECS policy, documentation, and
+Loki, Prometheus, local gateways, Docker Compose, the former Terraform/ECS policy, documentation, and
 completion scripts. No AWS account, production credential, deployment, push, or production
 data was used. All fixtures are synthetic.
 
@@ -26,22 +26,24 @@ Evidence commands executed during the review:
 - `./scripts/test-grafana.sh` — PASS using real Grafana/Loki/Prometheus/gateway containers and generated local users/secrets.
 - `./scripts/test-grafana.sh --validate-only` — PASS using live Grafana provisioning/API validation.
 - `./test/integration/run-local-end-to-end.sh` — PASS using application-originated RestTemplate and real callback traffic through the SDK, Alloy, fixed query gateway, and Grafana.
-- `TERRAFORM_BIN=/tmp/partner-observability-terraform-1.11.4/terraform ./scripts/test-security.sh --terraform` — PASS, including the mocked network plan.
-- `./test/security/run-adversarial-static.sh` — PASS; it rejects production TLS bypass/downgrade primitives, tracked private keys, sensitive Terraform outputs, and missing origin/route guards.
+- Historical: the former repository-owned Terraform validation passed, including a mocked network
+  plan. ADR 0013 later retired that implementation; this is not evidence for the central repository.
+- `./test/security/run-adversarial-static.sh` — PASS; it rejects production TLS
+  bypass/downgrade primitives, tracked private keys, prohibited enterprise Terraform artifacts, and
+  missing origin/route guards.
 
 `scripts/verify-all.sh` is reported in the verification section below. A passing scoped
 command does not compensate for a missing authorization boundary.
 
 ## Authoritative verification result
 
-The final current-worktree run used Java 17, Gradle 7.6.4, Docker Compose
-2.40.3-desktop.1, Terraform 1.11.4, and AWS provider 6.61.0:
+The historical 2026-08-24 current-worktree run used Java 17, Gradle 7.6.4, Docker Compose
+2.40.3-desktop.1, Terraform 1.11.4, and AWS provider 6.61.0. ADR 0013 supersedes only its
+repository-ownership implication:
 
-```bash
-GRADLE_USER_HOME=/tmp/partner-observability-gradle \
-TERRAFORM_BIN=/tmp/partner-observability-terraform-1.11.4/terraform \
-./scripts/verify-all.sh
-```
+The archived invocation supplied a dedicated Gradle cache and the then-required Terraform binary.
+It is intentionally not reproduced as a current command; current verification is simply
+`./scripts/verify-all.sh` and does not execute Terraform.
 
 Result on 2026-08-24: `FINAL RESULT: FAIL (1 of 22 stages failed)`. Twenty-one stages passed,
 including requirements 35, 36–46, 48, and the complete local security gate. The only failure
@@ -158,15 +160,15 @@ Resolved on 2026-08-24: **SR-04 / B002**. `test/integration/run-local-end-to-end
 | 60 | WebClient SSL behavior altered | PASS | Original connector is reused and enabled/disabled outcomes match. |
 | 61 | OkHttp SSL behavior altered | PASS | Socket factory, trust manager, verifier, pinner, and connection specs remain identical. |
 | 62 | Callback observability creates plaintext bypass | PASS in code / STAGING network | It only registers a filter on host routes and creates no listener; external reachability remains SR-06. |
-| 63 | Grafana external ingress not HTTPS-only | PASS in Terraform | Mocked plan asserts one 443 HTTPS/ACM/TLS-policy listener and no port 80. |
-| 64 | Grafana tasks internet reachable | PASS in Terraform / STAGING reachability | Private subnets, no public IP, ALB-SG-only ingress. |
-| 65 | Loki internet reachable | PASS in Terraform / STAGING reachability | No public listener/IP; exact internal SG sources. |
-| 66 | Prometheus internet reachable | PASS in Terraform / STAGING reachability | Same private/no-public-IP controls. |
-| 67 | Alloy internet reachable | PASS in Terraform / STAGING reachability | Internal TLS NLB only and allowlisted service SG sources. |
+| 63 | Grafana external ingress not HTTPS-only | HISTORICAL PASS / CENTRAL EVIDENCE REQUIRED | Former mocked plan asserted 443 HTTPS/ACM/TLS policy and no port 80; the central STAGE/PROD change must provide current evidence. |
+| 64 | Grafana tasks internet reachable | HISTORICAL PASS / STAGING reachability | Former plan used private subnets, no public IP, and ALB-SG-only ingress; central evidence and probes remain required. |
+| 65 | Loki internet reachable | HISTORICAL PASS / STAGING reachability | Former plan had no public listener/IP and exact internal SG sources; central evidence remains required. |
+| 66 | Prometheus internet reachable | HISTORICAL PASS / STAGING reachability | Same historical private/no-public-IP controls; central evidence remains required. |
+| 67 | Alloy internet reachable | HISTORICAL PASS / STAGING reachability | Former plan used internal TLS ingress and allowlisted service SG sources; central evidence remains required. |
 | 68 | TLS/private-key secrets in fixtures | PASS | Tracked-file scan found no PEM private key; TLS telemetry sentinel scans contain no key/trust/session material. |
 | 69 | ACM/private key committed | PASS | Only synthetic ACM ARNs are tracked; no private certificate material. |
-| 70 | Terraform secret outputs | PASS | Static policy and adversarial scan reject secret/key/password/certificate-shaped outputs. |
-| 71 | External port 80 | PASS for Grafana / STAGING callback | Terraform has no Grafana port-80 listener/rule; service-owned callback ALB evidence remains SR-06. |
+| 70 | Terraform secret outputs | CENTRAL EVIDENCE REQUIRED | This repository rejects Terraform artifacts; the central reviewed plan/output must exclude secret values. |
+| 71 | External port 80 | HISTORICAL PASS / CENTRAL EVIDENCE REQUIRED | Port 80 remains prohibited; current central Grafana and service-owned callback evidence remains required. |
 
 ### Platform and resilience
 
@@ -207,11 +209,11 @@ plaintext configured origins. It does not turn observability into an egress fire
 service still owns redirect policy, DNS/proxy behavior, and the completeness of the endpoint
 manifest.
 
-Terraform proves the repository-owned Grafana ALB is HTTPS 443 only and that observability tasks
-are private. Callback ALBs are outside this Terraform scope. Internal service-discovery hops to
-Loki/Prometheus currently use private-network HTTP after the documented trust boundary; this
-relies on VPC/security-group integrity and must be revisited where a market requires encryption
-for private target hops.
+The enterprise infrastructure contract requires a 443-only Grafana ALB and private observability
+tasks. The separate centralized Terraform repository must supply reviewed plan/policy and staging
+reachability evidence; this repository does not implement or execute that infrastructure. Callback
+ALBs remain host-service-owned. Any permitted private service-discovery transport must follow the
+reviewed central network boundary and market encryption policy.
 
 ## Residual risks
 
@@ -233,7 +235,7 @@ for private target hops.
   private task reachability, and direct Loki/Prometheus/Alloy reachability from the internet.
 - HTTPS-to-HTTP redirect denial for each service-owned production client configuration, incomplete
   chain/not-yet-valid certificate cases, custom-CA overlap/rollback, ACM renewal, and revocation drills.
-- Terraform plan inspection with approved non-production account inputs, followed by network probes;
-  no apply was authorized in this review.
+- Central Terraform plan/policy inspection with approved STAGE inputs, followed by network probes;
+  the central repository and manual enterprise process own this evidence.
 - Full-duration callback flood, blackhole, mixed soak, reactive cancellation, heap/GC, component
   restart, disk/retention, backup, and restore profiles.

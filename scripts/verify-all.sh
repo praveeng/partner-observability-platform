@@ -9,7 +9,6 @@ export TZ=UTC
 export CI=true
 export GRADLE_USER_HOME="${GRADLE_USER_HOME:-/tmp/partner-observability-gradle-cache}"
 
-readonly REQUIRED_TERRAFORM_VERSION="1.11.4"
 readonly REQUIRED_GRADLE_VERSION="7.6.4"
 
 declare -a stage_names=()
@@ -55,25 +54,6 @@ check_prerequisites() {
   for command_name in bash curl docker git java jq rg; do
     require_command "$command_name" || result=1
   done
-
-  local terraform_bin terraform_version
-  terraform_bin="${TERRAFORM_BIN:-$(command -v terraform || true)}"
-  if [[ -z "$terraform_bin" || ! -x "$terraform_bin" ]]; then
-    printf 'MISSING prerequisite: Terraform CLI %s (set TERRAFORM_BIN to the approved executable when it is not on PATH)\n' \
-      "$REQUIRED_TERRAFORM_VERSION" >&2
-    result=1
-  else
-    printf 'FOUND prerequisite: Terraform CLI at %s\n' "$terraform_bin"
-    terraform_version="$("$terraform_bin" version -json 2>/dev/null | jq -r '.terraform_version // empty')"
-    if [[ "$terraform_version" != "$REQUIRED_TERRAFORM_VERSION" ]]; then
-      printf 'INVALID prerequisite: Terraform %s is required; found %s\n' \
-        "$REQUIRED_TERRAFORM_VERSION" "${terraform_version:-unknown}" >&2
-      result=1
-    else
-      printf 'FOUND prerequisite: Terraform %s\n' "$terraform_version"
-    fi
-    export TERRAFORM_BIN="$terraform_bin"
-  fi
 
   if [[ ! -x ./gradlew ]]; then
     echo 'MISSING prerequisite: executable Gradle wrapper ./gradlew' >&2
@@ -139,7 +119,7 @@ repository_baseline() {
     echo 'INFO: worktree is clean.'
   fi
   mkdir -p "$GRADLE_USER_HOME"
-  echo 'INFO: Gradle clean, a task-specific Gradle cache, unique Compose projects, disposable volumes, and tracked-file Terraform snapshots isolate generated state.'
+  echo 'INFO: Gradle clean, a task-specific Gradle cache, unique Compose projects, and disposable volumes isolate generated state; enterprise Terraform is outside this repository.'
 }
 
 gradle_test() {
@@ -204,7 +184,7 @@ print_summary() {
 trap print_summary EXIT
 
 section 'PREFLIGHT'
-run_stage 'Prerequisites (Java 17, Gradle, Docker Compose, Terraform, CLI tools)' check_prerequisites
+run_stage 'Prerequisites (Java 17, Gradle, Docker Compose, CLI tools)' check_prerequisites
 if (( failed_stages != 0 )); then
   exit 1
 fi
@@ -248,7 +228,7 @@ run_stage 'Security completion gate (all disclosure and isolation attacks)' ./sc
 run_stage 'Performance completion gate (all acceptance profiles)' ./scripts/test-performance.sh
 
 section 'INFRA / CONFIG'
-run_stage '47. Terraform format, validation, static policy, and mocked plan tests' ./scripts/test-terraform.sh
+run_stage '47. Enterprise infrastructure ownership and requirements contract' ./scripts/test-enterprise-infrastructure-contract.sh
 run_stage '48. Dashboard and provisioning validation' ./scripts/test-grafana.sh --validate-only
 run_stage '49. Documentation and configuration consistency checks' ./scripts/test-docs.sh
 

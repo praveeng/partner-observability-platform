@@ -1,4 +1,4 @@
 interface:
-  display_name: "Terraform ECS Review"
-  short_description: "Review Terraform and ECS deployment safety"
-  default_prompt: "Use $terraform-ecs-review to review Terraform and ECS changes without deploying."
+  display_name: "Enterprise Infrastructure ECS Review"
+  short_description: "Review the central Terraform contract and ECS safety"
+  default_prompt: "Use $terraform-ecs-review to review enterprise infrastructure requirements and central Terraform evidence without generating or executing Terraform here."

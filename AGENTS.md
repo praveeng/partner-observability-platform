@@ -36,7 +36,9 @@ The project supplies partner-isolated application observability for Java 17 / Sp
 16. Normal Spring Boot integration requires one starter dependency plus configuration.
 17. Java 17 and Spring Boot 2.7 compatibility is mandatory.
 18. Helm is prohibited. This repository has no Kubernetes deployment model.
-19. Terraform is required for provisioned infrastructure.
+19. Provisioned enterprise AWS infrastructure uses Terraform owned and executed only by the
+    separate centralized enterprise Terraform repository; this repository owns requirements, not
+    enterprise Terraform implementation or execution.
 20. Production deployment and production credentials are prohibited from agent activity in this repository.
 21. Autonomous agents may commit locally and may push completed, verified work under the Git policy below, but must not merge.
 22. All Partner Observability Java code must use package namespace `com.samsung.sure.partner.observability.*`. Java/Spring module names must use `sure-partner-observability-*`.
@@ -50,7 +52,8 @@ These invariants are acceptance gates. Tests that contradict them are defective;
 - `sure-partner-observability-spring-boot-starter`: the single dependency intended for ordinary consumers; it contains dependency wiring, not business behavior.
 - `sure-partner-observability-test-app`: synthetic, non-production verification application only.
 - `alloy`, `loki`, `prometheus`, and `grafana`: local/integration configuration owned by the corresponding component.
-- `terraform`: reusable AWS ECS-oriented modules and non-production examples.
+- `docs/enterprise-infrastructure`: implementation-neutral STAGE/PROD requirements and the
+  application-to-central-Terraform/GitHub-Actions integration contract.
 - `test`: cross-module integration, security, performance, and end-to-end assets.
 
 Dependencies must point inward: the starter may expose autoconfiguration, autoconfiguration may depend on core, and core must not depend on Spring. Application instrumentation must enqueue an already-safe bounded representation without waiting for network or backend acknowledgement.
@@ -65,6 +68,25 @@ Dependencies must point inward: the starter may expose autoconfiguration, autoco
 - Metrics must not contain raw partner identifiers or transaction identifiers unless an approved bounded mapping is documented.
 - Use only synthetic fixtures. Never add real customer or production-derived data.
 - Do not print secrets or payload samples during tests. Secret-shaped test values must be unmistakably synthetic.
+
+## Enterprise infrastructure ownership
+
+- AWS enterprise Terraform does not belong to this repository. All enterprise Terraform is
+  maintained in a separate centralized Terraform repository.
+- Sure Partner Observability defines infrastructure requirements and integration contracts; it
+  does not generate, plan, apply, import, destroy, or validate enterprise AWS Terraform here.
+- Codex must not generate or execute enterprise Terraform in this repository unless explicitly
+  instructed for a genuinely isolated local test fixture that has no AWS/enterprise ownership.
+- Base infrastructure is provisioned through manually reviewed and manually executed enterprise
+  Terraform outside this repository.
+- After base infrastructure exists, the enterprise GitHub Actions release may deploy service/runtime
+  configuration, dashboards, alerts, Prometheus rules, and Liquibase changes only where a real
+  application database schema exists.
+- Local development remains independent from enterprise Terraform.
+- DEV remains unchanged unless explicitly requested. The current enterprise integration contract
+  applies only to STAGE and PROD.
+- Agents must not add enterprise `.tf` files, Terraform state/plan/lock/provider artifacts, or AWS
+  Terraform execution to this repository or its GitHub Actions.
 
 ## Agent workflow and lifecycle
 

@@ -28,8 +28,10 @@ if git grep -n -E -- '-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----'; then
   fail 'tracked source contains private-key material'
 fi
 
-if rg -n -i 'output[[:space:]]+"[^"]*(private[_-]?key|password|secret|certificate)' terraform --glob '*.tf'; then
-  fail 'Terraform exposes a secret- or key-shaped output'
+if find . -type f \
+    \( -name '*.tf' -o -name '*.tfvars' -o -name '*.tfplan' -o -name '.terraform.lock.hcl' \) \
+    -not -path './.git/*' -print -quit | grep -q .; then
+  fail 'repository contains prohibited enterprise Terraform implementation or state artifacts'
 fi
 
 rg -q 'outbound origin must use HTTPS' \
@@ -42,4 +44,4 @@ rg -q 'callback routes must not overlap' \
   sure-partner-observability-spring-boot-autoconfigure/src/main/java/com/samsung/sure/partner/observability/autoconfigure/PartnerObservabilityConfigurationValidator.java \
   || fail 'ambiguous callback routes are not rejected'
 
-echo 'PASS: no production TLS bypass/downgrade primitive, tracked private key, sensitive Terraform output, or missing origin/route guard was found.'
+echo 'PASS: no production TLS bypass/downgrade primitive, tracked private key, enterprise Terraform artifact, or missing origin/route guard was found.'

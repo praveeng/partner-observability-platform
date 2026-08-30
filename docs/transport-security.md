@@ -110,12 +110,19 @@ Callback capture remains ordered after host authentication/signature verificatio
 
 - External partner callback and Grafana ALBs have an HTTPS listener on 443 only.
 - There is no listener on port 80 and no security-group ingress rule for port 80. Redirect-only port 80 was rejected because callback clients may not preserve POST bodies/authentication across redirects and any plaintext first hop violates the hard invariant.
-- The listener uses an organization-approved security policy with TLS 1.2 as the minimum. Weak protocols/ciphers are not enabled. Policy selection is pinned in Terraform and tested before promotion rather than inherited from a mutable default.
-- Each DNS name has an ACM-managed certificate whose SAN set contains only approved names. Terraform references an ACM certificate ARN; it does not create, export, or read private key material.
+- The listener uses an organization-approved security policy with TLS 1.2 as the minimum. Weak
+  protocols/ciphers are not enabled. Policy selection is pinned by the centralized Terraform
+  implementation and tested before promotion rather than inherited from a mutable default.
+- Each DNS name has an ACM-managed certificate whose SAN set contains only approved names. Central
+  Terraform references an ACM certificate ARN; it does not create, export, or read private key
+  material.
 - Public ACM certificates use DNS validation controlled through the approved account/domain workflow. ACM performs managed renewal. Certificate-expiry and renewal-failure alarms are internal-only, and renewal is verified in DEV/STAGE before any listener/certificate migration that changes names or trust.
 - Listener rotation attaches the renewed/replacement certificate before removing the old certificate, validates the hostname and supported protocol, and uses ALB-managed atomic listener updates. Rollback reattaches the previous still-valid certificate. Private keys never reach ECS tasks when TLS terminates at ALB.
 
-The observability `observability-network` Terraform module owns the Grafana ALB only. Existing partner-service infrastructure owns callback ALBs. M8 modules consume approved certificate ARNs and expose policy-test evidence; they do not create partner-service listeners or alter service TLS ownership.
+The centralized enterprise Terraform repository owns the Grafana ALB only. Existing partner-service
+infrastructure owns callback ALBs. The central implementation consumes approved certificate ARNs
+and returns reviewed plan/policy evidence; it does not create partner-service listeners or alter
+service TLS ownership.
 
 ## Security-group and routing model
 
@@ -134,7 +141,7 @@ Preventing direct internet access requires all of these controls, not a security
 | --- | --- | --- |
 | Partner endpoint URI and redirect policy | Host integration/service configuration | Reads configured API ID only; never rewrites URI/scheme |
 | Outbound client TLS context/trust/hostname verification | Host integration and security owner | Reuses client unchanged; no SSL/TLS mutation |
-| Callback/Grafana external TLS listener and ACM certificate | Host service infrastructure / `observability-network` for Grafana | No listener/certificate access |
+| Callback/Grafana external TLS listener and ACM certificate | Host service infrastructure / centralized enterprise Terraform for Grafana | No listener/certificate access |
 | Callback authentication/signature/decryption | Host application security chain | Consumes only trusted result after it exists |
 | Internal Alloy ingress TLS and source authentication | Observability platform | Dispatcher uses configured private TLS endpoint; business threads do not connect |
 | CA/client-certificate/private-key lifecycle | Security/platform secret owners | Never loads, copies, logs, meters, serializes, or exports material |
@@ -171,16 +178,18 @@ An mTLS change requires a new ADR, partner-by-partner certificate lifecycle/revo
 
 ## Configuration, audit, and verification
 
-The non-secret market manifest declares only endpoint/API identifiers, HTTPS-required policy, approved host/port references, callback ALB/DNS ownership references, trust-adapter IDs, and secret/certificate ARNs. It contains no URI credentials, private key, trust-store password, certificate body, or token. Configuration and Terraform validation reject HTTP in DEV/STAGE/PROD and any port-80 listener/rule.
+The non-secret market manifest declares only endpoint/API identifiers, HTTPS-required policy, approved host/port references, callback ALB/DNS ownership references, trust-adapter IDs, and secret/certificate ARNs. It contains no URI credentials, private key, trust-store password, certificate body, or token. Application configuration validation rejects HTTP in DEV/STAGE/PROD; central Terraform review/policy evidence rejects any port-80 listener/rule.
 
 Required evidence includes:
 
 - valid CA, expired/not-yet-valid/untrusted CA, incomplete chain, and hostname-mismatch tests for RestTemplate, WebClient, and OkHttp;
 - HTTPS-to-HTTP redirect/downgrade denial and no independent interceptor retry;
 - client TLS configuration equality before/after starter activation;
-- callback ALB 443-only listener, ACM ARN, approved TLS policy, private target, `assign_public_ip=false`, and SG reachability policy tests;
+- central Terraform plan/policy evidence for callback/Grafana 443-only listeners, ACM ARNs,
+  approved TLS policy, private targets, `assign_public_ip=false`, and SG reachability;
 - spoofed forwarding-header denial and proof that TLS transport does not replace callback authentication;
-- secret scans covering Git, generated config, Terraform plan JSON, logs, telemetry, metrics, dashboards, and test reports;
+- secret scans covering Git, generated config, central Terraform plan JSON, logs, telemetry, metrics,
+  dashboards, and test reports;
 - certificate renewal/rotation and custom-CA overlap/rollback drills using synthetic certificates;
 - isolated local HTTP fixture checks proving no ECS/non-local profile can enable the exception.
 

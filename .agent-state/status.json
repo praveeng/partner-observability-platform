@@ -12,14 +12,14 @@
     ],
     "currentState": "READY_FOR_REVIEW"
   },
-  "milestone": "Enterprise namespace and Java module standardization",
-  "summary": "READY_FOR_REVIEW: all 185 active Java sources and Spring metadata use com.samsung.sure.partner.observability, all four Java/Spring modules and artifacts use sure-partner-observability-*, and the permanent naming gate, clean build, consumer/context/startup tests, security, Terraform, Grafana, and end-to-end verification pass. The aggregate gate passed 21/23 stages: B003 remained deliberately non-zero on Q015 and one Grafana SLI readiness check timed out transiently despite the unchanged full runner passing standalone and again inside the aggregate security gate. B001/B002 and the independent B003 blocker are unchanged.",
+  "milestone": "Enterprise infrastructure requirements ownership contract",
+  "summary": "READY_FOR_REVIEW: the Stage/Prod enterprise infrastructure requirements contract and centralized Terraform ownership boundary are implemented and locally verified. Repository-owned AWS Terraform has been retired; LOCAL/DEV behavior and B001/B002/B003 status remain unchanged. Clean build and all change-specific gates pass; aggregate verification passed 20/23 stages, with the pre-existing B003/Q015 guard plus a known transient Grafana SLI readiness timeout that passed on standalone rerun.",
   "blockers": [
     "B003 / Q015: the exact Disabled and Journey query run lengths, retained journey dataset/resolver, fixed CPU/memory/JVM/GC/JFR environment, warm-up/cool-down, repetition/baseline verdict method, several load shapes, and resource/statistical measurement rules are not specified. scripts/test-performance.sh must remain non-zero."
   ],
   "nextActions": [
-    "Review the enterprise namespace/module migration and its local commit; do not publish or merge it from autonomous agent activity.",
+    "Enterprise owners must resolve Q016 and implement/review the generic contract in the centralized Terraform repository for STAGE before any application rollout; no implementation or deployment is claimed here.",
     "After this migration, performance, application, and platform owners must still resolve Q015 before implementing and running the authoritative B003 profiles."
   ],
-  "lastUpdated": "2026-08-30T08:25:20Z"
+  "lastUpdated": "2026-08-30T09:52:00Z"
 }

@@ -1,0 +1,80 @@
+schemaVersion: 1
+contractOwner: sure-partner-observability
+infrastructureOwner: central-enterprise-terraform-repository
+terraformExecutionOwner: human-reviewed-central-enterprise-workflow
+awsActionsAllowedFromThisRepository: false
+appliesTo:
+  LOCAL: false
+  DEV: false
+  STAGE: true
+  PROD: true
+runtimeEnvironmentValues:
+  - DEV
+  - STAGE
+  - PROD
+springProfilesDefined: []
+localExecutionIdentity: LOCAL_SYNTHETIC
+databaseRequired: false
+deploymentUnit: aws-account-market-environment-dedicated-ecs-cluster
+baseComponents:
+  - alloy-ingress
+  - loki
+  - prometheus
+  - grafana
+  - query-gateway-and-journey-resolver
+requiredInputs:
+  - account-and-region
+  - market-and-environment
+  - existing-ecs-cluster
+  - vpc-and-private-subnets
+  - approved-public-alb-subnets
+  - source-and-scrape-security-groups
+  - immutable-container-image-digests
+  - validated-configuration-artifact-uris-and-digests
+  - grafana-dns-and-acm-certificate-arn
+  - waf-and-ingress-allowlist-policy
+  - loki-bucket-prefix-and-encryption-policy
+  - persistent-storage-and-backup-policy
+  - secret-and-parameter-arns
+  - task-sizing-counts-and-autoscaling-bounds
+  - partner-tenant-slot-and-organization-manifest-digest
+  - log-retention-and-notification-policy
+requiredOutputs:
+  - ecs-cluster-and-service-identifiers
+  - task-definition-families
+  - private-alloy-ingress-endpoint
+  - internal-service-discovery-endpoints
+  - grafana-https-url-and-load-balancer-identifiers
+  - configuration-artifact-deployment-destination
+  - loki-storage-identifiers
+  - secret-parameter-and-kms-reference-arns
+  - security-group-identifiers
+  - persistent-filesystem-identifiers
+  - log-group-and-health-check-identifiers
+  - infrastructure-version-or-change-reference
+prohibitedOutputs:
+  - passwords
+  - tokens
+  - secret-values
+  - certificate-or-private-key-material
+  - trust-store-content
+  - terraform-state
+invariants:
+  externalIngress: HTTPS_443_ONLY
+  minimumTls: TLS_1_2
+  publicTaskIps: false
+  lokiTenantModel: ONE_TENANT_PER_PARTNER
+  lokiRetentionHours: 384
+  lokiDeletionDelayHours: 2
+  lokiS3BackstopDays: 18
+  telemetryObjectVersioning: false
+  prometheusRetentionDays: 16
+  businessReadinessDependency: false
+  kubernetesOrHelm: false
+deploymentSequence:
+  - central-terraform-change
+  - human-review
+  - manual-terraform-execution
+  - base-infrastructure-available
+  - application-github-actions
+  - post-deployment-validation

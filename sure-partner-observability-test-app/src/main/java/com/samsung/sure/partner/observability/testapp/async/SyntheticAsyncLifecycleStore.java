@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.LongAdder;
 import org.springframework.stereotype.Component;
 
 /**
@@ -27,12 +28,24 @@ import org.springframework.stereotype.Component;
 @Component
 public final class SyntheticAsyncLifecycleStore {
 
-    private static final int MAX_JOURNEYS = 256;
+    // Covers the approved 500 callbacks/s fixture with two-second deferred completion and headroom.
+    private static final int MAX_JOURNEYS = 4096;
     private static final int MAX_EVENTS_PER_JOURNEY = 256;
     private static final int MAX_CALLBACKS_PER_JOURNEY = 128;
     private static final int MAX_DELIVERIES_PER_JOURNEY = 128;
 
     private final Map<String, MutableJourney> journeys = new LinkedHashMap<>();
+    private final LongAdder journeysBegun = new LongAdder();
+    private final LongAdder acknowledgementsReceived = new LongAdder();
+    private final LongAdder callbacksReceived = new LongAdder();
+    private final LongAdder callbacksProcessed = new LongAdder();
+    private final LongAdder callbackProcessingFailures = new LongAdder();
+    private final LongAdder callbackResponsesSent = new LongAdder();
+    private final LongAdder callbackResponseWriteFailures = new LongAdder();
+    private final LongAdder callbackResponses200 = new LongAdder();
+    private final LongAdder callbackResponses202 = new LongAdder();
+    private final LongAdder callbackResponses4xx = new LongAdder();
+    private final LongAdder callbackResponses5xx = new LongAdder();
 
     public synchronized void begin(SyntheticAsyncRequest request) {
         Objects.requireNonNull(request, "request");
@@ -46,6 +59,7 @@ public final class SyntheticAsyncLifecycleStore {
         MutableJourney journey = new MutableJourney(request);
         journey.event(SyntheticLifecycleStage.ASYNC_REQUEST_SENT, null, "DELEGATED", null);
         journeys.put(request.runId(), journey);
+        journeysBegun.increment();
     }
 
     public void acknowledgement(
@@ -57,6 +71,7 @@ public final class SyntheticAsyncLifecycleStore {
             journey.identifiers = journey.identifiers.merge(acknowledgement.correlationBridge());
             journey.event(
                     SyntheticLifecycleStage.ASYNC_ACK_RECEIVED, null, acknowledgement.acknowledgement(), httpStatus);
+            acknowledgementsReceived.increment();
         }
     }
 
@@ -107,6 +122,7 @@ public final class SyntheticAsyncLifecycleStore {
                     : SyntheticLifecycleStage.CALLBACK_RETRY_RECEIVED;
             journey.event(receipt, attemptId, classification, null);
             journey.event(SyntheticLifecycleStage.CALLBACK_AUTHENTICATED, attemptId, "SUCCESS", null);
+            callbacksReceived.increment();
             return new CallbackHandle(runId, attemptId, journey.scenario, journey.callbacks.size());
         }
     }
@@ -130,6 +146,7 @@ public final class SyntheticAsyncLifecycleStore {
                     handle.callbackAttemptId(),
                     "SUCCESS",
                     null);
+            callbacksProcessed.increment();
         });
     }
 
@@ -141,6 +158,7 @@ public final class SyntheticAsyncLifecycleStore {
                     handle.callbackAttemptId(),
                     outcome,
                     null);
+            callbackProcessingFailures.increment();
         });
     }
 
@@ -153,6 +171,11 @@ public final class SyntheticAsyncLifecycleStore {
                     handle.callbackAttemptId(),
                     "WRITE_COMPLETED",
                     status);
+            callbackResponsesSent.increment();
+            if (status == 200) callbackResponses200.increment();
+            else if (status == 202) callbackResponses202.increment();
+            else if (status >= 400 && status < 500) callbackResponses4xx.increment();
+            else if (status >= 500) callbackResponses5xx.increment();
         });
     }
 
@@ -165,7 +188,40 @@ public final class SyntheticAsyncLifecycleStore {
                     handle.callbackAttemptId(),
                     "WRITE_FAILED",
                     status);
+            callbackResponseWriteFailures.increment();
         });
+    }
+
+    /** Returns aggregate fixture-only lifecycle counts without retaining payloads or identifiers. */
+    public Map<String, Long> performanceSnapshot() {
+        return Map.ofEntries(
+                Map.entry("journeysBegun", journeysBegun.sum()),
+                Map.entry("acknowledgementsReceived", acknowledgementsReceived.sum()),
+                Map.entry("callbacksReceived", callbacksReceived.sum()),
+                Map.entry("callbacksProcessed", callbacksProcessed.sum()),
+                Map.entry("callbackProcessingFailures", callbackProcessingFailures.sum()),
+                Map.entry("callbackResponsesSent", callbackResponsesSent.sum()),
+                Map.entry("callbackResponseWriteFailures", callbackResponseWriteFailures.sum()),
+                Map.entry("callbackResponses200", callbackResponses200.sum()),
+                Map.entry("callbackResponses202", callbackResponses202.sum()),
+                Map.entry("callbackResponses4xx", callbackResponses4xx.sum()),
+                Map.entry("callbackResponses5xx", callbackResponses5xx.sum()));
+    }
+
+    /** Resets bounded test-only state between performance phases. */
+    public synchronized void resetPerformanceState() {
+        journeys.clear();
+        journeysBegun.reset();
+        acknowledgementsReceived.reset();
+        callbacksReceived.reset();
+        callbacksProcessed.reset();
+        callbackProcessingFailures.reset();
+        callbackResponsesSent.reset();
+        callbackResponseWriteFailures.reset();
+        callbackResponses200.reset();
+        callbackResponses202.reset();
+        callbackResponses4xx.reset();
+        callbackResponses5xx.reset();
     }
 
     public void mockDelivery(

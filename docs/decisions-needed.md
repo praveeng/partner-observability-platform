@@ -24,6 +24,10 @@ The security/availability architecture decisions previously listed as D001-D015 
 
 The later HTTPS/TLS requirement is resolved by ADR 0011: external partner communication is HTTPS-only, external ALBs expose 443 only with ACM, host integrations retain TLS validation ownership, and observability never mutates TLS. The remaining certificate/domain questions below are deployment inputs, not permission to use HTTP or weaken validation.
 
+Q015 is resolved by the approved Q015, Q015-A, and conflict-resolution contracts. Their executable
+nine-profile definition is `test/performance/profiles.json`; B003 completion now depends on actual
+full-duration execution and evidence, not another design decision.
+
 ## Unresolved organizational/deployment inputs
 
 These questions do not authorize unsafe defaults. Their affected production action remains blocked until an accountable owner answers them.
@@ -58,5 +62,7 @@ These questions do not authorize unsafe defaults. Their affected production acti
 - Port-80 redirect was not selected. Even redirect-only accepts a plaintext first hop and may change callback POST/authentication behavior; external callback and Grafana listeners are 443-only.
 - The starter cannot enforce HTTPS by rewriting or blocking business requests because that would alter application behavior. Host configuration, onboarding/CI policy, deployment controls, and client TLS validation enforce the invariant; the starter safely declines TLS mutation and records only bounded outcomes.
 - TLS termination at ALB is not callback authentication and is not represented as end-to-end partner mTLS. Q014 requires a separate ADR before certificate identity can become a trusted callback adapter input.
+- The resolved M9 contract is intentionally long and resource-constrained. A mechanics-only smoke
+  run, a shortened profile, or a locally reduced load cannot substitute for its full evidence.
 
 No unresolved question weakens `AGENTS.md`, permits production deployment, or permits a fallback shared tenant.

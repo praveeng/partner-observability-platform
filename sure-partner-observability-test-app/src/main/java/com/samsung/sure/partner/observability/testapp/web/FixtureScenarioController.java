@@ -18,7 +18,9 @@ import com.samsung.sure.partner.observability.testapp.model.SyntheticScenario;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Map;
+import java.util.Optional;
 import javax.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -41,6 +43,7 @@ public final class FixtureScenarioController {
     private final SyntheticAsyncFixtureClient asyncFixtureClient;
     private final SyntheticAsyncLifecycleStore asyncLifecycleStore;
     private final SyntheticCallbackSecurityCounters callbackSecurityCounters;
+    private final Optional<URI> configuredCallbackRoot;
 
     public FixtureScenarioController(
             RestTemplateFixtureClient restTemplateClient,
@@ -49,7 +52,8 @@ public final class FixtureScenarioController {
             EncryptedRestTemplateFixture encryptedFixture,
             SyntheticAsyncFixtureClient asyncFixtureClient,
             SyntheticAsyncLifecycleStore asyncLifecycleStore,
-            SyntheticCallbackSecurityCounters callbackSecurityCounters) {
+            SyntheticCallbackSecurityCounters callbackSecurityCounters,
+            @Value("${local-synthetic.callback-root:}") String callbackRoot) {
         this.restTemplateClient = restTemplateClient;
         this.webClient = webClient;
         this.okHttpClient = okHttpClient;
@@ -57,6 +61,7 @@ public final class FixtureScenarioController {
         this.asyncFixtureClient = asyncFixtureClient;
         this.asyncLifecycleStore = asyncLifecycleStore;
         this.callbackSecurityCounters = callbackSecurityCounters;
+        configuredCallbackRoot = callbackRoot.isBlank() ? Optional.empty() : Optional.of(URI.create(callbackRoot));
     }
 
     @PostMapping("/rest/{partner}/{scenario}")
@@ -121,8 +126,8 @@ public final class FixtureScenarioController {
             HttpServletRequest request) {
         SyntheticPartner partnerLane = SyntheticPartner.fromFixturePath(partner);
         SyntheticAsyncScenario selectedScenario = SyntheticAsyncScenario.fromFixturePath(scenario);
-        URI callbackRoot = URI.create(
-                "http://127.0.0.1:" + request.getLocalPort() + request.getContextPath() + "/fixture/callback/");
+        URI callbackRoot = configuredCallbackRoot.orElseGet(() -> URI.create(
+                "http://127.0.0.1:" + request.getLocalPort() + request.getContextPath() + "/fixture/callback/"));
         return asyncFixtureClient.initiate(selectedScenario, partnerLane, callbackRoot);
     }
 

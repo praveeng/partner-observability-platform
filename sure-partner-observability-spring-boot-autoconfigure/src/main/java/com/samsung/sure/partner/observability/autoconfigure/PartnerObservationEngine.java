@@ -53,6 +53,7 @@ public final class PartnerObservationEngine {
     private final Optional<SafeBodyCapture> bodyCapture;
     private final ServiceIdentity serviceIdentity;
     private final ObservationMetrics metrics;
+    private final ObservationPerformanceRecorder performanceRecorder;
 
     PartnerObservationEngine(
             PartnerObservabilityProperties properties,
@@ -61,6 +62,18 @@ public final class PartnerObservationEngine {
             BoundedAsyncDispatcher dispatcher,
             Optional<SafeBodyCapture> bodyCapture,
             ObservationMetrics metrics) {
+        this(properties, registry, killSwitches, dispatcher, bodyCapture, metrics,
+                ObservationPerformanceRecorder.NONE);
+    }
+
+    PartnerObservationEngine(
+            PartnerObservabilityProperties properties,
+            ConfiguredObservationRegistry registry,
+            ObservabilityKillSwitches killSwitches,
+            BoundedAsyncDispatcher dispatcher,
+            Optional<SafeBodyCapture> bodyCapture,
+            ObservationMetrics metrics,
+            ObservationPerformanceRecorder performanceRecorder) {
         this.properties = properties;
         this.registry = registry;
         this.killSwitches = killSwitches;
@@ -68,6 +81,7 @@ public final class PartnerObservationEngine {
         this.bodyCapture = bodyCapture;
         this.serviceIdentity = new ServiceIdentity(properties.getServiceName(), properties.getServiceVersion());
         this.metrics = metrics;
+        this.performanceRecorder = performanceRecorder;
     }
 
     public Optional<OutboundObservation> startOutbound(
@@ -78,6 +92,8 @@ public final class PartnerObservationEngine {
             String contentType,
             OptionalLong declaredSize,
             int attempt) {
+        long performanceStarted = performanceStart();
+        try {
         if (!properties.isEnabled() || (!properties.isEventsEnabled() && !properties.isMetricsEnabled())) {
             return Optional.empty();
         }
@@ -124,6 +140,9 @@ public final class PartnerObservationEngine {
             return Optional.of(observation);
         } catch (RuntimeException exception) {
             return Optional.empty();
+        }
+        } finally {
+            performanceRecord(ObservationPerformanceRecorder.PRODUCER, performanceStarted);
         }
     }
 
@@ -236,6 +255,8 @@ public final class PartnerObservationEngine {
             boolean bodySupported,
             String contentType,
             OptionalLong declaredSize) {
+        long performanceStarted = performanceStart();
+        try {
         long duration = elapsedMillis(startedNanos);
         StatusClass statusClass = statusClass(status);
         Outcome outcome = outcome(statusClass);
@@ -283,6 +304,9 @@ public final class PartnerObservationEngine {
                     definition, Instant.now(), interaction, mode, captured.payload().status(), outcome, record));
         } catch (RuntimeException ignored) {
             // Observation cannot alter the HTTP client's result.
+        }
+        } finally {
+            performanceRecord(ObservationPerformanceRecorder.PRODUCER, performanceStarted);
         }
     }
 
@@ -421,9 +445,28 @@ public final class PartnerObservationEngine {
 
     void submit(ObservationDefinition definition, TelemetryEnvelope<?> envelope) {
         TelemetryPriority priority = priority(envelope);
-        boolean accepted = dispatcher.submitSafely(() -> new TelemetrySubmission(
-                envelope, estimatedSize(envelope), priority, TelemetryChannel.EVENT));
+        long performanceStarted = performanceStart();
+        boolean accepted;
+        try {
+            accepted = dispatcher.submitSafely(() -> new TelemetrySubmission(
+                    envelope, estimatedSize(envelope), priority, TelemetryChannel.EVENT));
+        } finally {
+            performanceRecord(ObservationPerformanceRecorder.QUEUE_OFFER, performanceStarted);
+        }
         metrics.submitted(definition, envelope.body().recordType(), accepted, priority);
+    }
+
+    long performanceStart() {
+        return performanceRecorder.enabled() ? System.nanoTime() : 0L;
+    }
+
+    void performanceRecord(String operation, long startedNanos) {
+        if (startedNanos == 0L) return;
+        try {
+            performanceRecorder.recordNanos(operation, Math.max(0L, System.nanoTime() - startedNanos));
+        } catch (RuntimeException ignored) {
+            // A performance probe cannot affect business or observation behavior.
+        }
     }
 
     static SanitizationResult safeResult(SanitizationResult result) {

@@ -67,7 +67,13 @@ public final class RestTemplateFixtureClient {
         if (scenario == SyntheticScenario.RESTRICTED_PII
                 || scenario == SyntheticScenario.CREDENTIALS
                 || scenario == SyntheticScenario.OTP
-                || scenario == SyntheticScenario.CARD_DATA) {
+                || scenario == SyntheticScenario.CARD_DATA
+                || scenario == SyntheticScenario.LARGE_NORMAL_JSON
+                || scenario == SyntheticScenario.MIXED_LARGE_JSON_96_KIB
+                || scenario == SyntheticScenario.PDF_REQUEST_BASE64_5_MB
+                || scenario == SyntheticScenario.JPEG_REQUEST_BASE64_8_MB
+                || scenario == SyntheticScenario.UNKNOWN_REQUEST_LARGE_BASE64
+                || scenario == SyntheticScenario.MALFORMED_RESPONSE_BINARY_REQUEST) {
             attributes.putAll(payloadFixtures.payloadFor(scenario, partner));
         }
         SyntheticPartnerRequest request = new SyntheticPartnerRequest(

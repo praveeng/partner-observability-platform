@@ -107,6 +107,17 @@ Dependencies must point inward: the starter may expose autoconfiguration, autoco
 - Secrets are runtime-injected. Stage and production partner traffic is HTTPS-only; the guarded
   loopback HTTP fixture belongs only to `local`.
 
+## B003 performance acceptance
+
+- Mandatory performance acceptance uses every profile's full configured duration and load under
+  the `local` Spring profile. Smoke or reduced runs can validate mechanics but cannot close B003.
+- Every mandatory profile and repetition retains machine-readable results. A missing mandatory
+  metric or threshold is a failure, never an implicit pass.
+- Agents must not shorten load, weaken thresholds, omit scenarios, or average away a failed hard
+  safety repetition. Backend outage runs preserve the business-availability invariants above.
+- Performance validation must not access AWS, DEV, STAGE, PROD, real partners, production data, or
+  enterprise Terraform.
+
 ## Agent workflow and lifecycle
 
 The lifecycle values are `BOOTSTRAPPING`, `IN_PROGRESS`, `VERIFYING`, `BLOCKED`, `READY_FOR_REVIEW`, and `COMPLETE`.

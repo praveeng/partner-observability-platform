@@ -34,6 +34,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.stereotype.Component;
 
@@ -49,7 +50,7 @@ public final class LocalMockPartnerServer implements SmartLifecycle {
     public static final String CALLBACK_RUN_HEADER = "X-Synthetic-Run-Id";
     public static final String CALLBACK_SIGNATURE_HEADER = "X-Synthetic-Callback-Signature";
 
-    private static final int MAX_REQUEST_BYTES = 1024 * 1024;
+    private static final int MAX_REQUEST_BYTES = 12 * 1024 * 1024;
     private static final Duration SLOW_RESPONSE_DELAY = Duration.ofMillis(100);
     private static final Duration TIMEOUT_RESPONSE_DELAY = Duration.ofMillis(1500);
     private static final Duration CALLBACK_DELAY = Duration.ofMillis(50);
@@ -63,20 +64,43 @@ public final class LocalMockPartnerServer implements SmartLifecycle {
     private final SyntheticAsyncLifecycleStore lifecycleStore;
     private final HttpClient callbackClient;
     private final AtomicInteger threadSequence = new AtomicInteger();
+    private final URI remoteBaseUri;
+    private final InetAddress listenAddress;
+    private final int listenPort;
+    private final String allowedCallbackHost;
 
     private volatile HttpServer server;
     private volatile ThreadPoolExecutor executor;
     private volatile int unavailablePort;
+    private volatile boolean remoteRunning;
 
     public LocalMockPartnerServer(
             ObjectMapper objectMapper,
             SyntheticPayloadFixtures fixtures,
             SyntheticCallbackAuthenticator callbackAuthenticator,
-            SyntheticAsyncLifecycleStore lifecycleStore) {
+            SyntheticAsyncLifecycleStore lifecycleStore,
+            @Value("${local-synthetic.mock-partner.endpoint:}") String remoteEndpoint,
+            @Value("${local-synthetic.mock-partner.listen-address:127.0.0.1}") String listenAddress,
+            @Value("${local-synthetic.mock-partner.listen-port:0}") int listenPort,
+            @Value("${local-synthetic.mock-partner.allowed-callback-host:127.0.0.1}") String allowedCallbackHost) {
         this.objectMapper = objectMapper;
         this.fixtures = fixtures;
         this.callbackAuthenticator = callbackAuthenticator;
         this.lifecycleStore = lifecycleStore;
+        remoteBaseUri = remoteEndpoint.isBlank() ? null : URI.create(remoteEndpoint);
+        try {
+            this.listenAddress = InetAddress.getByName(listenAddress);
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("MOCK_PARTNER_LISTEN_ADDRESS_INVALID", exception);
+        }
+        if (listenPort < 0 || listenPort > 65535) {
+            throw new IllegalArgumentException("MOCK_PARTNER_LISTEN_PORT_INVALID");
+        }
+        this.listenPort = listenPort;
+        if (!allowedCallbackHost.matches("[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?")) {
+            throw new IllegalArgumentException("MOCK_PARTNER_CALLBACK_HOST_INVALID");
+        }
+        this.allowedCallbackHost = allowedCallbackHost;
         callbackClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofMillis(500))
                 .followRedirects(HttpClient.Redirect.NEVER)
@@ -88,20 +112,29 @@ public final class LocalMockPartnerServer implements SmartLifecycle {
         if (isRunning()) {
             return;
         }
+        if (remoteBaseUri != null) {
+            try {
+                unavailablePort = reserveClosedPort();
+                remoteRunning = true;
+                return;
+            } catch (IOException exception) {
+                throw new IllegalStateException("MOCK_PARTNER_REMOTE_INIT_FAILED", exception);
+            }
+        }
         try {
             HttpServer created = HttpServer.create(
-                    new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+                    new InetSocketAddress(listenAddress, listenPort), 0);
             ThreadFactory threadFactory = runnable -> {
                 Thread thread = new Thread(runnable, "synthetic-mock-partner-" + threadSequence.incrementAndGet());
                 thread.setDaemon(true);
                 return thread;
             };
             ThreadPoolExecutor boundedExecutor = new ThreadPoolExecutor(
-                    8,
-                    16,
+                    32,
+                    64,
                     30,
                     TimeUnit.SECONDS,
-                    new ArrayBlockingQueue<>(64),
+                    new ArrayBlockingQueue<>(2048),
                     threadFactory,
                     new ThreadPoolExecutor.AbortPolicy());
             created.setExecutor(boundedExecutor);
@@ -119,6 +152,7 @@ public final class LocalMockPartnerServer implements SmartLifecycle {
 
     @Override
     public synchronized void stop() {
+        remoteRunning = false;
         HttpServer currentServer = server;
         server = null;
         if (currentServer != null) {
@@ -141,7 +175,7 @@ public final class LocalMockPartnerServer implements SmartLifecycle {
 
     @Override
     public boolean isRunning() {
-        return server != null;
+        return server != null || remoteRunning;
     }
 
     @Override
@@ -172,6 +206,9 @@ public final class LocalMockPartnerServer implements SmartLifecycle {
     }
 
     public URI baseUri() {
+        if (remoteBaseUri != null && remoteRunning) {
+            return remoteBaseUri;
+        }
         HttpServer current = server;
         if (current == null) {
             throw new IllegalStateException("MOCK_PARTNER_NOT_RUNNING");
@@ -220,9 +257,10 @@ public final class LocalMockPartnerServer implements SmartLifecycle {
                     "partnerLane", partner.name(),
                     "errorCode", "SYNTHETIC_PARTNER_UNAVAILABLE"));
             case RETRY -> handleRetry(exchange, partner, applicationId);
-            case MALFORMED_RESPONSE -> writeBytes(
+            case MALFORMED_RESPONSE, MALFORMED_RESPONSE_BINARY_REQUEST -> writeBytes(
                     exchange, 200, "application/json", "{\"applicationId\":".getBytes(StandardCharsets.UTF_8));
             case LARGE_NORMAL_JSON,
+                    MIXED_LARGE_JSON_96_KIB,
                     PDF_BASE64_5_MB,
                     JPEG_BASE64_8_MB,
                     UNKNOWN_LARGE_BASE64,
@@ -454,6 +492,13 @@ public final class LocalMockPartnerServer implements SmartLifecycle {
                     "callbackData", fixtures.payloadFor(SyntheticScenario.RESTRICTED_PII, request.partner()));
             case CALLBACK_CREDENTIALS -> callback.put(
                     "callbackData", fixtures.payloadFor(SyntheticScenario.CREDENTIALS, request.partner()));
+            case PERFORMANCE_INLINE_SUCCESS,
+                    PERFORMANCE_SHORT_DEFERRED_SUCCESS,
+                    PERFORMANCE_LONG_DEFERRED_SUCCESS -> {
+                callback.put("outcome", "SYNTHETIC_PARTNER_COMPLETED");
+                String safeText = "SYNTHETIC-CALLBACK-TEXT|".repeat(160);
+                callback.put("padding", safeText.substring(0, 3600));
+            }
             default -> callback.put("outcome", "SYNTHETIC_PARTNER_COMPLETED");
         }
         try {
@@ -486,7 +531,7 @@ public final class LocalMockPartnerServer implements SmartLifecycle {
     private URI callbackRoot(String value) {
         URI uri = URI.create(value);
         if (!"http".equals(uri.getScheme())
-                || !"127.0.0.1".equals(uri.getHost())
+                || !("127.0.0.1".equals(uri.getHost()) || allowedCallbackHost.equals(uri.getHost()))
                 || uri.getPort() < 1
                 || !uri.getPath().equals("/fixture/callback/")) {
             throw new IllegalArgumentException("SYNTHETIC_CALLBACK_ROOT_INVALID");

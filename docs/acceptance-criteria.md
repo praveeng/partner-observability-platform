@@ -230,6 +230,33 @@ Benchmarks run on a pinned Java 17 runtime with fixed CPU/memory, warmup, GC/JFR
 
 If host variability makes a latency percentage statistically invalid, both absolute distributions and confidence intervals are reported; the gate is not silently waived. M9 may tighten thresholds through an ADR but cannot weaken business isolation/boundedness.
 
+Q015, Q015-A, and the conflict-resolution addendum complete the executable interpretation of this
+table. `test/performance/profiles.json` is the authoritative machine-readable mapping from the nine
+top-level profiles to P01-P24 scenario assertions and evidence. Existing non-null values above take
+precedence: in particular 500 reactive calls, 10% asynchronous MVC completion, the 80/10/10 mixed
+soak, and all 30/60-minute durations remain unchanged.
+
+The previously unspecified Disabled and Journey query measured durations are 900 seconds. Disabled
+runs at 1,000 requests/s (900,000 scheduled starts; at least 891,000 must start). Journey query uses
+10 VUs, 750 ms think time, at least 5,000 successful queries, and 500,000 synthetic records spread
+50/30/20 over a 16-day window with at least two tenants and 10% colliding-identifier searches.
+Unless a longer duration is specified in the table, each repetition has 180 seconds warm-up, its
+full measured duration, and 120 seconds cool-down. Actual measured time may be at most five seconds
+short only for runner accounting. Each profile runs three repetitions.
+
+The test application is fixed at 2 vCPU/2 GiB with `-Xms512m -Xmx1024m`, 256 MiB metaspace, G1GC,
+and identical JFR settings for matched comparisons. The full run requires at least 8 logical CPUs
+and 12 GiB available to both host and Docker; it fails rather than scaling down. Quantitative p95,
+p99, CPU, and peak-heap verdicts use the three-run median plus the approved 1.25x worst-run guard.
+Every hard safety gate passes in all three repetitions. Equivalent workloads use a disabled matched
+baseline on the same commit, host, limits, JVM, and workload hash within 60 minutes.
+
+Raw JSON/JFR/container evidence stays untracked under `test/performance/evidence/<run-id>/`; a small
+payload-free result set is created under `test/performance/results/<run-id>/` only after a complete
+full pass. B003 closes only when `SPRING_PROFILES_ACTIVE=local PERF_MODE=full
+./scripts/test-performance.sh` reports all nine profiles and all mapped scenarios passing. Smoke
+mode is never B003 evidence.
+
 ## Rollout and migration gates
 
 1. Inventory services, trusted partner identity source, clients, outbound HTTPS endpoints/redirect/custom-CA policy, callback ALB/DNS/ACM/SG ownership, callback APIs/routes, authentication/signature/decryption/idempotency/202/background-completion semantics, payload schemas, current logs, and owners.

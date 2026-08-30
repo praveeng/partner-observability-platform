@@ -72,5 +72,26 @@ class SyntheticPayloadFixturesTest {
         assertThat(description.getBytes(StandardCharsets.UTF_8))
                 .hasSize(SyntheticPayloadFixtures.LARGE_NORMAL_TEXT_BYTES);
         assertThat(payload).containsEntry("partnerLane", "BETA");
+
+        Map<String, Object> mixed = fixtures.payloadFor(
+                SyntheticScenario.MIXED_LARGE_JSON_96_KIB, SyntheticPartner.BETA);
+        assertThat(((String) mixed.get("description")).getBytes(StandardCharsets.UTF_8))
+                .hasSize(SyntheticPayloadFixtures.MIXED_LARGE_TEXT_BYTES);
+    }
+
+    @Test
+    void requestSideBinaryScenariosUseOnlySyntheticPayloads() {
+        assertThat(fixtures.payloadFor(
+                        SyntheticScenario.PDF_REQUEST_BASE64_5_MB, SyntheticPartner.ALPHA))
+                .containsEntry("fixtureClassification", "SYNTHETIC_ONLY");
+        assertThat(fixtures.payloadFor(
+                        SyntheticScenario.JPEG_REQUEST_BASE64_8_MB, SyntheticPartner.ALPHA))
+                .containsEntry("fixtureClassification", "SYNTHETIC_ONLY");
+        assertThat(fixtures.payloadFor(
+                        SyntheticScenario.UNKNOWN_REQUEST_LARGE_BASE64, SyntheticPartner.ALPHA))
+                .containsEntry("fixtureClassification", "SYNTHETIC_ONLY");
+        assertThat(fixtures.payloadFor(
+                        SyntheticScenario.MALFORMED_RESPONSE_BINARY_REQUEST, SyntheticPartner.ALPHA))
+                .containsEntry("fixtureClassification", "SYNTHETIC_ONLY");
     }
 }

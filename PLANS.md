@@ -125,6 +125,18 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 - Preparatory fixture complete: two partner lanes, colliding application and callback-reference IDs, bounded synchronous/reactive/callback concurrency, multiple callbacks, and async lifecycle failure modes are covered by test-app integration tests. This does not claim the M9 duration/throughput gates.
 - B002 is implemented by `test/integration/run-local-end-to-end.sh`. It builds the application and SDK, drives real RestTemplate and HTTP 202/delayed-callback journeys for both fixed synthetic partners, and proves requirements 36–46 through Alloy, tenant Loki/Prometheus, the query gateway, and Viewer-authenticated Grafana datasource/dashboard APIs. The same run proves typed search, ordered callback detail, selected partner-safe events, metrics/SLIs, bidirectional and colliding-ID isolation, PII masking, secret/card/OTP removal, and a successful 5 MiB callback with Base64 omission.
 - Verification on 2026-08-24: the focused B002 runner passes; the authoritative `scripts/verify-all.sh` result is `FINAL RESULT: FAIL (1 of 22 stages failed)`, with requirements 36–46 and the complete local security gate passing. Only the independently open B003 full-duration performance gate reports `NOT IMPLEMENTED`.
+- Q015, Q015-A, and the conflict-resolution addendum resolve the nine-profile B003 contract.
+  `test/performance/profiles.json` maps all P01-P24 scenarios to independent assertions; the K6
+  harness uses fixed local resources, three full repetitions, matched disabled baselines, real
+  dependency outages, MVC/reactive callbacks, bounded query resolution, and two-tier JSON/JFR
+  evidence. Implementation or smoke success does not close B003: all unshortened full repetitions
+  must pass independently first.
+- Verification on 2026-08-30: smoke run `b003-smoke-20260830-r11` exercised all nine profile
+  drivers and all P01-P24 mappings, with a valid two-tenant journey seed, while correctly remaining
+  non-release evidence. The clean Gradle build, B002, and complete local security gate pass. B003
+  remains `IMPLEMENTED_BUT_NOT_FULLY_VALIDATED` pending the approximately 29.5-hour full suite.
+  Two standalone B001 runs hit its bounded SLI readiness timeout; the unchanged B001 runner then
+  passed in the complete security gate, so no B003 regression is attributed to that transient.
 - Extend the M3 trusted/untrusted/wrong-host client suite with expired/not-yet-valid and incomplete-chain certificates, redirect/downgrade policy, callback forwarding-header/direct-task denial, ALB/ACM/SG policy, certificate/custom-CA rotation, end-to-end TLS secret absence, and proof that local HTTP fixtures cannot escape `LOCAL_SYNTHETIC` isolation.
 - Acceptance: explicit thresholds in `docs/acceptance-criteria.md` pass with retained test evidence and no real data.
 - The 2026-08-24 adversarial review update closes the local Grafana/query-authorization and application-to-authorized-query blockers. The production verdict remains BLOCKED by callback ALB staging evidence, redirect/chain/rotation drills, and full-duration resilience/performance tests.
@@ -149,8 +161,9 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
   Aggregate verification passed 21/23 stages: the known B003/Q015 blocker remained non-zero and
   one Grafana SLI readiness check timed out transiently even though the unchanged full Grafana
   runner passed standalone and again within the aggregate security gate.
-- B001 and B002 remain ready for review. B003 remains blocked on the same Q015 inputs; no
-  performance profile, threshold, runtime identifier, or deployment state was reset or invented.
+- B001 and B002 remain ready for review. Q015 is resolved and B003 is
+  `IMPLEMENTED_BUT_NOT_FULLY_VALIDATED`; no performance threshold, runtime identifier, or deployment
+  state was reset or weakened.
 
 ## Current focus
 
@@ -159,8 +172,9 @@ configuration for the runnable synthetic application, external activation, lower
 identity, and a permanent isolation gate. This configuration migration does not change B001/B002
 evidence or close B003.
 
-The current focus after B001 and B002 is the remaining host callback ALB staging evidence,
-redirect/certificate lifecycle drills, and exact M9 saturation/soak profiles. The local Grafana
+The current focus after B001 and B002 is completing and independently validating the approved B003
+full-duration run, plus the remaining host callback ALB staging evidence and
+redirect/certificate lifecycle drills. The local Grafana
 organization/query boundary and application-originated requirements 36–46 boundary are ready for
 review, and the SDK binds automatic outbound observations to exact configured HTTPS origins and
 rejects ambiguous callback routes. M8 now records a ready-for-review central-enterprise-infrastructure

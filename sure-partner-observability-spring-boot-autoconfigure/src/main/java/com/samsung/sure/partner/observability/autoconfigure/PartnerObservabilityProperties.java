@@ -24,6 +24,7 @@ public class PartnerObservabilityProperties {
     private boolean exportEnabled = true;
     private boolean callbacksEnabled = true;
     private boolean localSynthetic;
+    private final List<String> localSyntheticHttpHosts = new ArrayList<>();
     private String serviceName = "application";
     private String serviceVersion = "unknown";
     private String market = "local";
@@ -52,6 +53,7 @@ public class PartnerObservabilityProperties {
     public void setCallbacksEnabled(boolean value) { callbacksEnabled = value; }
     public boolean isLocalSynthetic() { return localSynthetic; }
     public void setLocalSynthetic(boolean value) { localSynthetic = value; }
+    public List<String> getLocalSyntheticHttpHosts() { return localSyntheticHttpHosts; }
     public String getServiceName() { return serviceName; }
     public void setServiceName(String value) { serviceName = value; }
     public String getServiceVersion() { return serviceVersion; }

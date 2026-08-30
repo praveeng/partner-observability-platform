@@ -6,6 +6,9 @@ out/
 .vscode/
 .DS_Store
 *.log
+__pycache__/
+*.py[cod]
+test/performance/evidence/
 .env
 .env.*
 !.env.example

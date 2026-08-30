@@ -1,0 +1,237 @@
+{
+  "schemaVersion": 2,
+  "source": "docs/acceptance-criteria.md#performance-strategy-and-thresholds",
+  "decisions": ["Q015", "Q015-A", "Q015-A conflict-resolution addendum"],
+  "definitionStatus": "READY",
+  "releaseMode": "full",
+  "springProfile": "local",
+  "mandatoryProfileCount": 9,
+  "repetitions": 3,
+  "phases": {"defaultWarmupSeconds": 180, "defaultMeasuredSeconds": 900, "defaultCooldownSeconds": 120, "fullDurationToleranceSeconds": 5},
+  "prerequisites": {"minimumLogicalCpu": 8, "minimumAvailableMemoryBytes": 12884901888, "javaMajor": 17, "loadDriver": "k6"},
+  "environment": {
+    "testApp": {"cpus": 2.0, "memoryBytes": 2147483648},
+    "reactiveTestApp": {"cpus": 2.0, "memoryBytes": 2147483648},
+    "mockPartner": {"cpus": 1.0, "memoryBytes": 536870912},
+    "alloy": {"cpus": 1.0, "memoryBytes": 536870912},
+    "loki": {"cpus": 2.0, "memoryBytes": 2147483648},
+    "prometheus": {"cpus": 1.0, "memoryBytes": 1073741824},
+    "grafana": {"cpus": 0.5, "memoryBytes": 536870912}
+  },
+  "jvm": {
+    "options": ["-Xms512m", "-Xmx1024m", "-XX:MaxMetaspaceSize=256m", "-XX:+UseG1GC", "-XX:+HeapDumpOnOutOfMemoryError"],
+    "garbageCollector": "G1GC",
+    "jfr": {"enabled": true, "settings": "profile", "maxSizeBytes": 268435456, "dumpOnExit": true},
+    "heapMaximumBytes": 1073741824
+  },
+  "loadCompleteness": {
+    "minimumScheduledStartRatio": 0.99,
+    "disabledExpectedMeasuredOperations": 900000,
+    "disabledMinimumScheduledStarts": 891000,
+    "minimumHighThroughputSuccessfulOperations": 100000,
+    "minimumJourneySuccessfulQueries": 5000,
+    "minimumCallbackSuccesses": 10000,
+    "minimumReactiveCompletedOrCancelledStreams": 5000
+  },
+  "measurement": {
+    "cpuSampleSeconds": 5,
+    "heapSampleSeconds": 10,
+    "deadlockCheckSeconds": 300,
+    "cpuQuota": 2.0,
+    "heapPlateauMiddleFraction": 0.2,
+    "heapPlateauFinalFraction": 0.2,
+    "heapPlateauMaximumXmxFraction": 0.1,
+    "heapSlopeWindowFraction": 0.5,
+    "heapSlopeMaximumXmxFractionPerMinute": 0.005,
+    "gcPauseP95Milliseconds": 250,
+    "gcPauseMaximumMilliseconds": 2000,
+    "gcPauseMaximumMeasuredFraction": 0.02,
+    "fullGcMaximumCount": 2,
+    "allocationVerdict": "INFORMATIONAL"
+  },
+  "comparison": {
+    "reuseMaximumAgeSeconds": 3600,
+    "medianLimitsPercent": {"p95Degradation": 10, "p99Degradation": 15, "cpuIncrease": 15, "peakHeapIncrease": 20},
+    "worstRunMultiplier": 1.25,
+    "baselineMaximumCoefficientOfVariationPercent": {"p95": 10, "p99": 15, "normalizedMeanCpu": 15, "peakHeap": 15},
+    "maximumAutomaticBaselineRetrySets": 1
+  },
+  "evidence": {
+    "rawRoot": "test/performance/evidence",
+    "commitSafeRoot": "test/performance/results",
+    "requiredProfileFiles": ["profile-config.json", "environment.json", "k6-summary.json", "resource-samples.ndjson", "metrics.json", "thresholds.json", "jvm.json", "containers.json", "callbacks.json", "reactive.json", "diagnostics.json", "result.json"],
+    "requiredAggregateFile": "aggregate-result.json"
+  },
+  "mandatoryScenarios": [
+    {"id": "P01", "name": "SDK disabled baseline"},
+    {"id": "P02", "name": "SDK enabled, healthy platform"},
+    {"id": "P03", "name": "Alloy unavailable"},
+    {"id": "P04", "name": "Loki unavailable"},
+    {"id": "P05", "name": "Prometheus unavailable"},
+    {"id": "P06", "name": "Grafana unavailable"},
+    {"id": "P07", "name": "Telemetry queue saturation"},
+    {"id": "P08", "name": "Sanitizer rejection and failure"},
+    {"id": "P09", "name": "Large Base64 document traffic"},
+    {"id": "P10", "name": "Large image traffic"},
+    {"id": "P11", "name": "Mixed normal and large payload traffic"},
+    {"id": "P12", "name": "High concurrency"},
+    {"id": "P13", "name": "WebClient reactive concurrency"},
+    {"id": "P14", "name": "High-volume inbound callbacks"},
+    {"id": "P15", "name": "Callbacks while Alloy unavailable"},
+    {"id": "P16", "name": "Callbacks while Loki unavailable"},
+    {"id": "P17", "name": "Callbacks while queue saturated"},
+    {"id": "P18", "name": "Callbacks containing large Base64 documents"},
+    {"id": "P19", "name": "Callbacks containing large images"},
+    {"id": "P20", "name": "Duplicate callback storm"},
+    {"id": "P21", "name": "Partner callback retries"},
+    {"id": "P22", "name": "Multiple async callbacks for one application"},
+    {"id": "P23", "name": "Simultaneous outbound traffic and inbound callbacks"},
+    {"id": "P24", "name": "Callback processing failure under load"}
+  ],
+  "profiles": [
+    {
+      "id": "disabled", "name": "Disabled", "purpose": "Measure SDK-disabled business-path overhead.", "springProfile": "local",
+      "durationSeconds": 900, "warmupSeconds": 180, "cooldownSeconds": 120, "arrivalRatePerSecond": 1000, "expectedScheduledOperations": 900000,
+      "sdkState": "disabled", "baselineProfileId": "plain-host",
+      "workload": {"driver": "outbound", "httpClientMix": {"restTemplatePercent": 50, "webClientPercent": 25, "okHttpPercent": 25}, "capture": "none", "payloadBytes": 4096},
+      "executions": [{"id": "baseline", "dependencyState": "healthy", "mappedScenarios": ["P01"]}],
+      "thresholds": [
+        {"id": "added-local-p99", "metric": "addedLocalP99Microseconds", "operator": "<=", "value": 25},
+        {"id": "cpu-increase", "metric": "cpuIncreasePercentagePoints", "operator": "<=", "value": 1},
+        {"id": "allocations", "metric": "allocationsAfterWarmPath", "operator": "==", "value": 0, "when": "measurable"}
+      ]
+    },
+    {
+      "id": "metadata", "name": "Metadata", "purpose": "Measure sustained metadata-only producer and business overhead with healthy dependencies.", "springProfile": "local",
+      "durationSeconds": 1800, "warmupSeconds": 180, "cooldownSeconds": 120, "arrivalRatePerSecond": 1000, "expectedScheduledOperations": 1800000,
+      "sdkState": "enabled_metadata_only", "baselineProfileId": "matched-disabled-metadata",
+      "workload": {"driver": "outbound", "httpClientMix": {"restTemplatePercent": 50, "webClientPercent": 25, "okHttpPercent": 25}, "payloadBytes": 1024},
+      "executions": [{"id": "healthy", "dependencyState": "healthy", "mappedScenarios": ["P02"]}],
+      "thresholds": [
+        {"id": "producer-p99", "metric": "producerP99Microseconds", "operator": "<=", "value": 150},
+        {"id": "producer-mean", "metric": "producerMeanMicroseconds", "operator": "<=", "value": 50},
+        {"id": "request-p99-regression", "metric": "requestP99Regression", "operator": "<=", "relativePercent": 2, "absoluteMilliseconds": 1, "rule": "whichever_is_larger"}
+      ]
+    },
+    {
+      "id": "full-sanitized", "name": "Full sanitized", "purpose": "Measure bounded sanitization of safe 32 KiB candidates.", "springProfile": "local",
+      "durationSeconds": 1800, "warmupSeconds": 180, "cooldownSeconds": 120, "arrivalRatePerSecond": 250, "expectedScheduledOperations": 450000,
+      "sdkState": "enabled_full_sanitized", "baselineProfileId": "matched-disabled-full-sanitized",
+      "workload": {"driver": "outbound", "httpClientMix": {"restTemplatePercent": 50, "webClientPercent": 25, "okHttpPercent": 25}, "payloadKind": "safe-text", "payloadBytes": 32768},
+      "executions": [{"id": "healthy", "dependencyState": "healthy", "mappedScenarios": []}],
+      "thresholds": [
+        {"id": "producer-p99", "metric": "producerP99Milliseconds", "operator": "<=", "value": 2},
+        {"id": "producer-mean", "metric": "producerMeanMicroseconds", "operator": "<=", "value": 500},
+        {"id": "cpu-increase", "metric": "cpuIncreasePercentagePoints", "operator": "<=", "value": 5}
+      ]
+    },
+    {
+      "id": "saturation", "name": "Saturation", "purpose": "Prove bounded non-blocking behavior during queue and platform dependency outages.", "springProfile": "local",
+      "durationSeconds": 900, "warmupSeconds": 180, "cooldownSeconds": 120, "arrivalRatePerSecond": 2000, "expectedScheduledOperations": 1800000,
+      "sdkState": "enabled", "baselineProfileId": "matched-disabled-saturation",
+      "workload": {"driver": "resilience", "outboundRatePerSecond": 1988, "callbackRatePerSecond": 12, "payloadBytes": 1024},
+      "executions": [
+        {"id": "queue-saturation", "dependencyState": "publisher-paused", "mappedScenarios": ["P07", "P17"]},
+        {"id": "alloy-unavailable", "dependencyState": "alloy-unavailable", "mappedScenarios": ["P03", "P15"]},
+        {"id": "loki-unavailable", "dependencyState": "loki-unavailable", "mappedScenarios": ["P04", "P16"]},
+        {"id": "prometheus-unavailable", "dependencyState": "prometheus-unavailable", "mappedScenarios": ["P05"]},
+        {"id": "grafana-unavailable", "dependencyState": "grafana-unavailable", "mappedScenarios": ["P06"]}
+      ],
+      "thresholds": [
+        {"id": "offer-p99", "metric": "offerP99Microseconds", "operator": "<=", "value": 100},
+        {"id": "business-errors", "metric": "businessErrorsAttributableToObservability", "operator": "==", "value": 0},
+        {"id": "callback-failures", "metric": "callbackFailuresAttributableToObservability", "operator": "==", "value": 0},
+        {"id": "queue-events", "metric": "queueEventsWithinCaps", "operator": "==", "value": true},
+        {"id": "queue-bytes", "metric": "queueBytesWithinCaps", "operator": "==", "value": true},
+        {"id": "heap-cap", "metric": "heapPlateauAboveConfiguredCapsMiB", "operator": "<=", "value": 32}
+      ]
+    },
+    {
+      "id": "mixed-soak", "name": "Mixed soak", "purpose": "Exercise representative synchronous, asynchronous, error, large, binary and callback traffic.", "springProfile": "local",
+      "durationSeconds": 3600, "warmupSeconds": 180, "cooldownSeconds": 120, "arrivalRatePerSecond": 1000, "expectedScheduledOperations": 3600000,
+      "sdkState": "enabled_mixed", "baselineProfileId": "matched-disabled-mixed-soak",
+      "workload": {
+        "driver": "mixed",
+        "requestMixPercent": {"syncMetadataSuccess": 65, "asyncJourneyMetadataSuccess": 15, "partner4xx": 4, "partner5xx": 3, "timeout": 2, "networkFailure": 1, "fullSanitizedLargeJson": 5, "binaryDocument": 5},
+        "normalPayloadRangeBytes": [2048, 8192], "normalPayloadTargetBytes": 4096,
+        "largeJsonRangeBytes": [65536, 131072], "largeJsonTargetBytes": 98304,
+        "pdfDecodedBytes": 5242880, "imageDecodedBytes": 8388608,
+        "errorCategoryTolerancePercentagePoints": 1, "errorSubcategoryTolerancePercentagePoints": 0.5
+      },
+      "executions": [{"id": "mixed", "dependencyState": "healthy", "mappedScenarios": ["P08", "P09", "P10", "P11", "P18", "P19", "P20", "P21", "P22", "P23", "P24"]}],
+      "thresholds": [
+        {"id": "memory-leak", "metric": "memoryLeakDetected", "operator": "==", "value": false},
+        {"id": "deadlock", "metric": "deadlockDetected", "operator": "==", "value": false},
+        {"id": "context-crossing", "metric": "contextCrossingDetected", "operator": "==", "value": false},
+        {"id": "drop-accounting", "metric": "dropAccountingExact", "operator": "==", "value": true},
+        {"id": "business-p99-regression", "metric": "businessP99RegressionPercent", "operator": "<=", "value": 5}
+      ]
+    },
+    {
+      "id": "reactive", "name": "Reactive", "purpose": "Prove WebClient/reactive stream and cancellation safety.", "springProfile": "local",
+      "durationSeconds": 1800, "warmupSeconds": 180, "cooldownSeconds": 120, "concurrency": 500,
+      "sdkState": "enabled_reactive", "baselineProfileId": "matched-disabled-reactive",
+      "workload": {"driver": "reactive", "httpClientMix": {"webClientPercent": 100}, "streamCreationRatePerSecond": 50, "elementsPerStream": 32, "elementBytes": 2048, "streamLogicalBytes": 65536, "streamLifetimeSeconds": 20, "completedPercent": 75, "cancelledPercent": 25, "cancelAfterSecondsRange": [5, 15]},
+      "executions": [{"id": "reactive-streams", "dependencyState": "healthy", "mappedScenarios": ["P12", "P13"]}],
+      "thresholds": [
+        {"id": "data-buffer-leaks", "metric": "dataBufferLeakWarnings", "operator": "==", "value": 0},
+        {"id": "double-subscriptions", "metric": "doubleSubscriptions", "operator": "==", "value": 0},
+        {"id": "double-terminal-events", "metric": "doubleTerminalEvents", "operator": "==", "value": 0},
+        {"id": "demand", "metric": "demandChanged", "operator": "==", "value": false},
+        {"id": "accumulation", "metric": "unboundedAccumulationDetected", "operator": "==", "value": false}
+      ]
+    },
+    {
+      "id": "callback-mvc", "name": "Callback MVC", "purpose": "Measure authenticated MVC callback capture and lifecycle under load.", "springProfile": "local",
+      "durationSeconds": 1800, "warmupSeconds": 180, "cooldownSeconds": 120, "arrivalRatePerSecond": 500, "expectedScheduledOperations": 900000,
+      "sdkState": "enabled_callback_mvc", "baselineProfileId": "matched-disabled-callback-mvc",
+      "workload": {"driver": "callback-mvc", "bodyTargetBytes": 4096, "bodyRangeBytes": [2048, 8192], "completionMixPercent": {"inline": 90, "shortDeferred": 8, "longDeferred": 2}, "inlineDelayMillisecondsRange": [25, 75], "shortDeferredMilliseconds": 500, "shortDeferredToleranceMilliseconds": 100, "longDeferredMilliseconds": 2000, "longDeferredToleranceMilliseconds": 250},
+      "executions": [{"id": "mvc", "dependencyState": "healthy", "mappedScenarios": ["P14", "P24"]}],
+      "thresholds": [
+        {"id": "local-capture-p99", "metric": "localCaptureP99Microseconds", "operator": "<=", "value": 250},
+        {"id": "status-unchanged", "metric": "statusChanged", "operator": "==", "value": false},
+        {"id": "exception-unchanged", "metric": "exceptionChanged", "operator": "==", "value": false},
+        {"id": "body-unchanged", "metric": "bodyChanged", "operator": "==", "value": false},
+        {"id": "queue-bounded", "metric": "queueBounded", "operator": "==", "value": true},
+        {"id": "memory-bounded", "metric": "memoryBounded", "operator": "==", "value": true}
+      ]
+    },
+    {
+      "id": "callback-webflux", "name": "Callback WebFlux", "purpose": "Prove real WebFlux callback body, context and cancellation safety.", "springProfile": "local",
+      "durationSeconds": 1800, "warmupSeconds": 180, "cooldownSeconds": 120, "concurrency": 500,
+      "sdkState": "enabled_callback_webflux", "baselineProfileId": "matched-disabled-callback-webflux",
+      "workload": {"driver": "callback-webflux", "bodyTargetBytes": 4096, "bodyRangeBytes": [2048, 8192], "cancelledPercent": 20, "completedPercent": 80, "completionMixPercent": {"inline": 90, "shortDeferred": 8, "longDeferred": 2}},
+      "executions": [{"id": "webflux", "dependencyState": "healthy", "mappedScenarios": ["P14"]}],
+      "thresholds": [
+        {"id": "data-buffer-leaks", "metric": "dataBufferLeaks", "operator": "==", "value": 0},
+        {"id": "demand", "metric": "demandChanged", "operator": "==", "value": false},
+        {"id": "double-records", "metric": "doubleRecords", "operator": "==", "value": 0},
+        {"id": "context-crossing", "metric": "contextCrossingDetected", "operator": "==", "value": false},
+        {"id": "candidate-memory", "metric": "candidateMemoryWithinConfiguredCaps", "operator": "==", "value": true}
+      ]
+    },
+    {
+      "id": "journey-query", "name": "Journey query", "purpose": "Measure tenant-fixed bounded journey resolution over a 16-day retained dataset.", "springProfile": "local",
+      "durationSeconds": 900, "warmupSeconds": 180, "cooldownSeconds": 120, "virtualUsers": 10, "concurrency": 10,
+      "sdkState": "not_applicable_to_query_path", "baselineProfileId": null,
+      "workload": {
+        "driver": "journey-query", "thinkTimeMilliseconds": 750, "minimumSuccessfulQueries": 5000,
+        "maximumKeys": 32, "maximumRounds": 3, "maximumRecordsPerRound": 500, "maximumResponseBytes": 2097152, "deadlineSeconds": 10,
+        "retainedRecords": 500000, "retentionDays": 16, "minimumTenants": 2, "sameIdentifierCollisionPercent": 10,
+        "recordAgeMixPercent": {"last24Hours": 50, "days1To8": 30, "days8To16": 20},
+        "queryMixPercent": {"applicationId": 30, "loanId": 20, "correlationId": 15, "partnerReferenceId": 10, "callbackReferenceId": 10, "unifiedJourney": 10, "detail": 5}
+      },
+      "executions": [{"id": "bounded-resolver", "dependencyState": "healthy", "mappedScenarios": []}],
+      "thresholds": [
+        {"id": "query-p95", "metric": "queryP95Seconds", "operator": "<=", "value": 5},
+        {"id": "query-max", "metric": "maximumQuerySeconds", "operator": "<=", "value": 10},
+        {"id": "time-limit", "metric": "timeLimitHeld", "operator": "==", "value": true},
+        {"id": "key-limit", "metric": "keyLimitHeld", "operator": "==", "value": true},
+        {"id": "round-limit", "metric": "roundLimitHeld", "operator": "==", "value": true},
+        {"id": "record-limit", "metric": "recordLimitHeld", "operator": "==", "value": true},
+        {"id": "response-size", "metric": "responseBytes", "operator": "<=", "value": 2097152},
+        {"id": "tenant-isolation", "metric": "crossTenantQueries", "operator": "==", "value": 0}
+      ]
+    }
+  ]
+}

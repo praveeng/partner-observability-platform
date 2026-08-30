@@ -11,9 +11,9 @@ public class SyntheticAsyncConfiguration {
     @Bean(name = "syntheticCallbackProcessingExecutor")
     Executor syntheticCallbackProcessingExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(4);
-        executor.setMaxPoolSize(8);
-        executor.setQueueCapacity(64);
+        executor.setCorePoolSize(64);
+        executor.setMaxPoolSize(64);
+        executor.setQueueCapacity(2048);
         executor.setThreadNamePrefix("synthetic-callback-processing-");
         executor.setDaemon(true);
         executor.setWaitForTasksToCompleteOnShutdown(false);

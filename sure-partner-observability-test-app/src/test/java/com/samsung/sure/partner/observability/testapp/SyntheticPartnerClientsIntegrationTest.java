@@ -93,8 +93,37 @@ class SyntheticPartnerClientsIntegrationTest {
         ClientExchange large = restTemplateClient.exchange(
                 SyntheticScenario.LARGE_NORMAL_JSON, SyntheticPartner.BETA);
         JsonNode largeBody = objectMapper.readTree(large.responseBody());
-        assertThat(largeBody.path("description").asText().length()).isGreaterThan(40_000);
+        assertThat(largeBody.path("description").asText().length()).isEqualTo(32 * 1024);
         assertThat(largeBody.path("partnerLane").asText()).isEqualTo("BETA");
+
+        ClientExchange mixedLarge = restTemplateClient.exchange(
+                SyntheticScenario.MIXED_LARGE_JSON_96_KIB, SyntheticPartner.BETA);
+        assertThat(objectMapper.readTree(mixedLarge.responseBody()).path("description").asText())
+                .hasSize(96 * 1024);
+    }
+
+    @Test
+    void separatesLargeBinaryRequestStressFromExistingLargeResponseScenarios() throws Exception {
+        ClientExchange existingResponse = restTemplateClient.exchange(
+                SyntheticScenario.PDF_BASE64_5_MB, SyntheticPartner.ALPHA);
+        assertThat(objectMapper.readTree(existingResponse.responseBody()).path("document").asText())
+                .isNotEmpty();
+
+        for (SyntheticScenario requestScenario : List.of(
+                SyntheticScenario.PDF_REQUEST_BASE64_5_MB,
+                SyntheticScenario.JPEG_REQUEST_BASE64_8_MB,
+                SyntheticScenario.UNKNOWN_REQUEST_LARGE_BASE64)) {
+            ClientExchange response = restTemplateClient.exchange(requestScenario, SyntheticPartner.ALPHA);
+            JsonNode body = objectMapper.readTree(response.responseBody());
+            assertThat(response.httpStatus()).as(requestScenario.name()).isEqualTo(200);
+            assertThat(body.path("applicationId").asText()).as(requestScenario.name())
+                    .isEqualTo(SyntheticPartnerRequest.COLLIDING_APPLICATION_ID);
+        }
+
+        ClientExchange malformed = restTemplateClient.exchange(
+                SyntheticScenario.MALFORMED_RESPONSE_BINARY_REQUEST, SyntheticPartner.ALPHA);
+        assertThatThrownBy(() -> objectMapper.readTree(malformed.responseBody()))
+                .isInstanceOf(JsonProcessingException.class);
     }
 
     @Test

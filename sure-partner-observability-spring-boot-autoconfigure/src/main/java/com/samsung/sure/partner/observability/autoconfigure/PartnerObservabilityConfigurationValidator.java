@@ -13,6 +13,8 @@ final class PartnerObservabilityConfigurationValidator {
     private static final Pattern TOKEN = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]{0,62}");
     private static final Pattern SLOT = Pattern.compile("p0(?:0[1-9]|[1-5][0-9]|6[0-4])");
     private static final Pattern TENANT = Pattern.compile("[a-z0-9-]{1,40}");
+    private static final Pattern LOCAL_SYNTHETIC_HOST =
+            Pattern.compile("[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?");
     private static final Pattern LOGGER_PATTERN = Pattern.compile(
             "(?:[A-Za-z_$][A-Za-z0-9_$]*\\.)*[A-Za-z_$][A-Za-z0-9_$]*(?:\\.\\*|\\.\\*\\*)?");
     private static final Set<String> LOG_LEVELS = Set.of("TRACE", "DEBUG", "INFO", "WARN", "ERROR");
@@ -56,6 +58,17 @@ final class PartnerObservabilityConfigurationValidator {
     }
 
     private void validateOutboundOrigins(PartnerObservabilityProperties properties) {
+        if (properties.getLocalSyntheticHttpHosts().size() > 16) {
+            fail("at most 16 LOCAL synthetic HTTP hosts are permitted");
+        }
+        Set<String> localSyntheticHosts = new HashSet<>();
+        for (String configuredHost : properties.getLocalSyntheticHttpHosts()) {
+            String host = required(configuredHost, "LOCAL synthetic HTTP host")
+                    .toLowerCase(java.util.Locale.ROOT);
+            if (!LOCAL_SYNTHETIC_HOST.matcher(host).matches() || !localSyntheticHosts.add(host)) {
+                fail("LOCAL synthetic HTTP hosts must be unique valid host names");
+            }
+        }
         Set<String> routes = new HashSet<>();
         for (PartnerObservabilityProperties.OutboundApi definition : properties.getOutbound()) {
             URI origin;
@@ -73,11 +86,13 @@ final class PartnerObservabilityConfigurationValidator {
             }
             boolean secure = "https".equals(scheme);
             boolean loopback = "127.0.0.1".equals(host) || "::1".equals(host);
+            boolean explicitlyAllowedLocalHost = host != null
+                    && localSyntheticHosts.contains(host.toLowerCase(java.util.Locale.ROOT));
             if (!secure && !("http".equals(scheme)
                     && properties.getEnvironment() == com.samsung.sure.partner.observability.core.context.DeploymentEnvironment.LOCAL
                     && properties.isLocalSynthetic()
-                    && loopback)) {
-                fail("outbound origin must use HTTPS; LOCAL loopback HTTP requires local-synthetic");
+                    && (loopback || explicitlyAllowedLocalHost))) {
+                fail("outbound origin must use HTTPS; LOCAL HTTP requires local-synthetic and loopback or an explicit synthetic host");
             }
             String route = definition.getMethod() + " " + normalizedOrigin(origin) + definition.getPath();
             if (!routes.add(route)) {

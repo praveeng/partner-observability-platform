@@ -10,16 +10,17 @@
       "READY_FOR_REVIEW",
       "COMPLETE"
     ],
-    "currentState": "READY_FOR_REVIEW"
+    "currentState": "VERIFYING"
   },
-  "milestone": "Enterprise Spring Boot profile alignment",
-  "summary": "READY_FOR_REVIEW: the runnable Spring Boot application now uses properties-only local/dev/stage/prod profiles with external activation, isolated semantics, lowercase telemetry identity, four-profile context/binding evidence, and a permanent validation gate. Clean build, local end-to-end, security, and all change-specific checks pass. Aggregate verification passed 23/24 stages; only the pre-existing B003/Q015 guard remains non-zero. One standalone Grafana run hit its known bounded SLI readiness timeout and passed on immediate rerun and twice inside aggregate verification.",
+  "milestone": "B003 full-duration performance completion boundary",
+  "summary": "VERIFYING: the approved nine-profile local K6 harness, mapped P01-P24 assertions, fixed-resource matched baselines, reactive callback fixture, bounded tenant-fixed journey resolver, outage controls, JVM/JFR collectors, and two-tier machine-readable evidence are implemented. A complete smoke mechanics run, clean Gradle build, B002, and the full local security gate pass. B003 remains IMPLEMENTED_BUT_NOT_FULLY_VALIDATED because the approximately 29.5-hour unshortened full suite has not completed.",
   "blockers": [
-    "B003 / Q015: the exact Disabled and Journey query run lengths, retained journey dataset/resolver, fixed CPU/memory/JVM/GC/JFR environment, warm-up/cool-down, repetition/baseline verdict method, several load shapes, and resource/statistical measurement rules are not specified. scripts/test-performance.sh must remain non-zero."
+    "B003 remains open until all three full repetitions of all nine profiles and every mandatory threshold pass; smoke run b003-smoke-20260830-r11 is mechanics evidence only."
   ],
   "nextActions": [
-    "Enterprise runtimes/GHA must inject one explicit SPRING_PROFILES_ACTIVE value and the approved non-secret environment manifest/secret references; no deployment is performed here.",
-    "Performance, application, and platform owners must still resolve Q015 before implementing and running the authoritative B003 profiles."
+    "Execute the complete local full-duration suite without shortening any profile and inspect every machine-readable verdict.",
+    "Run the full scripts/verify-all.sh release path after B003 passes; investigate only if the bounded Grafana SLI readiness check remains reproducibly unavailable.",
+    "Keep B003 open as IMPLEMENTED_BUT_NOT_FULLY_VALIDATED if the mandatory full run cannot complete or any required threshold fails."
   ],
-  "lastUpdated": "2026-08-30T10:49:26Z"
+  "lastUpdated": "2026-08-30T19:28:30Z"
 }

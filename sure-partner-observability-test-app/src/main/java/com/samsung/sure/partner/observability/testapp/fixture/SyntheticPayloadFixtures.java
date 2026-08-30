@@ -18,7 +18,8 @@ public final class SyntheticPayloadFixtures {
     public static final int JPEG_BYTES = 8 * 1024 * 1024;
     public static final int UNKNOWN_BINARY_BYTES = 2 * 1024 * 1024;
     public static final int DOCUMENT_ARRAY_ELEMENT_BYTES = 128 * 1024;
-    public static final int LARGE_NORMAL_TEXT_BYTES = 48 * 1024;
+    public static final int LARGE_NORMAL_TEXT_BYTES = 32 * 1024;
+    public static final int MIXED_LARGE_TEXT_BYTES = 96 * 1024;
 
     private volatile String pdfBase64;
     private volatile String jpegBase64;
@@ -27,15 +28,16 @@ public final class SyntheticPayloadFixtures {
     public Map<String, Object> payloadFor(SyntheticScenario scenario, SyntheticPartner partner) {
         return switch (scenario) {
             case LARGE_NORMAL_JSON -> largeNormalJson(partner);
-            case PDF_BASE64_5_MB -> Map.of(
+            case MIXED_LARGE_JSON_96_KIB -> mixedLargeJson(partner);
+            case PDF_BASE64_5_MB, PDF_REQUEST_BASE64_5_MB -> Map.of(
                     "fixtureClassification", "SYNTHETIC_ONLY",
                     "documentType", "PDF",
                     "document", pdfBase64());
-            case JPEG_BASE64_8_MB -> Map.of(
+            case JPEG_BASE64_8_MB, JPEG_REQUEST_BASE64_8_MB -> Map.of(
                     "fixtureClassification", "SYNTHETIC_ONLY",
                     "imageType", "JPEG",
                     "image", jpegBase64());
-            case UNKNOWN_LARGE_BASE64 -> Map.of(
+            case UNKNOWN_LARGE_BASE64, UNKNOWN_REQUEST_LARGE_BASE64, MALFORMED_RESPONSE_BINARY_REQUEST -> Map.of(
                     "fixtureClassification", "SYNTHETIC_ONLY",
                     "opaqueWidgetState", unknownBase64());
             case BASE64_DOCUMENT_ARRAY -> documentArray();
@@ -104,9 +106,16 @@ public final class SyntheticPayloadFixtures {
     }
 
     private Map<String, Object> largeNormalJson(SyntheticPartner partner) {
+        return textualPayload(partner, LARGE_NORMAL_TEXT_BYTES);
+    }
+
+    private Map<String, Object> mixedLargeJson(SyntheticPartner partner) {
+        return textualPayload(partner, MIXED_LARGE_TEXT_BYTES);
+    }
+
+    private Map<String, Object> textualPayload(SyntheticPartner partner, int bytes) {
         String marker = "SYNTHETIC-NORMAL-TEXT-";
-        String text = marker.repeat((LARGE_NORMAL_TEXT_BYTES / marker.length()) + 1)
-                .substring(0, LARGE_NORMAL_TEXT_BYTES);
+        String text = marker.repeat((bytes / marker.length()) + 1).substring(0, bytes);
         return Map.of(
                 "fixtureClassification", "SYNTHETIC_ONLY",
                 "partnerLane", partner.name(),

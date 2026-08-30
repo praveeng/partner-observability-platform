@@ -14,6 +14,11 @@ done
 git diff --check
 git diff --cached --check
 jq empty .agent-state/status.json
+jq empty test/performance/profiles.json
+./scripts/validate-performance-profiles.sh
+rg -q 'PERF_MODE:-full' scripts/test-performance.sh
+rg -q 'env SPRING_PROFILES_ACTIVE=local PERF_MODE=full ./scripts/test-performance.sh' scripts/verify-all.sh
+rg -q 'Q015 is resolved' docs/decisions-needed.md
 for shell_file in scripts/*.sh test/integration/*.sh; do
   bash -n "$shell_file"
 done
@@ -59,4 +64,4 @@ if rg -n -i '(helm_release|kubernetes_|apiVersion:[[:space:]]*(apps/|v1))' \
   exit 1
 fi
 
-echo 'PASS: documentation mapping, state JSON, shell syntax, version, retention, tenancy, and deployment-model consistency.'
+echo 'PASS: documentation mapping, state/profile JSON, shell syntax, version, retention, tenancy, and deployment-model consistency.'

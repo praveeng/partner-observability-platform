@@ -27,7 +27,10 @@ public enum SyntheticAsyncScenario {
     RESPONSE_TRANSMISSION_FAILURE,
     CROSS_PARTNER_CALLBACK_REFERENCE,
     HIGH_CONCURRENCY_CALLBACKS,
-    MULTIPLE_CALLBACKS;
+    MULTIPLE_CALLBACKS,
+    PERFORMANCE_INLINE_SUCCESS,
+    PERFORMANCE_SHORT_DEFERRED_SUCCESS,
+    PERFORMANCE_LONG_DEFERRED_SUCCESS;
 
     public static SyntheticAsyncScenario fromFixturePath(String value) {
         return valueOf(value.replace('-', '_').toUpperCase(Locale.ROOT));

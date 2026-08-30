@@ -1,0 +1,94 @@
+services:
+  mock-partner:
+    profiles: ["performance"]
+    image: eclipse-temurin:17-jre-jammy@sha256:e17d77fb030dd4b642dc078d048a5fb9efcb3676ee20305d905949105a6ccd5a
+    cpus: 1.0
+    mem_limit: 512m
+    command: ["java", "-jar", "/app/sure-partner-observability-test-app.jar"]
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SERVER_ADDRESS: 127.0.0.1
+      SERVER_PORT: 8083
+      PARTNER_OBSERVABILITY_ENABLED: "false"
+      LOCAL_SYNTHETIC_MOCK_PARTNER_LISTEN_ADDRESS: 0.0.0.0
+      LOCAL_SYNTHETIC_MOCK_PARTNER_LISTEN_PORT: 8082
+      LOCAL_SYNTHETIC_MOCK_PARTNER_ALLOWED_CALLBACK_HOST: test-app
+      JAVA_TOOL_OPTIONS: -Xms128m -Xmx384m -XX:MaxMetaspaceSize=128m -XX:+UseG1GC
+    volumes:
+      - ${LOCAL_TEST_APP_JAR:-../sure-partner-observability-test-app/build/libs/sure-partner-observability-test-app-0.1.0-SNAPSHOT.jar}:/app/sure-partner-observability-test-app.jar:ro
+    networks:
+      - edge
+    restart: unless-stopped
+
+  loki:
+    cpus: 2.0
+    mem_limit: 2g
+    volumes:
+      - ./../test/performance/loki-config.yaml:/etc/loki/local-config.yaml:ro
+
+  prometheus:
+    cpus: 1.0
+    mem_limit: 1g
+
+  alloy:
+    cpus: 1.0
+    mem_limit: 512m
+
+  grafana:
+    cpus: 0.5
+    mem_limit: 512m
+
+  test-app:
+    cpus: 2.0
+    mem_limit: 2g
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      PARTNER_OBSERVABILITY_ENABLED: ${PERF_SDK_ENABLED:-true}
+      PARTNER_OBSERVABILITY_PAYLOADS_ENABLED: ${PERF_PAYLOADS_ENABLED:-true}
+      LOCAL_SYNTHETIC_CAPTURE_MODE: ${PERF_CAPTURE_MODE:-FULL_SANITIZED}
+      LOCAL_SYNTHETIC_PARTNER_ORIGIN: http://mock-partner:8082
+      LOCAL_SYNTHETIC_HTTP_HOST: mock-partner
+      LOCAL_SYNTHETIC_PERFORMANCE_CONTROLS_ENABLED: "true"
+      LOCAL_SYNTHETIC_MOCK_PARTNER_ENDPOINT: http://mock-partner:8082
+      LOCAL_SYNTHETIC_CALLBACK_ROOT: http://test-app:8080/fixture/callback/
+      LOCAL_SYNTHETIC_QUERY_ENDPOINT: http://tenant-gateway:8081/loki/api/v1/query_range
+      LOCAL_SYNTHETIC_QUERY_SERVICE_NAME: partner-observability-performance-journey-seed
+      LOCAL_SYNTHETIC_QUERY_ALPHA_USERNAME: query-partner-a
+      LOCAL_SYNTHETIC_QUERY_ALPHA_PASSWORD: ${LOCAL_QUERY_A_PASSWORD:?set LOCAL_QUERY_A_PASSWORD}
+      LOCAL_SYNTHETIC_QUERY_BETA_USERNAME: query-partner-b
+      LOCAL_SYNTHETIC_QUERY_BETA_PASSWORD: ${LOCAL_QUERY_B_PASSWORD:?set LOCAL_QUERY_B_PASSWORD}
+      JAVA_TOOL_OPTIONS: >-
+        -Xms512m -Xmx1024m -XX:MaxMetaspaceSize=256m -XX:+UseG1GC
+        -XX:+HeapDumpOnOutOfMemoryError
+        -XX:StartFlightRecording=filename=/evidence/${PERF_JFR_PREFIX:-test-app}-test-app.jfr,settings=profile,maxsize=256m,dumponexit=true
+    volumes:
+      - ${PERF_EVIDENCE_DIR:?set PERF_EVIDENCE_DIR}:/evidence
+    depends_on:
+      mock-partner:
+        condition: service_started
+
+  reactive-test-app:
+    profiles: ["performance"]
+    image: eclipse-temurin:17-jre-jammy@sha256:e17d77fb030dd4b642dc078d048a5fb9efcb3676ee20305d905949105a6ccd5a
+    cpus: 2.0
+    mem_limit: 2g
+    command: ["java", "-jar", "/app/sure-partner-observability-reactive-test-app.jar"]
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SERVER_PORT: 8081
+      PARTNER_OBSERVABILITY_ENABLED: ${PERF_SDK_ENABLED:-true}
+      LOCAL_SYNTHETIC_CALLBACK_KEY: ${LOCAL_SYNTHETIC_CALLBACK_KEY:-local-synthetic-reactive-callback-key}
+      LOCAL_SYNTHETIC_REACTIVE_ELEMENT_DELAY: ${PERF_REACTIVE_ELEMENT_DELAY:-625ms}
+      JAVA_TOOL_OPTIONS: >-
+        -Xms512m -Xmx1024m -XX:MaxMetaspaceSize=256m -XX:+UseG1GC
+        -XX:+HeapDumpOnOutOfMemoryError
+        -XX:StartFlightRecording=filename=/evidence/${PERF_JFR_PREFIX:-reactive-test-app}-reactive-test-app.jfr,settings=profile,maxsize=256m,dumponexit=true
+    volumes:
+      - ${LOCAL_REACTIVE_TEST_APP_JAR:-../sure-partner-observability-reactive-test-app/build/libs/sure-partner-observability-reactive-test-app-0.1.0-SNAPSHOT.jar}:/app/sure-partner-observability-reactive-test-app.jar:ro
+      - ${PERF_EVIDENCE_DIR:?set PERF_EVIDENCE_DIR}:/evidence
+    ports:
+      - "127.0.0.1:${LOCAL_REACTIVE_TEST_APP_PORT:-18081}:8081"
+    networks:
+      - edge
+      - backend
+    restart: unless-stopped

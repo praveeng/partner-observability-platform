@@ -6,7 +6,7 @@ Repository for a partner-isolated observability SDK and platform targeting Java 
 
 Partner services consume `com.samsung.sure:sure-partner-observability-spring-boot-starter:<version>` and import public SDK types only from `com.samsung.sure.partner.observability.*`. See the [enterprise naming migration record](docs/enterprise-naming-migration.md).
 
-The scoped **M2-M6 SDK, integration, and local data-plane slices** are ready for review. Core provides schema-2 async/callback records and correlation, the Spring Boot 2.7 starter instruments configured application paths, and the LOCAL_SYNTHETIC Compose stack provides trusted Alloy routing, one Loki tenant per synthetic partner, and scrape-based Prometheus API/callback health metrics. Encrypted services can use the typed, fail-open hooks in [the encrypted-service migration guide](docs/encrypted-service-migration.md). Grafana query authorization, deployment policy evidence, the remaining certificate matrix, and full-duration performance remain later milestone work. See [PLANS.md](PLANS.md) and [the machine-readable state](.agent-state/status.json).
+The scoped **M2-M6 SDK, integration, and local data-plane slices** are ready for review. Core provides schema-2 async/callback records and correlation, the Spring Boot 2.7 starter instruments configured application paths, and the LOCAL_SYNTHETIC Compose stack provides trusted Alloy routing, one Loki tenant per synthetic partner, and scrape-based Prometheus API/callback health metrics. Encrypted services can use the typed, fail-open hooks in [the encrypted-service migration guide](docs/encrypted-service-migration.md). The full B003 harness is documented in [performance validation](docs/performance-validation.md); B003 remains open until its complete unshortened evidence passes. See [PLANS.md](PLANS.md) and [the machine-readable state](.agent-state/status.json).
 
 ## Core promise
 
@@ -20,6 +20,7 @@ Observability must never reduce business availability. Application traffic write
 | `sure-partner-observability-spring-boot-autoconfigure` | Spring Boot 2.7 integration and conditional configuration |
 | `sure-partner-observability-spring-boot-starter` | Single-dependency consumer entry point |
 | `sure-partner-observability-test-app` | Synthetic verification application |
+| `sure-partner-observability-reactive-test-app` | Test-only WebFlux streaming/callback performance fixture |
 | `alloy`, `loki`, `prometheus`, `grafana` | Local/integration observability component configuration |
 | `docker` | Docker Compose local integration environment |
 | `test` | Cross-component integration, security, performance, and synthetic fixtures |
@@ -48,7 +49,8 @@ required or executed by this repository. A Gradle wrapper is included for reprod
 ./scripts/test-security.sh --data-plane  # implemented M5 real Alloy/Loki scope
 ./scripts/test-security.sh --metrics-plane  # implemented M6 Alloy/Prometheus scope
 ./scripts/test-security.sh         # non-zero until remaining M7-M9 gates exist
-./scripts/test-performance.sh      # non-zero until M9 profiles exist
+PERF_MODE=smoke ./scripts/test-performance.sh  # mechanics only; never release evidence
+SPRING_PROFILES_ACTIVE=local PERF_MODE=full ./scripts/test-performance.sh  # B003 release gate
 ./scripts/verify-all.sh        # non-zero until every required suite exists
 ```
 

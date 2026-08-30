@@ -226,7 +226,8 @@ run_stage '35. Grafana health, provisioning, authentication, and datasource isol
 section 'END TO END'
 run_stage '36-46. Application-to-platform journeys, search, visibility, metrics, and tenant isolation' ./scripts/test-end-to-end.sh
 run_stage 'Security completion gate (all disclosure and isolation attacks)' ./scripts/test-security.sh
-run_stage 'Performance completion gate (all acceptance profiles)' ./scripts/test-performance.sh
+run_stage 'Performance completion gate (all acceptance profiles, explicit full mode)' \
+  env SPRING_PROFILES_ACTIVE=local PERF_MODE=full ./scripts/test-performance.sh
 
 section 'INFRA / CONFIG'
 run_stage '47. Enterprise infrastructure ownership and requirements contract' ./scripts/test-enterprise-infrastructure-contract.sh

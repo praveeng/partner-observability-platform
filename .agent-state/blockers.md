@@ -45,16 +45,25 @@ application metrics/SLIs, bidirectional and colliding-ID isolation, PII masking,
 removal, and large-Base64 omission. Direct OTLP injection and direct Loki queries are
 not used as requirements 36–46 evidence.
 
-## B003 — Full-duration performance profiles are not implemented
+## B003 — IMPLEMENTED_BUT_NOT_FULLY_VALIDATED
 
-`scripts/test-performance.sh` returns `NOT IMPLEMENTED`. Completion requires every
-unshortened profile and threshold in `docs/acceptance-criteria.md`, including retained
-machine-readable evidence. A smoke test or reduced duration cannot unblock this gate.
+The nine-profile manifest, K6 drivers, local fixtures, matched-baseline evaluator, outage controls,
+and machine-readable aggregation are implemented. B003 remains open until all three unshortened
+repetitions of all nine profiles complete successfully and the aggregate full result passes. Smoke
+mechanics, partial runs, and shortened loads are not completion evidence.
+
+Verification on 2026-08-30: smoke run `b003-smoke-20260830-r11` executed all nine profile drivers,
+produced assertions for P01-P24, passed the two-tenant/16-day journey seed mechanics, and exited
+successfully while correctly recording `mode=smoke` and `overallPassed=false`. The clean Gradle
+build, B002 runner, and complete local security gate pass. Two standalone B001 attempts timed out
+at the bounded Prometheus SLI readiness query; the same unchanged B001 runner subsequently passed
+inside the complete security gate. No B003 change touches that runner or Prometheus configuration.
 
 ## Required next action
 
-Resolve Q015, implement the M9 full-duration performance harnesses, then rerun
-`./scripts/verify-all.sh` with the pinned prerequisites.
+Run `SPRING_PROFILES_ACTIVE=local PERF_MODE=full ./scripts/test-performance.sh` on a stable machine
+meeting the fixed resource prerequisite, inspect retained evidence, then run the full
+`./scripts/verify-all.sh` release path. Any failed or unmeasured mandatory threshold keeps B003 open.
 Do not claim local completion until every stage passes.
 
 The requested B002 snapshot may be committed locally in its explicit remaining-B003 state.

@@ -22,6 +22,7 @@ import com.samsung.sure.partner.observability.core.model.TransportOutcome;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executor;
@@ -197,8 +198,35 @@ public final class SyntheticCallbackController {
             return fixedResponse(HttpStatus.ACCEPTED, "SYNTHETIC_CALLBACK_ACCEPTED");
         }
 
+        if (scenario == SyntheticAsyncScenario.PERFORMANCE_SHORT_DEFERRED_SUCCESS
+                || scenario == SyntheticAsyncScenario.PERFORMANCE_LONG_DEFERRED_SUCCESS) {
+            lifecycleStore.responseSent(handle, 202);
+            Duration delay = scenario == SyntheticAsyncScenario.PERFORMANCE_SHORT_DEFERRED_SUCCESS
+                    ? Duration.ofMillis(500) : Duration.ofSeconds(2);
+            try {
+                processingExecutor.execute(() -> {
+                    observation.ifPresent(value -> value.processingStarted(ProcessingMode.BACKGROUND));
+                    lifecycleStore.processingStarted(handle);
+                    delay(delay);
+                    lifecycleStore.processingSucceeded(handle);
+                    observation.ifPresent(value -> value.processingSucceeded(ProcessingMode.BACKGROUND, true));
+                });
+            } catch (RejectedExecutionException exception) {
+                lifecycleStore.processingFailed(handle, "DOWNSTREAM_EXECUTOR_SATURATED");
+                observation.ifPresent(value -> value.processingFailed(
+                        ProcessingMode.BACKGROUND,
+                        ProcessingPhase.DOWNSTREAM_PROCESSING,
+                        "DOWNSTREAM_EXECUTOR_SATURATED",
+                        true));
+            }
+            return fixedResponse(HttpStatus.ACCEPTED, "SYNTHETIC_CALLBACK_ACCEPTED");
+        }
+
         observation.ifPresent(value -> value.processingStarted(ProcessingMode.INLINE));
         lifecycleStore.processingStarted(handle);
+        if (scenario == SyntheticAsyncScenario.PERFORMANCE_INLINE_SUCCESS) {
+            delay(Duration.ofMillis(25 + Math.floorMod(handle.runId().hashCode(), 51)));
+        }
         if (scenario == SyntheticAsyncScenario.CALLBACK_PROCESSING_FAILURE
                 || (scenario == SyntheticAsyncScenario.CALLBACK_RETRY && handle.attemptNumber() == 1)) {
             lifecycleStore.processingFailed(handle, "BUSINESS_PROCESSING_FAILED");
@@ -312,6 +340,14 @@ public final class SyntheticCallbackController {
         return ResponseEntity.status(status).body(Map.of(
                 "fixtureClassification", "SYNTHETIC_ONLY",
                 "outcome", outcome));
+    }
+
+    private void delay(Duration duration) {
+        try {
+            Thread.sleep(duration.toMillis());
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private static final class BodyTooLargeException extends Exception {

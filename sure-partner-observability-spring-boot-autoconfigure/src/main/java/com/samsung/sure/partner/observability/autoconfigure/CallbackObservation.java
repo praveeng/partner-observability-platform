@@ -88,6 +88,7 @@ public final class CallbackObservation {
         if (!received.compareAndSet(false, true)) {
             return;
         }
+        long performanceStarted = engine.performanceStart();
         try {
             engine.metrics().callbackReceived(definition, classification);
             PayloadCaptureMode mode = engine.effectiveMode(definition);
@@ -111,6 +112,8 @@ public final class CallbackObservation {
                     definition, receivedAt, interaction, mode, captured.payload().status(), Outcome.UNKNOWN, record));
         } catch (RuntimeException ignored) {
             // Callback behavior is independent of observation.
+        } finally {
+            engine.performanceRecord(ObservationPerformanceRecorder.CALLBACK_CAPTURE, performanceStarted);
         }
     }
 

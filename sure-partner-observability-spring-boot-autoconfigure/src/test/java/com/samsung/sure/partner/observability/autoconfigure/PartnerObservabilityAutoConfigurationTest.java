@@ -188,6 +188,37 @@ class PartnerObservabilityAutoConfigurationTest {
     }
 
     @Test
+    void insecureDockerFixtureHostRequiresAnExactLocalOnlyAllowlistEntry() {
+        String[] dockerHost = java.util.Arrays.stream(validProperties())
+                .map(value -> value.contains(".origin=")
+                        ? "partner-observability.outbound[0].origin=http://mock-partner:8082"
+                        : value)
+                .toArray(String[]::new);
+
+        runner.withPropertyValues(dockerHost)
+                .withPropertyValues(
+                        "partner-observability.local-synthetic=true",
+                        "partner-observability.environment=local")
+                .run(context -> assertThat(context).hasFailed());
+
+        runner.withPropertyValues(dockerHost)
+                .withPropertyValues(
+                        "partner-observability.local-synthetic=true",
+                        "partner-observability.local-synthetic-http-hosts[0]=mock-partner",
+                        "partner-observability.environment=local")
+                .run(context -> assertThat(context).hasNotFailed());
+
+        for (String environment : new String[] {"dev", "stage", "prod"}) {
+            runner.withPropertyValues(dockerHost)
+                    .withPropertyValues(
+                            "partner-observability.local-synthetic=true",
+                            "partner-observability.local-synthetic-http-hosts[0]=mock-partner",
+                            "partner-observability.environment=" + environment)
+                    .run(context -> assertThat(context).hasFailed());
+        }
+    }
+
+    @Test
     void identicalPathsAtDifferentApprovedOriginsRemainPartnerIsolated() {
         runner.withPropertyValues(
                         "partner-observability.enabled=true",

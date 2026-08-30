@@ -102,11 +102,13 @@ public class PartnerObservabilityAutoConfiguration {
             ObservabilityKillSwitches killSwitches,
             BoundedAsyncDispatcher dispatcher,
             ObjectProvider<SafeBodyCapture> bodyCapture,
-            ObjectProvider<ObservationMetrics> metrics) {
+            ObjectProvider<ObservationMetrics> metrics,
+            ObjectProvider<ObservationPerformanceRecorder> performanceRecorder) {
         return new PartnerObservationEngine(
                 properties, registry, killSwitches, dispatcher,
                 Optional.ofNullable(bodyCapture.getIfAvailable()),
-                metrics.getIfAvailable(() -> ObservationMetrics.NONE));
+                metrics.getIfAvailable(() -> ObservationMetrics.NONE),
+                performanceRecorder.getIfAvailable(() -> ObservationPerformanceRecorder.NONE));
     }
 
     @Bean

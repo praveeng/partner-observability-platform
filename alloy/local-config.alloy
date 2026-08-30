@@ -36,7 +36,7 @@ otelcol.processor.filter "partner_a" {
   error_mode = "propagate"
   logs {
     log_record = [
-      `not (resource.attributes["service.name"] == "synthetic-partner-service" or resource.attributes["service.name"] == "partner-observability-test-app")`,
+      `not (resource.attributes["service.name"] == "synthetic-partner-service" or resource.attributes["service.name"] == "partner-observability-test-app" or resource.attributes["service.name"] == "partner-observability-reactive-test-app" or resource.attributes["service.name"] == "partner-observability-performance-journey-seed")`,
       `not (resource.attributes["market"] == "LOCAL" or resource.attributes["market"] == "synthetic")`,
       `resource.attributes["deployment.environment"] != "local"`,
       `not (attributes["partner.key"] == "partner-a" or attributes["partner.key"] == "partner-alpha-fixture")`,
@@ -79,7 +79,7 @@ otelcol.processor.filter "partner_b" {
   error_mode = "propagate"
   logs {
     log_record = [
-      `not (resource.attributes["service.name"] == "synthetic-partner-service" or resource.attributes["service.name"] == "partner-observability-test-app")`,
+      `not (resource.attributes["service.name"] == "synthetic-partner-service" or resource.attributes["service.name"] == "partner-observability-test-app" or resource.attributes["service.name"] == "partner-observability-reactive-test-app" or resource.attributes["service.name"] == "partner-observability-performance-journey-seed")`,
       `not (resource.attributes["market"] == "LOCAL" or resource.attributes["market"] == "synthetic")`,
       `resource.attributes["deployment.environment"] != "local"`,
       `not (attributes["partner.key"] == "partner-b" or attributes["partner.key"] == "partner-beta-fixture")`,

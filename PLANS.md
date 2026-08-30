@@ -2,7 +2,7 @@
 
 ## Repository identity
 
-The repository/project is Sure Partner Observability (`sure-partner-observability`). The established `partner-observability-*` SDK modules, artifacts, public configuration, telemetry contracts, and runtime identifiers remain unchanged for compatibility.
+The repository/project is Sure Partner Observability (`sure-partner-observability`). SDK modules and artifacts use `sure-partner-observability-*`, Java code uses `com.samsung.sure.partner.observability.*`, and the Gradle group is `com.samsung.sure`. Public configuration, telemetry contracts, and established runtime identifiers remain unchanged for compatibility.
 
 ## Plan rules
 
@@ -39,7 +39,7 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 - Implemented conditional Spring Boot 2.7 auto-configuration, validated secure-default properties, fixed configured partner/API/callback registries, RestTemplate/WebClient/OkHttp instrumentation, MVC callback transport plus explicit semantic lifecycle API, safe metadata-only WebFlux callback transport, scoped MDC/executor/Reactor context, Micrometer hooks, Actuator health, and monotonic kill switches through the one-dependency starter.
 - Added disabled-by-default compatibility for selected existing SLF4J/Logback statements. Startup configuration must match an exact unformatted template plus an exact/trailing-package logger pattern, with an optional exact marker and configured scalar argument schema. It emits only a configured `PartnerBusinessEventRecord` under trusted registry-matching partner context, sanitizes before the shared bounded dispatcher, never formats messages or reads throwables, and leaves existing appenders/CloudWatch semantics unchanged.
 - Automatic RestTemplate capture uses already-materialized request bytes and tees response bytes only as business code consumes them. WebClient, OkHttp, streaming, one-shot, encrypted, unsupported, and oversize bodies degrade to metadata/omission rather than being replayed or buffered.
-- `partner-observability-test-app` proves enabled and disabled behavior, all three clients, 4xx/5xx/timeout/connection classification, trusted retry attempt metadata, async acknowledgement bridging, callback request/response/correlation, independent duplicate/retry attempts, processing failure, outbound and callback large-document omission, unknown/wrong-partner isolation, publisher failure, and queue saturation without business behavior changes.
+- `sure-partner-observability-test-app` proves enabled and disabled behavior, all three clients, 4xx/5xx/timeout/connection classification, trusted retry attempt metadata, async acknowledgement bridging, callback request/response/correlation, independent duplicate/retry attempts, processing failure, outbound and callback large-document omission, unknown/wrong-partner isolation, publisher failure, and queue saturation without business behavior changes.
 - Added immutable `transportSecurity` and bounded `transportFailureClass` facts to outbound request/response and asynchronous acknowledgement records. TLS classification walks only a bounded cause chain of known exception types; it never reads exception messages, certificates, peer values, trust stores, keys, or TLS secrets. A fixed-dimension internal Micrometer counter exposes safe failure classes.
 - Generated-certificate integration tests prove the starter leaves trusted, untrusted-certificate, and wrong-host outcomes identical when disabled/enabled for RestTemplate, Reactor Netty WebClient, and OkHttp. They also prove reuse of service-owned request factories/connectors and preservation of OkHttp socket factory, trust manager, hostname verifier, pinner, and connection specifications. Static production-source checks reject TLS setters, permissive trust/hostname implementations, and HTTPS-to-HTTP rewrite literals.
 - Adversarial review on 2026-08-23 found and fixed cross-origin outbound misclassification by requiring exact configured HTTPS origins, plus configuration-order-dependent callback matching by rejecting overlapping route templates. Failing-first regressions are retained. Runtime TLS coverage now includes expired certificates for all three clients without unsafe exception-text classification.
@@ -106,6 +106,22 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 
 - Finalize consumer guides, configuration reference, compatibility matrix, upgrade notes, artifacts, provenance, and release checklist.
 - Acceptance: reproducible clean build, package smoke test, documentation review, dependency/license review, and human release approval.
+
+## Enterprise Java naming migration (ready for review)
+
+- Migrated all 185 production and test Java sources, package paths, imports, reflection references,
+  and Spring Boot discovery metadata to `com.samsung.sure.partner.observability.*`, with no
+  compatibility namespace.
+- Renamed all four Java/Spring Gradle modules and artifacts to `sure-partner-observability-*`, set
+  the Gradle group to `com.samsung.sure`, and updated build, Docker, integration, documentation,
+  and repository-local agent references without changing public configuration or telemetry names.
+- Added the permanent enterprise naming gate and a one-starter consumer context test. The naming
+  gate, clean build, packaged startup, security, Terraform, Grafana, and end-to-end checks pass.
+  Aggregate verification passed 21/23 stages: the known B003/Q015 blocker remained non-zero and
+  one Grafana SLI readiness check timed out transiently even though the unchanged full Grafana
+  runner passed standalone and again within the aggregate security gate.
+- B001 and B002 remain ready for review. B003 remains blocked on the same Q015 inputs; no
+  performance profile, threshold, runtime identifier, or deployment state was reset or invented.
 
 ## Current focus
 

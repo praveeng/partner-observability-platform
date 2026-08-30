@@ -37,7 +37,7 @@ Run the repository-provided suites and focused tests when present:
 
 ```bash
 git diff --check
-rg -n -i "authorization|jwt|cookie|api.?key|password|client.?secret|otp|card|phone|email|bank.?account|national|address|base64|pdf|jpeg|png|malformed|encrypt|oversiz" partner-observability-* alloy test
+rg -n -i "authorization|jwt|cookie|api.?key|password|client.?secret|otp|card|phone|email|bank.?account|national|address|base64|pdf|jpeg|png|malformed|encrypt|oversiz" sure-partner-observability-* alloy test
 ./scripts/test-security.sh
 ./scripts/test.sh
 ./scripts/verify-all.sh

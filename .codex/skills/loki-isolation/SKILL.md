@@ -35,7 +35,7 @@ Run:
 ```bash
 git diff --check
 rg -n -i "auth_enabled|X-Scope-OrgID|tenant|structured_metadata|schema|retention|delete|s3" alloy loki terraform docker grafana test
-rg -n "applicationId|loanId|correlationId|requestId" alloy loki grafana test partner-observability-*
+rg -n "applicationId|loanId|correlationId|requestId" alloy loki grafana test sure-partner-observability-*
 rg -n -i "publicly_accessible|assign_public_ip|0\.0\.0\.0/0|ingress|security_group" terraform docker
 ./scripts/test-security.sh
 ./scripts/verify-all.sh

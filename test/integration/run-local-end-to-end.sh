@@ -42,7 +42,7 @@ bootstrap_provisioning="$tmp_dir/bootstrap-provisioning"
 gateway_password_file="$tmp_dir/local-gateway.htpasswd"
 credentials_file="$tmp_dir/credentials.env"
 gradle_home="${E2E_GRADLE_USER_HOME:-/tmp/partner-observability-gradle}"
-test_app_jar="$repo_root/partner-observability-test-app/build/libs/partner-observability-test-app-0.1.0-SNAPSHOT.jar"
+test_app_jar="$repo_root/sure-partner-observability-test-app/build/libs/sure-partner-observability-test-app-0.1.0-SNAPSHOT.jar"
 provisioning_dir="$bootstrap_provisioning"
 failed=1
 
@@ -264,11 +264,11 @@ echo "PASS STATIC: app, fixed ingest routes, internal Loki, fixed Grafana dataso
 
 stage "BUILD" "Build the SDK, starter, autoconfiguration, and synthetic test application from source"
 GRADLE_USER_HOME="$gradle_home" ./gradlew --no-daemon \
-  :partner-observability-core:check \
-  :partner-observability-spring-boot-autoconfigure:check \
-  :partner-observability-spring-boot-starter:check \
-  :partner-observability-test-app:check \
-  :partner-observability-test-app:bootJar
+  :sure-partner-observability-core:check \
+  :sure-partner-observability-spring-boot-autoconfigure:check \
+  :sure-partner-observability-spring-boot-starter:check \
+  :sure-partner-observability-test-app:check \
+  :sure-partner-observability-test-app:bootJar
 [[ -s "$test_app_jar" ]]
 echo "PASS BUILD: real Java 17 application and SDK modules built and tested"
 
@@ -329,7 +329,7 @@ stage "APPLICATION" "Start the built application and verify its real Actuator he
 compose up -d test-app
 wait_http test-app "http://127.0.0.1:${app_port}/actuator/health" 60 "$tmp_dir/app-health.json"
 jq -e '.status == "UP"' "$tmp_dir/app-health.json" >/dev/null
-echo "PASS APPLICATION: partner-observability-test-app is running from the source-built boot JAR"
+echo "PASS APPLICATION: sure-partner-observability-test-app is running from the source-built boot JAR"
 
 stage "SYNC" "Execute real instrumented RestTemplate journeys for both partners"
 post_app /fixture/rest/alpha/success "$tmp_dir/sync-a.json"

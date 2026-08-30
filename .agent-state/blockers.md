@@ -37,7 +37,7 @@ Resolved on 2026-08-24. The mandatory executable is implemented:
 
 - `test/integration/run-local-end-to-end.sh`
 
-The runner builds and drives `partner-observability-test-app` through the SDK bounded
+The runner builds and drives `sure-partner-observability-test-app` through the SDK bounded
 dispatcher, fixed authenticated Alloy receivers, tenant-isolated Loki and Prometheus,
 the query gateway, and Viewer-authenticated Grafana datasources/dashboard APIs. Real
 RestTemplate request/response and HTTP 202 acknowledgement/delayed callback journeys

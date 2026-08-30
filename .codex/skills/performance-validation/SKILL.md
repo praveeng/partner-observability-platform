@@ -40,7 +40,7 @@ Run:
 ```bash
 git diff --check
 git diff -- docs/acceptance-criteria.md
-rg -n "Disabled|Metadata|Full sanitized|Saturation|Mixed soak|Reactive" docs/acceptance-criteria.md test scripts partner-observability-*
+rg -n "Disabled|Metadata|Full sanitized|Saturation|Mixed soak|Reactive" docs/acceptance-criteria.md test scripts sure-partner-observability-*
 ./scripts/test-performance.sh
 ./scripts/test.sh
 ./scripts/verify-all.sh

@@ -123,7 +123,7 @@ Partner <-- HTTPS/ALB + CallbackResponseRecord (CALLBACK_RESPONSE_SENT) --------
 
 ## Repository module responsibilities
 
-### `partner-observability-core`
+### `sure-partner-observability-core`
 
 - Immutable schema-2 outbound, acknowledgement, callback request/response/processing, and business-event records.
 - Trusted `PartnerContext`, policy snapshot, capture modes, and kill-switch model.
@@ -132,19 +132,19 @@ Partner <-- HTTPS/ALB + CallbackResponseRecord (CALLBACK_RESPONSE_SENT) --------
 - Context carrier APIs, explicit outbound/callback observation APIs, health metrics SPI, and deterministic sampling.
 - No dependency on Spring, Reactor, OkHttp, Logback, Alloy, or Loki clients.
 
-### `partner-observability-spring-boot-autoconfigure`
+### `sure-partner-observability-spring-boot-autoconfigure`
 
 - Conditional properties and bean wiring.
 - Servlet MVC callback, WebFlux callback, RestTemplate, WebClient, OkHttp, Reactor, task-executor, MDC, Actuator, Micrometer, and Logback integration.
 - Configuration validation and management-only kill-switch endpoint.
 - Optional dependencies guarded by classpath and bean conditions.
 
-### `partner-observability-spring-boot-starter`
+### `sure-partner-observability-spring-boot-starter`
 
 - Single supported application dependency.
 - Transitive core/autoconfiguration and metadata only; no behavior.
 
-### `partner-observability-test-app`
+### `sure-partner-observability-test-app`
 
 - Synthetic MVC/reactive/client/encryption scenarios for verification only.
 

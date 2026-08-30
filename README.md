@@ -4,6 +4,8 @@ Repository machine name: `sure-partner-observability`.
 
 Repository for a partner-isolated observability SDK and platform targeting Java 17, Spring Boot 2.7.x, Grafana Alloy, Loki, Prometheus, Grafana, Terraform, and AWS ECS.
 
+Partner services consume `com.samsung.sure:sure-partner-observability-spring-boot-starter:<version>` and import public SDK types only from `com.samsung.sure.partner.observability.*`. See the [enterprise naming migration record](docs/enterprise-naming-migration.md).
+
 The scoped **M2-M6 SDK, integration, and local data-plane slices** are ready for review. Core provides schema-2 async/callback records and correlation, the Spring Boot 2.7 starter instruments configured application paths, and the LOCAL_SYNTHETIC Compose stack provides trusted Alloy routing, one Loki tenant per synthetic partner, and scrape-based Prometheus API/callback health metrics. Encrypted services can use the typed, fail-open hooks in [the encrypted-service migration guide](docs/encrypted-service-migration.md). Grafana query authorization, deployment policy evidence, the remaining certificate matrix, and full-duration performance remain later milestone work. See [PLANS.md](PLANS.md) and [the machine-readable state](.agent-state/status.json).
 
 ## Core promise
@@ -14,10 +16,10 @@ Observability must never reduce business availability. Application traffic write
 
 | Path | Purpose |
 | --- | --- |
-| `partner-observability-core` | Framework-independent SDK contracts and safety mechanisms |
-| `partner-observability-spring-boot-autoconfigure` | Spring Boot 2.7 integration and conditional configuration |
-| `partner-observability-spring-boot-starter` | Single-dependency consumer entry point |
-| `partner-observability-test-app` | Synthetic verification application |
+| `sure-partner-observability-core` | Framework-independent SDK contracts and safety mechanisms |
+| `sure-partner-observability-spring-boot-autoconfigure` | Spring Boot 2.7 integration and conditional configuration |
+| `sure-partner-observability-spring-boot-starter` | Single-dependency consumer entry point |
+| `sure-partner-observability-test-app` | Synthetic verification application |
 | `alloy`, `loki`, `prometheus`, `grafana` | Local/integration observability component configuration |
 | `terraform` | AWS ECS modules and non-production examples |
 | `docker` | Docker Compose local integration environment |
@@ -38,6 +40,7 @@ Prerequisites are Java 17, Bash, and Docker Compose/Terraform only when their mi
 ```bash
 ./scripts/build.sh
 ./scripts/test.sh
+./scripts/test-enterprise-naming.sh
 ./scripts/test-security.sh --core  # implemented M2 pre-queue/trusted-context scope
 ./scripts/test-security.sh --data-plane  # implemented M5 real Alloy/Loki scope
 ./scripts/test-security.sh --metrics-plane  # implemented M6 Alloy/Prometheus scope

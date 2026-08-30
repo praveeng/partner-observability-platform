@@ -4,7 +4,7 @@
 
 This file governs the entire repository. It is the highest-authority repository-local instruction for autonomous agents. More specific `AGENTS.md` files may add constraints but may not weaken this constitution. If code, configuration, documentation, or a task request conflicts with these rules, stop and record the conflict in `docs/decisions-needed.md`.
 
-The repository/project identity is Sure Partner Observability (`sure-partner-observability`). Existing `partner-observability-*` modules, artifacts, packages, configuration properties, telemetry names, and runtime identifiers are compatibility contracts, not stale repository names.
+The repository/project identity is Sure Partner Observability (`sure-partner-observability`). Java/Spring module and artifact identities use `sure-partner-observability-*`. Public configuration properties, telemetry names, and runtime identifiers remain compatibility contracts and are not renamed merely to mirror Java artifacts.
 
 The project supplies partner-isolated application observability for Java 17 / Spring Boot 2.7 services, with asynchronous telemetry collection and an AWS ECS deployment target. It is not a business transaction system and must never become part of the success path for business traffic.
 
@@ -39,15 +39,16 @@ The project supplies partner-isolated application observability for Java 17 / Sp
 19. Terraform is required for provisioned infrastructure.
 20. Production deployment and production credentials are prohibited from agent activity in this repository.
 21. Autonomous agents may commit locally and may push completed, verified work under the Git policy below, but must not merge.
+22. All Partner Observability Java code must use package namespace `com.samsung.sure.partner.observability.*`. Java/Spring module names must use `sure-partner-observability-*`.
 
 These invariants are acceptance gates. Tests that contradict them are defective; an agent must not relax an invariant merely to make a check pass.
 
 ## Architectural boundaries
 
-- `partner-observability-core`: framework-independent telemetry model, policy, sanitization, bounded buffering, and emission abstractions.
-- `partner-observability-spring-boot-autoconfigure`: Spring Boot 2.7 conditional configuration and integration points.
-- `partner-observability-spring-boot-starter`: the single dependency intended for ordinary consumers; it contains dependency wiring, not business behavior.
-- `partner-observability-test-app`: synthetic, non-production verification application only.
+- `sure-partner-observability-core`: framework-independent telemetry model, policy, sanitization, bounded buffering, and emission abstractions.
+- `sure-partner-observability-spring-boot-autoconfigure`: Spring Boot 2.7 conditional configuration and integration points.
+- `sure-partner-observability-spring-boot-starter`: the single dependency intended for ordinary consumers; it contains dependency wiring, not business behavior.
+- `sure-partner-observability-test-app`: synthetic, non-production verification application only.
 - `alloy`, `loki`, `prometheus`, and `grafana`: local/integration configuration owned by the corresponding component.
 - `terraform`: reusable AWS ECS-oriented modules and non-production examples.
 - `test`: cross-module integration, security, performance, and end-to-end assets.

@@ -38,7 +38,7 @@ Also test local Grafana account-to-org mapping, Viewer-only privileges, disabled
 
 ```bash
 git diff --check
-rg -n -i "partnerId|partner_slot|X-Scope-OrgID|tenant|orgId|anonymous|sign.?up|datasource" partner-observability-* alloy loki prometheus grafana terraform test
+rg -n -i "partnerId|partner_slot|X-Scope-OrgID|tenant|orgId|anonymous|sign.?up|datasource" sure-partner-observability-* alloy loki prometheus grafana terraform test
 ./scripts/test-security.sh
 ./scripts/test.sh
 ./scripts/verify-all.sh

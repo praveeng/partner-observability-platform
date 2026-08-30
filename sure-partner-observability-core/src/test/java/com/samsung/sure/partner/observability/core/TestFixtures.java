@@ -1,0 +1,107 @@
+package com.samsung.sure.partner.observability.core;
+
+import com.samsung.sure.partner.observability.core.context.DeploymentEnvironment;
+import com.samsung.sure.partner.observability.core.context.PartnerContext;
+import com.samsung.sure.partner.observability.core.context.PartnerContextResolver;
+import com.samsung.sure.partner.observability.core.dispatch.TelemetryChannel;
+import com.samsung.sure.partner.observability.core.dispatch.TelemetryPriority;
+import com.samsung.sure.partner.observability.core.dispatch.TelemetrySubmission;
+import com.samsung.sure.partner.observability.core.model.CaptureDecision;
+import com.samsung.sure.partner.observability.core.model.Direction;
+import com.samsung.sure.partner.observability.core.model.CorrelationIdentifiers;
+import com.samsung.sure.partner.observability.core.model.InteractionContext;
+import com.samsung.sure.partner.observability.core.model.InteractionKind;
+import com.samsung.sure.partner.observability.core.model.Outcome;
+import com.samsung.sure.partner.observability.core.model.PartnerBusinessEventRecord;
+import com.samsung.sure.partner.observability.core.model.ServiceIdentity;
+import com.samsung.sure.partner.observability.core.model.Severity;
+import com.samsung.sure.partner.observability.core.model.TelemetryEnvelope;
+import com.samsung.sure.partner.observability.core.payload.PayloadStatus;
+import com.samsung.sure.partner.observability.core.payload.SanitizationResult;
+import com.samsung.sure.partner.observability.core.policy.PayloadCaptureMode;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
+
+public final class TestFixtures {
+    private TestFixtures() {}
+
+    public static PartnerContext context(String partner, String tenant, String slot) {
+        return new TestResolver(partner, tenant, slot).resolve("authenticated-subject").orElseThrow();
+    }
+
+    public static TelemetrySubmission submission(PartnerContext context, int bytes) {
+        return submission(
+                context,
+                bytes,
+                SanitizationResult.omitted(PayloadStatus.NOT_REQUESTED),
+                PayloadCaptureMode.METADATA_ONLY,
+                PayloadStatus.NOT_REQUESTED);
+    }
+
+    public static TelemetrySubmission submission(
+            PartnerContext context,
+            int bytes,
+            SanitizationResult attributes,
+            PayloadCaptureMode captureMode,
+            PayloadStatus payloadStatus) {
+        PartnerBusinessEventRecord body = new PartnerBusinessEventRecord(
+                "application_submitted",
+                "APPLICATION",
+                Outcome.SUCCESS,
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                java.util.OptionalInt.empty(),
+                Optional.empty(),
+                Optional.of("SKU-1"),
+                Optional.of("LOAN"),
+                attributes);
+        CorrelationIdentifiers identifiers = new CorrelationIdentifiers(
+                        Optional.of("APP-SHARED-1"),
+                        Optional.empty(),
+                        Optional.of("CORR-1"),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.of(UUID.randomUUID().toString()));
+        TelemetryEnvelope<PartnerBusinessEventRecord> envelope = new TelemetryEnvelope<>(
+                TelemetryEnvelope.CURRENT_SCHEMA_VERSION,
+                UUID.randomUUID(),
+                Instant.parse("2026-08-16T12:00:00Z"),
+                Instant.parse("2026-08-16T12:00:00.001Z"),
+                new ServiceIdentity("fixture-service", "1.0.0"),
+                context,
+                new InteractionContext(
+                        InteractionKind.SYNC_OUTBOUND, Direction.OUTBOUND_TO_PARTNER,
+                        UUID.randomUUID(), 1, Optional.empty(), "test-profile", identifiers, Optional.empty()),
+                new CaptureDecision(
+                        captureMode, captureMode, "test-v1"),
+                payloadStatus,
+                Severity.INFO,
+                Outcome.SUCCESS,
+                body);
+        return new TelemetrySubmission(envelope, bytes, TelemetryPriority.NORMAL, TelemetryChannel.EVENT);
+    }
+
+    private static final class TestResolver extends PartnerContextResolver<String> {
+        private final String partner;
+        private final String tenant;
+        private final String slot;
+
+        private TestResolver(String partner, String tenant, String slot) {
+            this.partner = partner;
+            this.tenant = tenant;
+            this.slot = slot;
+        }
+
+        @Override
+        protected Optional<ResolvedPartner> resolveAuthenticated(String authenticatedServerSubject) {
+            if (!"authenticated-subject".equals(authenticatedServerSubject)) {
+                return Optional.empty();
+            }
+            return Optional.of(authenticatedPartner(
+                    "uk", DeploymentEnvironment.DEV, partner, tenant, slot, "fixture-auth"));
+        }
+    }
+}

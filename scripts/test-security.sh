@@ -5,17 +5,17 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
 run_core_security() {
-  ./gradlew --no-daemon :partner-observability-core:test \
+  ./gradlew --no-daemon :sure-partner-observability-core:test \
     --tests '*PayloadSafetyTest' \
     --tests '*PartnerContextSecurityTest' \
     --tests '*BoundedAsyncDispatcherTest'
-  ./gradlew --no-daemon :partner-observability-spring-boot-autoconfigure:test \
+  ./gradlew --no-daemon :sure-partner-observability-spring-boot-autoconfigure:test \
     --tests '*TlsInstrumentation*' \
     --tests '*PartnerObservabilityAutoConfigurationTest' \
     --tests '*PartnerCallbackWebFilterTest' \
     --tests '*PartnerSafeLogCompatibilityTest' \
     --tests '*JacksonSafeBodyCaptureTest'
-  ./gradlew --no-daemon :partner-observability-test-app:test \
+  ./gradlew --no-daemon :sure-partner-observability-test-app:test \
     --tests '*PartnerObservabilityStarterIntegrationTest' \
     --tests '*SyntheticAsyncLifecycleIntegrationTest' \
     --tests '*EncryptedRestTemplateFixtureIntegrationTest'

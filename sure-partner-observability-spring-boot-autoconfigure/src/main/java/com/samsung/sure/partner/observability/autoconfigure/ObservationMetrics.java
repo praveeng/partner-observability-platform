@@ -1,0 +1,49 @@
+package com.samsung.sure.partner.observability.autoconfigure;
+
+import com.samsung.sure.partner.observability.core.model.AcknowledgementOutcome;
+import com.samsung.sure.partner.observability.core.model.DeliveryClassification;
+import com.samsung.sure.partner.observability.core.model.HttpResult;
+import com.samsung.sure.partner.observability.core.model.Outcome;
+import com.samsung.sure.partner.observability.core.model.ProcessingMode;
+import com.samsung.sure.partner.observability.core.model.ProcessingPhase;
+import com.samsung.sure.partner.observability.core.model.StatusClass;
+import com.samsung.sure.partner.observability.core.model.TelemetryRecordType;
+import com.samsung.sure.partner.observability.core.model.TransportFailureClass;
+import com.samsung.sure.partner.observability.core.model.TransportOutcome;
+import com.samsung.sure.partner.observability.core.dispatch.TelemetryPriority;
+
+public interface ObservationMetrics {
+    void submitted(
+            ObservationDefinition definition, TelemetryRecordType type, boolean accepted, TelemetryPriority priority);
+    void outboundStarted(ObservationDefinition definition, int attempt);
+    void outboundCompleted(
+            ObservationDefinition definition, Outcome outcome, StatusClass status, long durationMs,
+            AcknowledgementOutcome acknowledgement, HttpResult result);
+    void callbackStarted(ObservationDefinition definition);
+    void callbackReceived(ObservationDefinition definition, DeliveryClassification classification);
+    void callbackProcessed(
+            ObservationDefinition definition,
+            Outcome outcome,
+            long durationMs,
+            ProcessingMode mode,
+            ProcessingPhase phase);
+    void callbackResponded(
+            ObservationDefinition definition, Outcome outcome, StatusClass status, TransportOutcome transport);
+    void callbackDenied(String reason);
+    void transportSecurityFailure(ObservationDefinition definition, TransportFailureClass failureClass);
+
+    ObservationMetrics NONE = new ObservationMetrics() {
+        public void submitted(ObservationDefinition d, TelemetryRecordType t, boolean a, TelemetryPriority p) {}
+        public void outboundStarted(ObservationDefinition d, int attempt) {}
+        public void outboundCompleted(
+                ObservationDefinition d, Outcome o, StatusClass s, long ms,
+                AcknowledgementOutcome a, HttpResult r) {}
+        public void callbackStarted(ObservationDefinition d) {}
+        public void callbackReceived(ObservationDefinition d, DeliveryClassification c) {}
+        public void callbackProcessed(
+                ObservationDefinition d, Outcome o, long ms, ProcessingMode m, ProcessingPhase p) {}
+        public void callbackResponded(ObservationDefinition d, Outcome o, StatusClass s, TransportOutcome t) {}
+        public void callbackDenied(String reason) {}
+        public void transportSecurityFailure(ObservationDefinition d, TransportFailureClass f) {}
+    };
+}

@@ -1,0 +1,163 @@
+server:
+  address: 127.0.0.1
+
+spring:
+  application:
+    name: partner-observability-test-app
+  main:
+    banner-mode: "off"
+
+logging:
+  level:
+    root: WARN
+    com.samsung.sure.partner.observability.testapp: INFO
+
+partner-observability:
+  enabled: true
+  payloads-enabled: true
+  logs-enabled: ${LOCAL_SYNTHETIC_SAFE_LOG_ENABLED:false}
+  events-enabled: true
+  metrics-enabled: true
+  export-enabled: true
+  callbacks-enabled: true
+  local-synthetic: true
+  service-name: partner-observability-test-app
+  explicit-observations-enabled: true
+  service-version: 0.1.0
+  market: synthetic
+  environment: DEV
+  policy-version: synthetic-v1
+  log-selections:
+    - category: CALLBACK_JOURNEY_UPDATED
+      logger-pattern: com.samsung.sure.partner.observability.testapp.web.SyntheticCallbackController
+      message-template: "Synthetic callback business event {}"
+      minimum-level: INFO
+      journey-stage: CALLBACK_BUSINESS_EVENT
+      outcome: SUCCESS
+      arguments:
+        - index: 0
+          name: eventStatus
+          type: STRING
+          policy: ALLOW
+  partners:
+    - key: partner-alpha-fixture
+      tenant-route-id: synthetic-alpha
+      slot: p001
+      subject-source: synthetic-host-auth
+    - key: partner-beta-fixture
+      tenant-route-id: synthetic-beta
+      slot: p002
+      subject-source: synthetic-host-auth
+  outbound:
+    - name: PARTNER_ALPHA_SYNC
+      origin: http://127.0.0.1
+      path: /partner/alpha
+      method: POST
+      partner: partner-alpha-fixture
+      correlation-profile: SYNTHETIC_SYNC
+      capture-mode: FULL_SANITIZED
+      safe-fields: [applicationId, partnerReference, amount, tenureMonths, product, attributes.fixtureClassification, attributes.partnerLane, attributes.loanId, attributes.correlationId, attributes.phone, attributes.email, attributes.bankAccount, attributes.nationalId, attributes.address, attributes.Authorization, attributes.jwt, attributes.Cookie, attributes.apiKey, attributes.password, attributes.clientSecret, attributes.accessToken, attributes.encryptionKey, attributes.verification.oneTimePassword, attributes.verification.verificationCode, attributes.paymentCard.cardNumber, attributes.paymentCard.cvv, attributes.paymentCard.expiry, attributes.paymentCard.pin, fixtureClassification, partnerLane, scenario, outcome, statusCode, errorCode, phone, email, bankAccount, nationalId, address, Authorization, jwt, Cookie, apiKey, password, clientSecret, accessToken, encryptionKey]
+      correlation:
+        application-id-path: $.applicationId
+        loan-id-path: $.attributes.loanId
+        original-correlation-id-path: $.attributes.correlationId
+        partner-reference-id-path: $.partnerReference
+    - name: PARTNER_BETA_SYNC
+      origin: http://127.0.0.1
+      path: /partner/beta
+      method: POST
+      partner: partner-beta-fixture
+      correlation-profile: SYNTHETIC_SYNC
+      capture-mode: FULL_SANITIZED
+      safe-fields: [applicationId, partnerReference, amount, tenureMonths, product, attributes.fixtureClassification, attributes.partnerLane, attributes.loanId, attributes.correlationId, attributes.phone, attributes.email, attributes.bankAccount, attributes.nationalId, attributes.address, attributes.Authorization, attributes.jwt, attributes.Cookie, attributes.apiKey, attributes.password, attributes.clientSecret, attributes.accessToken, attributes.encryptionKey, attributes.verification.oneTimePassword, attributes.verification.verificationCode, attributes.paymentCard.cardNumber, attributes.paymentCard.cvv, attributes.paymentCard.expiry, attributes.paymentCard.pin, fixtureClassification, partnerLane, scenario, outcome, statusCode, errorCode, phone, email, bankAccount, nationalId, address, Authorization, jwt, Cookie, apiKey, password, clientSecret, accessToken, encryptionKey]
+      correlation:
+        application-id-path: $.applicationId
+        loan-id-path: $.attributes.loanId
+        original-correlation-id-path: $.attributes.correlationId
+        partner-reference-id-path: $.partnerReference
+    - name: PARTNER_ALPHA_ENCRYPTED
+      origin: http://127.0.0.1
+      path: /encrypted/alpha
+      method: POST
+      partner: partner-alpha-fixture
+      correlation-profile: SYNTHETIC_ENCRYPTED
+      capture-mode: FULL_SANITIZED
+      safe-fields: [applicationId, amount, tenureMonths, product, fixtureClassification, document]
+    - name: PARTNER_BETA_ENCRYPTED
+      origin: http://127.0.0.1
+      path: /encrypted/beta
+      method: POST
+      partner: partner-beta-fixture
+      correlation-profile: SYNTHETIC_ENCRYPTED
+      capture-mode: FULL_SANITIZED
+      safe-fields: [applicationId, amount, tenureMonths, product, fixtureClassification, document]
+    - name: PARTNER_ALPHA_ASYNC
+      origin: http://127.0.0.1
+      path: /async/alpha
+      method: POST
+      partner: partner-alpha-fixture
+      exchange-mode: ASYNC_INITIATION
+      correlation-profile: SYNTHETIC_ASYNC
+      capture-mode: FULL_SANITIZED
+      safe-fields: [runId, acknowledgement, fixtureClassification]
+      correlation:
+        application-id-path: $.identifiers.applicationId
+        loan-id-path: $.identifiers.loanId
+        original-correlation-id-path: $.identifiers.originalCorrelationId
+        partner-reference-id-path: $.partnerReferenceId
+        external-transaction-id-path: $.externalTransactionId
+    - name: PARTNER_BETA_ASYNC
+      origin: http://127.0.0.1
+      path: /async/beta
+      method: POST
+      partner: partner-beta-fixture
+      exchange-mode: ASYNC_INITIATION
+      correlation-profile: SYNTHETIC_ASYNC
+      capture-mode: FULL_SANITIZED
+      safe-fields: [runId, acknowledgement, fixtureClassification]
+      correlation:
+        application-id-path: $.identifiers.applicationId
+        loan-id-path: $.identifiers.loanId
+        original-correlation-id-path: $.identifiers.originalCorrelationId
+        partner-reference-id-path: $.partnerReferenceId
+        external-transaction-id-path: $.externalTransactionId
+  callbacks:
+    - name: CREDIT_DECISION_CALLBACK_ALPHA
+      path: /fixture/callback/alpha
+      method: POST
+      partner: partner-alpha-fixture
+      correlation-profile: SYNTHETIC_ASYNC
+      capture-mode: FULL_SANITIZED
+      processing-events-enabled: true
+      safe-fields: [fixtureClassification, callbackSequence, outcome, callbackData.fixtureClassification, callbackData.phone, callbackData.email, callbackData.bankAccount, callbackData.nationalId, callbackData.address, callbackData.Authorization, callbackData.jwt, callbackData.Cookie, callbackData.apiKey, callbackData.password, callbackData.clientSecret, callbackData.accessToken, callbackData.encryptionKey, callbackData.document]
+      correlation:
+        application-id-path: $.applicationId
+        loan-id-path: $.loanId
+        original-correlation-id-path: $.originalCorrelationId
+        partner-reference-id-path: $.partnerReferenceId
+        callback-reference-id-path: $.callbackReferenceId
+        external-transaction-id-path: $.externalTransactionId
+    - name: CREDIT_DECISION_CALLBACK_BETA
+      path: /fixture/callback/beta
+      method: POST
+      partner: partner-beta-fixture
+      correlation-profile: SYNTHETIC_ASYNC
+      capture-mode: FULL_SANITIZED
+      processing-events-enabled: true
+      safe-fields: [fixtureClassification, callbackSequence, outcome, callbackData.fixtureClassification, callbackData.phone, callbackData.email, callbackData.bankAccount, callbackData.nationalId, callbackData.address, callbackData.Authorization, callbackData.jwt, callbackData.Cookie, callbackData.apiKey, callbackData.password, callbackData.clientSecret, callbackData.accessToken, callbackData.encryptionKey, callbackData.document]
+      correlation:
+        application-id-path: $.applicationId
+        loan-id-path: $.loanId
+        original-correlation-id-path: $.originalCorrelationId
+        partner-reference-id-path: $.partnerReferenceId
+        callback-reference-id-path: $.callbackReferenceId
+        external-transaction-id-path: $.externalTransactionId
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      show-details: always

@@ -1,0 +1,39 @@
+package com.samsung.sure.partner.observability.testapp.model;
+
+import java.util.Locale;
+
+/** Stable asynchronous fixture behaviors matching scenarios 28 through 51. */
+public enum SyntheticAsyncScenario {
+    ACKNOWLEDGEMENT_ONLY,
+    ACK_WITH_PARTNER_REFERENCE,
+    CALLBACK_WITH_APPLICATION_ID,
+    CALLBACK_WITH_PARTNER_REFERENCE_ONLY,
+    CALLBACK_WITH_CALLBACK_REFERENCE,
+    CALLBACK_SUCCESS,
+    CALLBACK_PROCESSING_FAILURE,
+    CALLBACK_RETRY,
+    DUPLICATE_CALLBACK,
+    CALLBACK_OUT_OF_ORDER,
+    CALLBACK_AFTER_OUTBOUND_TIMEOUT,
+    UNKNOWN_PARTNER_REFERENCE,
+    WRONG_PARTNER,
+    AUTHENTICATION_FAILURE,
+    MALFORMED_CALLBACK,
+    CALLBACK_PDF_BASE64_5_MB,
+    CALLBACK_IMAGE_BASE64,
+    CALLBACK_SENSITIVE_PII,
+    CALLBACK_CREDENTIALS,
+    ACCEPTED_THEN_DOWNSTREAM_FAILURE,
+    RESPONSE_TRANSMISSION_FAILURE,
+    CROSS_PARTNER_CALLBACK_REFERENCE,
+    HIGH_CONCURRENCY_CALLBACKS,
+    MULTIPLE_CALLBACKS;
+
+    public static SyntheticAsyncScenario fromFixturePath(String value) {
+        return valueOf(value.replace('-', '_').toUpperCase(Locale.ROOT));
+    }
+
+    public boolean sendsCallbacks() {
+        return this != ACKNOWLEDGEMENT_ONLY && this != ACK_WITH_PARTNER_REFERENCE;
+    }
+}

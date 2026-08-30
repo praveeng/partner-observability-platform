@@ -37,9 +37,9 @@ Run commands that exist for the current milestone:
 
 ```bash
 git diff --check
-rg -n "sourceCompatibility|toolchain|JavaLanguageVersion|org.springframework.boot" *.gradle partner-observability-* --glob '*.gradle' --glob '*.java'
-rg -n "RestTemplate|WebClient|OkHttp|MDC|Reactor|Context" partner-observability-* test
-rg -n "loki|alloy|grafana" partner-observability-core partner-observability-spring-boot-autoconfigure partner-observability-spring-boot-starter --glob '*.java'
+rg -n "sourceCompatibility|toolchain|JavaLanguageVersion|org.springframework.boot" *.gradle sure-partner-observability-* --glob '*.gradle' --glob '*.java'
+rg -n "RestTemplate|WebClient|OkHttp|MDC|Reactor|Context" sure-partner-observability-* test
+rg -n "loki|alloy|grafana" sure-partner-observability-core sure-partner-observability-spring-boot-autoconfigure sure-partner-observability-spring-boot-starter --glob '*.java'
 ./gradlew check
 ./scripts/test.sh
 ./scripts/test-security.sh

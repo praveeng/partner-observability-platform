@@ -28,6 +28,7 @@ done
 for required_command in \
   './gradlew --no-daemon clean build' \
   './scripts/test-security.sh' \
+  './scripts/test-enterprise-naming.sh' \
   './scripts/test-performance.sh' \
   './scripts/test-terraform.sh' \
   './scripts/test-grafana.sh' \
@@ -53,7 +54,7 @@ if rg -n 'grafana/(alloy|loki):|prom/prometheus:|nginx:[0-9]' test/integration -
 fi
 
 if rg -n -i '(helm_release|kubernetes_|apiVersion:[[:space:]]*(apps/|v1))' \
-    partner-observability-* alloy loki prometheus grafana terraform docker \
+    sure-partner-observability-* alloy loki prometheus grafana terraform docker \
     --glob '!*.md' --glob '!**/build/**'; then
   echo 'ERROR: prohibited Kubernetes/Helm implementation artifact found.' >&2
   exit 1

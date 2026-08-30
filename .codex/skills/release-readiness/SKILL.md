@@ -25,7 +25,7 @@ Read `AGENTS.md`, `PLANS.md`, `.agent-state/status.json`, `README.md`, every doc
 ```bash
 git status --short --branch
 git diff --check
-rg -n "NOT IMPLEMENTED|TODO|TBD|FIXME" README.md PLANS.md docs scripts partner-observability-* terraform alloy loki prometheus grafana docker test
+rg -n "NOT IMPLEMENTED|TODO|TBD|FIXME" README.md PLANS.md docs scripts sure-partner-observability-* terraform alloy loki prometheus grafana docker test
 ./scripts/build.sh
 ./scripts/test.sh
 ./scripts/test-security.sh

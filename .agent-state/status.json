@@ -12,13 +12,14 @@
     ],
     "currentState": "READY_FOR_REVIEW"
   },
-  "milestone": "M9 release gates — B002 application-to-platform end-to-end completion boundary",
-  "summary": "READY_FOR_REVIEW: B002 is resolved; requirements 36-46 and the full local security gate pass using application-originated traffic through the authorized Grafana boundary. Aggregate verification is 21/22 with only B003 open.",
+  "milestone": "Enterprise namespace and Java module standardization",
+  "summary": "READY_FOR_REVIEW: all 185 active Java sources and Spring metadata use com.samsung.sure.partner.observability, all four Java/Spring modules and artifacts use sure-partner-observability-*, and the permanent naming gate, clean build, consumer/context/startup tests, security, Terraform, Grafana, and end-to-end verification pass. The aggregate gate passed 21/23 stages: B003 remained deliberately non-zero on Q015 and one Grafana SLI readiness check timed out transiently despite the unchanged full runner passing standalone and again inside the aggregate security gate. B001/B002 and the independent B003 blocker are unchanged.",
   "blockers": [
-    "B003: scripts/test-performance.sh reports NOT IMPLEMENTED for every mandatory full-duration acceptance profile."
+    "B003 / Q015: the exact Disabled and Journey query run lengths, retained journey dataset/resolver, fixed CPU/memory/JVM/GC/JFR environment, warm-up/cool-down, repetition/baseline verdict method, several load shapes, and resource/statistical measurement rules are not specified. scripts/test-performance.sh must remain non-zero."
   ],
   "nextActions": [
-    "Implement and run all exact M9 performance profiles without shortening loads, durations, or thresholds, then rerun scripts/verify-all.sh."
+    "Review the enterprise namespace/module migration and its local commit; do not publish or merge it from autonomous agent activity.",
+    "After this migration, performance, application, and platform owners must still resolve Q015 before implementing and running the authoritative B003 profiles."
   ],
-  "lastUpdated": "2026-08-24T20:34:51Z"
+  "lastUpdated": "2026-08-30T08:25:20Z"
 }

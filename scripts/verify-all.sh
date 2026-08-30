@@ -147,41 +147,41 @@ gradle_test() {
 }
 
 failure_isolation_tests() {
-  gradle_test :partner-observability-core:test \
+  gradle_test :sure-partner-observability-core:test \
     --tests '*BoundedAsyncDispatcherTest'
-  gradle_test :partner-observability-test-app:test \
+  gradle_test :sure-partner-observability-test-app:test \
     --tests '*PartnerObservabilityStarterIntegrationTest.publisherFailureAndQueueSaturationNeverFailBusinessCalls' \
     --tests '*EncryptedRestTemplateFixtureIntegrationTest.publisherFailureAndHookFailureDoNotAffectEncryptedBusinessTraffic'
 }
 
 outbound_client_tests() {
-  gradle_test :partner-observability-test-app:test \
+  gradle_test :sure-partner-observability-test-app:test \
     --tests '*SyntheticPartnerClientsIntegrationTest' \
     --tests '*PartnerObservabilityStarterIntegrationTest.capturesAllThreeOutboundClientsWithoutChangingTheirResults'
-  gradle_test :partner-observability-spring-boot-autoconfigure:test \
+  gradle_test :sure-partner-observability-spring-boot-autoconfigure:test \
     --tests '*TlsInstrumentationIntegrationTest'
 }
 
 encrypted_integration_tests() {
-  gradle_test :partner-observability-test-app:test \
+  gradle_test :sure-partner-observability-test-app:test \
     --tests '*EncryptedRestTemplateFixtureIntegrationTest'
-  gradle_test :partner-observability-spring-boot-autoconfigure:test \
+  gradle_test :sure-partner-observability-spring-boot-autoconfigure:test \
     --tests '*PartnerPlaintextSchemaTest'
 }
 
 callback_async_tests() {
-  gradle_test :partner-observability-test-app:test \
+  gradle_test :sure-partner-observability-test-app:test \
     --tests '*SyntheticAsyncLifecycleIntegrationTest' \
     --tests '*PartnerObservabilityStarterIntegrationTest'
-  gradle_test :partner-observability-spring-boot-autoconfigure:test \
+  gradle_test :sure-partner-observability-spring-boot-autoconfigure:test \
     --tests '*PartnerCallbackWebFilterTest'
 }
 
 payload_safety_tests() {
-  gradle_test :partner-observability-core:test \
+  gradle_test :sure-partner-observability-core:test \
     --tests '*PayloadSafetyTest' \
     --tests '*ApplicationPayloadSafetyTest'
-  gradle_test :partner-observability-test-app:test \
+  gradle_test :sure-partner-observability-test-app:test \
     --tests '*SyntheticPayloadFixturesTest' \
     --tests '*EncryptedRestTemplateFixtureIntegrationTest.removesCryptoSecretsAndExcludesLargeBase64BeforeQueueAdmission'
 }
@@ -209,15 +209,16 @@ if (( failed_stages != 0 )); then
   exit 1
 fi
 run_stage 'Repository input and generated-state baseline' repository_baseline
+run_stage 'Enterprise Java namespace and module naming gate' ./scripts/test-enterprise-naming.sh
 
 section 'BUILD / CORE'
 run_stage '1. Gradle clean build' ./gradlew --no-daemon clean build
-run_stage '2. Core unit tests' gradle_test :partner-observability-core:test
+run_stage '2. Core unit tests' gradle_test :sure-partner-observability-core:test
 run_stage '3. Spring Boot starter and auto-configuration tests' gradle_test \
-  :partner-observability-spring-boot-autoconfigure:test \
-  :partner-observability-test-app:test
+  :sure-partner-observability-spring-boot-autoconfigure:test \
+  :sure-partner-observability-test-app:test
 run_stage '4. Bounded queue count, byte, concurrency, and saturation tests' gradle_test \
-  :partner-observability-core:test \
+  :sure-partner-observability-core:test \
   --tests '*BoundedTelemetryQueueTest' \
   --tests '*BoundedAsyncDispatcherTest'
 run_stage '5. Telemetry publisher and observation failure isolation tests' failure_isolation_tests
@@ -232,7 +233,7 @@ run_stage '10-24. Async acknowledgement, callback lifecycle, correlation, isolat
 section 'PAYLOAD / LOG SAFETY'
 run_stage '25-26. Payload safety and Base64/document pre-queue exclusion tests' payload_safety_tests
 run_stage '27. SLF4J/Logback compatibility and unchanged logging semantics tests' gradle_test \
-  :partner-observability-spring-boot-autoconfigure:test \
+  :sure-partner-observability-spring-boot-autoconfigure:test \
   --tests '*PartnerSafeLogCompatibilityTest'
 run_stage '28-30. Core pre-queue secret, PII, and binary safety evidence' ./scripts/test-security.sh --core
 

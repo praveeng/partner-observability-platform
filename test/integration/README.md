@@ -6,7 +6,7 @@
 
 `run-local-grafana.sh` starts the complete local observability stack and proves two isolated Grafana organizations, local Viewer authentication, fixed Loki tenants and Prometheus slots, generic dashboard provisioning, typed search (including a colliding application ID), ordered callback timeline, safe detail, all dashboard SLI query families, prohibited-content absence, API/Explore/org/header/UID/PromQL bypass denial, and safe gateway audit records. `--validate-only` still starts real Grafana and verifies provisioned objects through its API; it skips only telemetry/SLI seeding and result assertions.
 
-`run-local-end-to-end.sh` builds `partner-observability-test-app` and the SDK from source, starts the complete disposable platform, and drives real RestTemplate and HTTP callback fixtures. Final visibility assertions use PARTNER_A/PARTNER_B Viewer sessions and their fixed Grafana datasource/query-gateway paths. The runner does not inject OTLP records or query Loki directly. Generated credentials stay in a mode-0600 temporary file and are removed on normal teardown.
+`run-local-end-to-end.sh` builds `sure-partner-observability-test-app` and the SDK from source, starts the complete disposable platform, and drives real RestTemplate and HTTP callback fixtures. Final visibility assertions use PARTNER_A/PARTNER_B Viewer sessions and their fixed Grafana datasource/query-gateway paths. The runner does not inject OTLP records or query Loki directly. Generated credentials stay in a mode-0600 temporary file and are removed on normal teardown.
 
 ## Requirements 36–46 traceability
 

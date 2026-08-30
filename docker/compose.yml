@@ -169,7 +169,7 @@ services:
   test-app:
     profiles: ["end-to-end"]
     image: eclipse-temurin:17-jre-jammy@sha256:e17d77fb030dd4b642dc078d048a5fb9efcb3676ee20305d905949105a6ccd5a
-    command: ["java", "-jar", "/app/partner-observability-test-app.jar"]
+    command: ["java", "-jar", "/app/sure-partner-observability-test-app.jar"]
     environment:
       SERVER_ADDRESS: 0.0.0.0
       SERVER_PORT: 8080
@@ -181,7 +181,7 @@ services:
       LOCAL_SYNTHETIC_OTLP_BETA_USERNAME: sdk-partner-b
       LOCAL_SYNTHETIC_OTLP_BETA_PASSWORD: ${LOCAL_E2E_SDK_B_PASSWORD:-local-synthetic-sdk-b}
     volumes:
-      - ${LOCAL_TEST_APP_JAR:-../partner-observability-test-app/build/libs/partner-observability-test-app-0.1.0-SNAPSHOT.jar}:/app/partner-observability-test-app.jar:ro
+      - ${LOCAL_TEST_APP_JAR:-../sure-partner-observability-test-app/build/libs/sure-partner-observability-test-app-0.1.0-SNAPSHOT.jar}:/app/sure-partner-observability-test-app.jar:ro
     ports:
       - "127.0.0.1:${LOCAL_TEST_APP_PORT:-18080}:8080"
     networks:

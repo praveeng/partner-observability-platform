@@ -39,7 +39,7 @@ An untested applicable row is `FAIL`. A mocked unit test cannot be the only evid
 
 ```bash
 git diff --check
-rg -n -i "@Disabled|@Ignore|skip|TODO|NOT IMPLEMENTED|assertTrue\(true\)|catch \(.*Exception" partner-observability-* test scripts
+rg -n -i "@Disabled|@Ignore|skip|TODO|NOT IMPLEMENTED|assertTrue\(true\)|catch \(.*Exception" sure-partner-observability-* test scripts
 ./scripts/build.sh
 ./scripts/test.sh
 ./scripts/test-security.sh

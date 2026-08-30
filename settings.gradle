@@ -1,6 +1,6 @@
 rootProject.name = 'sure-partner-observability'
 
-include 'partner-observability-core'
-include 'partner-observability-spring-boot-autoconfigure'
-include 'partner-observability-spring-boot-starter'
-include 'partner-observability-test-app'
+include 'sure-partner-observability-core'
+include 'sure-partner-observability-spring-boot-autoconfigure'
+include 'sure-partner-observability-spring-boot-starter'
+include 'sure-partner-observability-test-app'

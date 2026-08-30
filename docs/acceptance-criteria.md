@@ -25,7 +25,7 @@ The following matrix is normative. “Required completion runner” identifies t
 | # | Mandatory requirement | Automated evidence | Required completion runner |
 | ---: | --- | --- | --- |
 | 1 | Gradle clean build | All module compilation, tests, checks, and archives from cleaned outputs | `./gradlew --no-daemon clean build` in `verify-all.sh` |
-| 2 | Unit tests | Framework-independent model, policy, payload, context, and dispatch tests | `:partner-observability-core:test --rerun-tasks` |
+| 2 | Unit tests | Framework-independent model, policy, payload, context, and dispatch tests | `:sure-partner-observability-core:test --rerun-tasks` |
 | 3 | Spring Boot starter tests | Auto-configuration module tests plus the one-starter synthetic application tests | Auto-configuration and test-app `test --rerun-tasks` tasks |
 | 4 | Bounded queue tests | `BoundedTelemetryQueueTest` and `BoundedAsyncDispatcherTest` | BUILD / CORE bounded-queue stage |
 | 5 | Telemetry failure isolation tests | Dispatcher publisher failure/retry tests and starter/encrypted publisher-failure business assertions | BUILD / CORE failure-isolation stage |

@@ -48,9 +48,9 @@ Run from the repository root and inspect every hit in changed production paths:
 
 ```bash
 git diff --check
-rg -n -i 'loki|alloy|grafana|prometheus|X-Scope-OrgID' partner-observability-* alloy loki prometheus grafana terraform docker
-rg -n 'applicationId|loanId|correlationId|requestId' alloy loki grafana partner-observability-* test
-rg -n 'LinkedBlockingQueue|SynchronousQueue|newCachedThreadPool|Executors\.|block\(|join\(|get\(' partner-observability-* --glob '*.java'
+rg -n -i 'loki|alloy|grafana|prometheus|X-Scope-OrgID' sure-partner-observability-* alloy loki prometheus grafana terraform docker
+rg -n 'applicationId|loanId|correlationId|requestId' alloy loki grafana sure-partner-observability-* test
+rg -n 'LinkedBlockingQueue|SynchronousQueue|newCachedThreadPool|Executors\.|block\(|join\(|get\(' sure-partner-observability-* --glob '*.java'
 rg -n -i 'kubernetes|k8s|helm' . --glob '!docs/**' --glob '!.git/**'
 ./scripts/verify-all.sh
 ```

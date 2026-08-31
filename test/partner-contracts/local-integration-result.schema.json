@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:sure-partner-observability:local-integration-result:1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "service",
+    "springProfile",
+    "targetOnly",
+    "otherServicesTouched",
+    "checks"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "service": { "type": "string", "pattern": "^sure-nbfc-[a-z0-9][a-z0-9-]*$" },
+    "springProfile": { "const": "local" },
+    "targetOnly": { "const": true },
+    "otherServicesTouched": { "type": "array", "maxItems": 0 },
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "build",
+        "localProfileStartup",
+        "mockPartner",
+        "outboundJourneys",
+        "callbacks",
+        "telemetry",
+        "metrics",
+        "grafana",
+        "queryAuthorization",
+        "piiMasking",
+        "binaryOmission",
+        "noExternalPartnerTraffic"
+      ],
+      "properties": {
+        "build": { "const": true },
+        "localProfileStartup": { "const": true },
+        "mockPartner": { "const": true },
+        "outboundJourneys": { "const": true },
+        "callbacks": { "const": true },
+        "telemetry": { "const": true },
+        "metrics": { "const": true },
+        "grafana": { "const": true },
+        "queryAuthorization": { "const": true },
+        "piiMasking": { "const": true },
+        "binaryOmission": { "const": true },
+        "noExternalPartnerTraffic": { "const": true }
+      }
+    }
+  }
+}

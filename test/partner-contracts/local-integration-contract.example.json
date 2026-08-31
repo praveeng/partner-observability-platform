@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "service": "sure-nbfc-example",
+  "springApplicationRoot": ".",
+  "gradle": {
+    "wrapper": "gradlew",
+    "buildTasks": [
+      "clean",
+      "test",
+      "bootJar"
+    ],
+    "dependencyTasks": [
+      "dependencies",
+      "--configuration",
+      "runtimeClasspath"
+    ]
+  },
+  "localRoute": {
+    "partnerKey": "partner-example-fixture",
+    "sdkUsername": "sdk-partner-example"
+  },
+  "adapterScript": "test/integration/run-local-partner-observability.sh"
+}

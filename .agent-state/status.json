@@ -10,17 +10,19 @@
       "READY_FOR_REVIEW",
       "COMPLETE"
     ],
-    "currentState": "VERIFYING"
+    "currentState": "READY_FOR_REVIEW"
   },
-  "milestone": "B003 full-duration performance completion boundary",
-  "summary": "VERIFYING: the approved nine-profile local K6 harness, mapped P01-P24 assertions, fixed-resource matched baselines, reactive callback fixture, bounded tenant-fixed journey resolver, outage controls, JVM/JFR collectors, and two-tier machine-readable evidence are implemented. A complete smoke mechanics run, clean Gradle build, B002, and the full local security gate pass. B003 remains IMPLEMENTED_BUT_NOT_FULLY_VALIDATED because the approximately 29.5-hour unshortened full suite has not completed.",
+  "milestone": "Target-service-aware local observability validation",
+  "summary": "READY_FOR_REVIEW: explicit single-target resolution, target-only OpenAPI structural fixtures and fail-closed coverage, Gradle composite/service-adapter contracts, a guarded local-only fixed-route transport, and optional aggregate-gate integration are implemented. Target isolation/generator tests, naming/profile/docs/security gates, and a clean six-module build pass. Real target and fresh container validation remain deferred by the absent pilot checkout and an unavailable local Docker CLI.",
   "blockers": [
-    "B003 remains open until all three full repetitions of all nine profiles and every mandatory threshold pass; smoke run b003-smoke-20260830-r11 is mechanics evidence only."
+    "B003 remains open until all three full repetitions of all nine profiles and every mandatory threshold pass; smoke run b003-smoke-20260830-r11 is mechanics evidence only.",
+    "The SureWebServices pilot service sure-nbfc-unionbank-ph is not present in this standalone workspace, so real-service E2E execution is deferred.",
+    "The local /usr/bin/docker currently returns Input/output error; fresh B001/B002/Compose verification cannot run in this worktree until Docker is restored."
   ],
   "nextActions": [
-    "Execute the complete local full-duration suite without shortening any profile and inspect every machine-readable verdict.",
-    "Run the full scripts/verify-all.sh release path after B003 passes; investigate only if the bounded Grafana SLI readiness check remains reproducibly unavailable.",
-    "Keep B003 open as IMPLEMENTED_BUT_NOT_FULLY_VALIDATED if the mandatory full run cannot complete or any required threshold fails."
+    "Restore Docker and rerun the generic B001/B002 local container gates to confirm the unchanged default Compose path.",
+    "Execute the real sure-nbfc-unionbank-ph local E2E later from a SureWebServices workspace with that exact target explicitly selected.",
+    "Keep B003 open as IMPLEMENTED_BUT_NOT_FULLY_VALIDATED until the mandatory full suite succeeds."
   ],
-  "lastUpdated": "2026-08-30T19:28:30Z"
+  "lastUpdated": "2026-08-31T04:31:46Z"
 }

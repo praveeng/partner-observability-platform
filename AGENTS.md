@@ -118,6 +118,20 @@ Dependencies must point inward: the starter may expose autoconfiguration, autoco
 - Performance validation must not access AWS, DEV, STAGE, PROD, real partners, production data, or
   enterprise Terraform.
 
+## Target partner service local testing
+
+- Real-service local tests require one explicit exact `TARGET_PARTNER_SERVICE`; agents must never
+  auto-select, enumerate for execution, aggregate, build, or run all `sure-nbfc-*` services.
+- The selected service runs only with the `local` profile and local/mock dependencies. Target mode
+  must not access AWS, DEV, STAGE, PROD, or a real partner endpoint.
+- The generic MVC/reactive test applications remain mandatory for B001, B002, B003, hostile
+  fixtures, saturation, and controlled failure testing. Real-service E2E is an additional layer.
+- OpenAPI-derived improvements are deterministic, structural, partner-neutral, and data-driven.
+  Runtime applications must not rewrite Java source, and generated fixtures may derive only from
+  the exact selected service.
+- Generated OpenAPI source in a partner service must not be edited. A new interaction shape may
+  become a generic test capability only after its partner-neutral boundary and tests are approved.
+
 ## Agent workflow and lifecycle
 
 The lifecycle values are `BOOTSTRAPPING`, `IN_PROGRESS`, `VERIFYING`, `BLOCKED`, `READY_FOR_REVIEW`, and `COMPLETE`.

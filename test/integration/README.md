@@ -34,3 +34,14 @@ Prerequisites are Docker Compose, `curl`, `jq`, and `rg`:
 ```
 
 The tests use randomized loopback ports, unique Compose projects, synthetic values only, and disposable volumes. Failure output includes bounded component logs; request bodies and query arguments are not logged by the gateway. Set `KEEP_RUNNING=1` only for local debugging; the Grafana runner retains generated credentials in a mode-0600 temporary file and prints its path.
+
+## Explicit real-service layer
+
+`run-local-service-end-to-end.sh` is supplemental and never replaces the generic runners above. It
+requires one exact `TARGET_PARTNER_SERVICE` and never enumerates or auto-selects sibling
+`sure-nbfc-*` repositories. It first requires a complete target-only OpenAPI coverage map, then
+builds only that service through Gradle composite source dependency and delegates actual
+service/mock startup and reviewed journeys to the selected repository's local adapter. The adapter
+must return machine-readable proof for the application/starter/Alloy/Loki/Prometheus/authorization/
+Grafana path, payload safety, and absence of external traffic. The standalone repository does not
+need a partner-service checkout and does not run this layer unless `RUN_TARGET_SERVICE_E2E=1`.

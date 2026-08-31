@@ -21,6 +21,7 @@ Observability must never reduce business availability. Application traffic write
 | `sure-partner-observability-spring-boot-starter` | Single-dependency consumer entry point |
 | `sure-partner-observability-test-app` | Synthetic verification application |
 | `sure-partner-observability-reactive-test-app` | Test-only WebFlux streaming/callback performance fixture |
+| `sure-partner-observability-local-test-support` | Optional `local`-only fixed-route transport for one selected real service |
 | `alloy`, `loki`, `prometheus`, `grafana` | Local/integration observability component configuration |
 | `docker` | Docker Compose local integration environment |
 | `test` | Cross-component integration, security, performance, and synthetic fixtures |
@@ -65,6 +66,8 @@ tests additionally need a reachable Docker daemon with Docker Compose v2, `curl`
 (`awk`, `date`, `nproc`, `sha256sum`), at least 8 logical CPUs and 12 GiB available to both the host
 and Docker for full mode, and the pinned K6 0.49.0 container image. A host-installed `k6` binary,
 AWS CLI, Terraform CLI, LocalStack, and Testcontainers are not required by the current commands.
+Target-service OpenAPI preparation additionally requires Python 3 with PyYAML. It is not a
+prerequisite for standalone generic builds or local validation.
 
 Check the prerequisites before starting:
 
@@ -114,6 +117,9 @@ are the important boundaries:
   local flows and end-to-end evidence.
 - `sure-partner-observability-reactive-test-app` is the runnable WebFlux fixture used by reactive
   and B003 performance tests.
+- `sure-partner-observability-local-test-support` is a non-production development dependency for
+  the explicitly selected real-service mode. It supplies one fixed `local` route on the bounded
+  dispatcher thread and is never a replacement for the ordinary one-starter deployed integration.
 - `docker/compose.yml` and `alloy/`, `loki/`, `prometheus/`, and `grafana/` define the local
   observability platform. `test/integration/` drives its disposable real-container checks.
 - `docs/enterprise-infrastructure/` defines the STAGE/PROD handoff to centralized Terraform and
@@ -154,6 +160,7 @@ Version `0.1.0-SNAPSHOT` is set in the root `build.gradle`. A successful build p
 | Core library | `sure-partner-observability-core/build/libs/sure-partner-observability-core-0.1.0-SNAPSHOT.jar` |
 | Auto-configuration library | `sure-partner-observability-spring-boot-autoconfigure/build/libs/sure-partner-observability-spring-boot-autoconfigure-0.1.0-SNAPSHOT.jar` |
 | Consumer starter | `sure-partner-observability-spring-boot-starter/build/libs/sure-partner-observability-spring-boot-starter-0.1.0-SNAPSHOT.jar` |
+| Local test support | `sure-partner-observability-local-test-support/build/libs/sure-partner-observability-local-test-support-0.1.0-SNAPSHOT.jar` |
 | MVC synthetic boot JAR | `sure-partner-observability-test-app/build/libs/sure-partner-observability-test-app-0.1.0-SNAPSHOT.jar` |
 | WebFlux synthetic boot JAR | `sure-partner-observability-reactive-test-app/build/libs/sure-partner-observability-reactive-test-app-0.1.0-SNAPSHOT.jar` |
 
@@ -194,6 +201,48 @@ manual container copy, or direct Grafana edits. Until the external release integ
 those details, repository-driven DEV/STAGE/PROD deployment is a hard stop.
 
 ### Local
+
+#### Two explicit local testing modes
+
+`GENERIC` is the default and remains authoritative for B001, B002, B003, adversarial payloads,
+queue/sanitizer failures, reactive stress, and tenant-collision fixtures. It uses only
+`sure-partner-observability-test-app` and `sure-partner-observability-reactive-test-app`. No sibling
+repository is discovered or required.
+
+`TARGET_SERVICE` is an additional enterprise-workspace E2E layer for exactly one human-selected
+service. It never enumerates, auto-selects, aggregates, builds, or starts all `sure-nbfc-*`
+directories. Select the exact pilot from a SureWebServices checkout as follows:
+
+```bash
+export SUREWEBSERVICES_ROOT=/absolute/path/to/SureWebServices
+export TARGET_PARTNER_SERVICE=sure-nbfc-unionbank-ph
+
+./scripts/prepare-target-service-test-fixtures.sh
+./test/integration/run-local-service-end-to-end.sh
+```
+
+The first command reads YAML/YML only below the selected target, recognizes only OpenAPI
+documents, and writes payload-free structural inventories to
+`test/partner-contracts/generated/$TARGET_PARTNER_SERVICE/`. Unreviewed operations are
+`NOT_COVERED`, which fails readiness. A reviewed mapping and local integration adapter are required
+before the second command can build the target through Gradle `--include-build`, start it with
+`SPRING_PROFILES_ACTIVE=local`, use its local/mock partner, and validate its real APIs and callbacks
+through Alloy, Loki/Prometheus, the authorization boundary, and Grafana. Generated OpenAPI Java is
+never edited. See [the target contract format](test/partner-contracts/README.md).
+
+If `SUREWEBSERVICES_ROOT` is omitted, only the repository's direct parent is considered, and only
+the exact target basename is resolved. A missing target fails; it never falls back to another
+service. Local mode never calls AWS or a real partner. The current standalone checkout does not
+contain `sure-nbfc-unionbank-ph`, so the pilot E2E is intentionally deferred to SureWebServices.
+
+Standalone aggregate verification stays generic. To add the reviewed real-service E2E explicitly:
+
+```bash
+SUREWEBSERVICES_ROOT=/absolute/path/to/SureWebServices \
+TARGET_PARTNER_SERVICE=sure-nbfc-unionbank-ph \
+RUN_TARGET_SERVICE_E2E=1 \
+./scripts/verify-all.sh
+```
 
 #### Purpose and start order
 
@@ -503,6 +552,8 @@ Prometheus output as evidence of partner isolation.
 | `./scripts/test.sh` | All Gradle unit and Spring integration tests without a clean |
 | `./scripts/test-enterprise-naming.sh` | Java package, Gradle group, module, and artifact naming |
 | `./scripts/validate-profiles.sh` | Exactly `local`, `dev`, `stage`, `prod` and properties-only configuration |
+| `./scripts/test-target-service-local.sh` | Exact-target rejection/isolation, target-only OpenAPI parsing, fail-closed coverage, and route rendering |
+| `TARGET_PARTNER_SERVICE=... ./test/integration/run-local-service-end-to-end.sh` | Optional real selected-service E2E; requires its reviewed mapping/adapter and never falls back |
 | `./test/integration/run-local-data-plane.sh` | Real Compose, Alloy, Loki, fixed-tenant routing, schema, safety, and searches |
 | `./test/integration/run-local-metrics-plane.sh` | Real Alloy scrape/relabel/remote-write, Prometheus retention/rules, and bounded labels |
 | `./scripts/test-grafana.sh --validate-only` | Real Grafana health, accounts, organizations, fixed datasources, and provisioning; no telemetry/SLI seeding |
@@ -841,10 +892,12 @@ repository contains no stable DNS value or shell variable.
 - **Wrong or missing Spring profile:** check `printf '%s\n' "$SPRING_PROFILES_ACTIVE"`. It must be
   exactly one of `local`, `dev`, `stage`, or `prod`. The common properties do not embed an active
   profile. Local HTTP is rejected outside the guarded `local` profile.
-- **Gradle cannot find a project or dependency:** run from the repository root and confirm
-  `./gradlew projects` lists all five modules. This is one multi-project Gradle build using
-  `project(...)` dependencies; it is not a Maven build or an included/composite build. Do not add
-  `--include-build`. Use a writable `GRADLE_USER_HOME` if the wrapper lock/cache path is read-only.
+- **Gradle cannot find a project or dependency:** for standalone generic work, run from the
+  repository root and confirm `./gradlew projects` lists all six modules. This repository itself is
+  one multi-project Gradle build using `project(...)` dependencies. Only the explicit
+  `TARGET_SERVICE` runner invokes a selected sibling service with `--include-build` so its starter
+  and local-test-support dependencies resolve from source. Use a writable `GRADLE_USER_HOME` if the
+  wrapper lock/cache path is read-only.
 - **Docker component is unhealthy or a port is occupied:** inspect
   `docker ps --filter label=com.docker.compose.project=partner-observability-manual` and the bounded
   logs for the named container, for example

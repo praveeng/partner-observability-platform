@@ -167,6 +167,15 @@ Milestones are ordered; later exploratory work must not redefine an earlier secu
 
 ## Current focus
 
+An explicit target-service-aware local validation layer is implemented without changing the
+standalone generic default. It resolves one exact `TARGET_PARTNER_SERVICE`, generates target-only
+OpenAPI structural/coverage fixtures, builds the selected service through a Gradle composite source
+dependency, and requires a reviewed target-owned local adapter/result contract. The platform adds a
+guarded local-only fixed-route transport module. Synthetic resolver/generator/route tests and the
+new module tests pass. `sure-nbfc-unionbank-ph` is not present in this standalone workspace, so its
+real local E2E remains a SureWebServices follow-up; B001/B002 evidence is unchanged and B003 remains
+`IMPLEMENTED_BUT_NOT_FULLY_VALIDATED`.
+
 The canonical Spring runtime model is now `local`, `dev`, `stage`, and `prod`, with properties-only
 configuration for the runnable synthetic application, external activation, lowercase telemetry
 identity, and a permanent isolation gate. This configuration migration does not change B001/B002

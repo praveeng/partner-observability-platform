@@ -19,3 +19,4 @@ Each ADR must include: status and date; context; decision; security/availability
 - `0011-https-tls-ownership-and-ingress-boundary.md`
 - `0012-selected-slf4j-log-compatibility.md`
 - `0013-enterprise-infrastructure-ownership-boundary.md`
+- `0014-explicit-target-service-local-validation.md`

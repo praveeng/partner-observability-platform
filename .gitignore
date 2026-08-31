@@ -9,6 +9,7 @@ out/
 __pycache__/
 *.py[cod]
 test/performance/evidence/
+test/partner-contracts/evidence/
 .env
 .env.*
 !.env.example

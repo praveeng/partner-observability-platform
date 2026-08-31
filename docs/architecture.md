@@ -148,6 +148,27 @@ Partner <-- HTTPS/ALB + CallbackResponseRecord (CALLBACK_RESPONSE_SENT) --------
 
 - Synthetic MVC/reactive/client/encryption scenarios for verification only.
 
+### `sure-partner-observability-local-test-support`
+
+- Optional non-production auto-configuration for an explicitly selected real service's `local`
+  runtime; deployed applications still use the ordinary starter dependency.
+- Supplies one startup-validated fixed partner route to the existing bounded dispatcher. It cannot
+  derive a tenant from a request, callback body, telemetry record, or dashboard input.
+- Activates only for `local` plus `local-synthetic`, accepts only the isolated `/v1/logs` gateway,
+  and contains no partner-specific Java behavior.
+
+### Local verification layers
+
+Generic local validation always uses the controlled MVC/reactive test applications and remains the
+B001/B002/B003 boundary. Optional real-service validation requires one exact
+`TARGET_PARTNER_SERVICE`; deterministic resolution reads only that direct SureWebServices child.
+Its OpenAPI preparation retains structural contract metadata, compares partner-neutral interaction
+patterns, and fails readiness for an operation without an explicit observability decision. A
+reviewed target-owned adapter handles only service-specific startup, mock-partner behavior, and
+journey driving. The platform owns the fixed-route gateway, local telemetry/query assertions, and
+evidence contract. No runtime source generation, generated OpenAPI Java edits, artifact publication,
+AWS access, or cross-service aggregation occurs.
+
 ## Capture lifecycle
 
 1. Resolve a trusted `PartnerContext` from authenticated business/server state or an explicit trusted adapter. For callbacks, hold only the server ingress timestamp until authentication succeeds; untrusted route/header/body values never directly establish partner context.
@@ -450,7 +471,7 @@ Cost is controlled through 16-day retention, S3 single-store Loki, single statef
 
 ## Verification and rollout
 
-Testing is layered across unit/property/fuzz, framework contract, concurrency, Docker Compose, tenant security, dashboard/query, enterprise-infrastructure contract validation, failure injection, and performance suites. The centralized Terraform repository owns plan/policy evidence for AWS resources. Async/callback suites include late/out-of-order callbacks, duplicate/retry attempts, acknowledgement bridges, missing/unknown/conflicting IDs, wrong partners, auth/signature/parsing/processing/write failures, accepted-before-complete, MVC async dispatch, WebFlux cancellation/backpressure, and bounded correlation queries. Transport suites use synthetic certificates to cover valid/untrusted/expired/hostname-mismatch chains, HTTPS-to-HTTP downgrade denial, unchanged RestTemplate/WebClient/OkHttp TLS settings, ALB 443-only/ACM/private-target policy, spoofed forwarding headers, secret absence, and local-HTTP isolation. Exact gates are in `acceptance-criteria.md`.
+Testing is layered across unit/property/fuzz, framework contract, concurrency, Docker Compose, tenant security, dashboard/query, enterprise-infrastructure contract validation, failure injection, and performance suites. A supplemental target-service layer can validate exactly one selected real service against the same local platform without replacing controlled generic fixtures. The centralized Terraform repository owns plan/policy evidence for AWS resources. Async/callback suites include late/out-of-order callbacks, duplicate/retry attempts, acknowledgement bridges, missing/unknown/conflicting IDs, wrong partners, auth/signature/parsing/processing/write failures, accepted-before-complete, MVC async dispatch, WebFlux cancellation/backpressure, and bounded correlation queries. Transport suites use synthetic certificates to cover valid/untrusted/expired/hostname-mismatch chains, HTTPS-to-HTTP downgrade denial, unchanged RestTemplate/WebClient/OkHttp TLS settings, ALB 443-only/ACM/private-target policy, spoofed forwarding headers, secret absence, and local-HTTP isolation. Exact gates are in `acceptance-criteria.md`.
 
 Existing partner services roll out in phases: inventory outbound and callback routes/authentication/encryption/idempotency/completion semantics; deploy empty backends; add starter disabled; enable health metrics; enable metadata-only for one DEV mock synchronous API; enable one mock async acknowledgement/callback journey; validate tenant/correlation/timeline/dashboards; enable explicit plaintext/processing hooks where needed; approve full-sanitized fields per leg; expand partner-by-partner; retain kill-switch and rollback evidence. Callback capture remains disabled until its trusted resolver and filter/decryption ordering are tested. No phase enables production payload capture without security and service-owner approval.
 

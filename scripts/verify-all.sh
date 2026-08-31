@@ -166,6 +166,19 @@ payload_safety_tests() {
     --tests '*EncryptedRestTemplateFixtureIntegrationTest.removesCryptoSecretsAndExcludesLargeBase64BeforeQueueAdmission'
 }
 
+target_service_local_validation() {
+  ./scripts/test-target-service-local.sh || return $?
+  if [[ "${RUN_TARGET_SERVICE_E2E:-0}" == "1" ]]; then
+    if [[ -z "${TARGET_PARTNER_SERVICE:-}" ]]; then
+      echo 'FAIL: RUN_TARGET_SERVICE_E2E=1 requires one exact TARGET_PARTNER_SERVICE' >&2
+      return 1
+    fi
+    ./test/integration/run-local-service-end-to-end.sh
+  else
+    echo 'INFO: real-service local E2E is opt-in with RUN_TARGET_SERVICE_E2E=1 and an exact TARGET_PARTNER_SERVICE.'
+  fi
+}
+
 print_summary() {
   section 'SUMMARY'
   local index
@@ -191,6 +204,7 @@ fi
 run_stage 'Repository input and generated-state baseline' repository_baseline
 run_stage 'Enterprise Java namespace and module naming gate' ./scripts/test-enterprise-naming.sh
 run_stage 'Enterprise Spring profile and properties-only configuration gate' ./scripts/validate-profiles.sh
+run_stage 'Explicit single-target local-service isolation and OpenAPI fixture gate' target_service_local_validation
 
 section 'BUILD / CORE'
 run_stage '1. Gradle clean build' ./gradlew --no-daemon clean build

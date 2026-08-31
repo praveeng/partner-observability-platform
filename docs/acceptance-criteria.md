@@ -259,6 +259,14 @@ mode is never B003 evidence.
 
 ## Rollout and migration gates
 
+Before a real partner service is declared locally integration-ready, an operator supplies one exact
+`TARGET_PARTNER_SERVICE`. Its target-only OpenAPI inventory has no `NOT_COVERED` operations; its
+reviewed mapping identifies the mechanism/scenario/correlation semantics without editing generated
+source; and its local adapter proves application -> starter -> bounded transport -> Alloy ->
+Loki/Prometheus -> fixed authorization -> Grafana using a mock partner and `local` profile. A
+missing target or mapping fails rather than selecting another service. This supplemental gate does
+not replace or change B001, generic B002, or generic B003 acceptance.
+
 1. Inventory services, trusted partner identity source, clients, outbound HTTPS endpoints/redirect/custom-CA policy, callback ALB/DNS/ACM/SG ownership, callback APIs/routes, authentication/signature/decryption/idempotency/202/background-completion semantics, payload schemas, current logs, and owners.
 2. Deploy/validate an empty market stack with synthetic tenants and no application traffic.
 3. Add starter with global disabled; prove no behavior/performance regression.

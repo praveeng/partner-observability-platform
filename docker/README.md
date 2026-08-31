@@ -11,6 +11,11 @@ Default loopback ports are OTLP/HTTP ingest `14318`, fixed-tenant Loki/Prometheu
 
 `nginx/local-synthetic.htpasswd` contains deliberately public, synthetic-only fixture credentials for the lower-level Partner A/B/C SDK and Loki query tests. They are not secrets, must never be reused outside `LOCAL_SYNTHETIC`, and are not a production authentication design. The Grafana runner replaces this file with generated temporary credentials. The gateway rejects unknown identity/route pairs, strips inbound authorization inputs, injects fixed Loki tenants, and forwards metrics only through `prom-label-proxy` with a fixed `partner_slot`. Ingest uses fixed route-specific Alloy receivers; neither callback JSON nor OTLP metadata can select a tenant.
 
+The explicit target-service runner may supply `LOCAL_GATEWAY_CONFIG_FILE` and
+`LOCAL_GATEWAY_HTPASSWD_FILE` pointing to generated, mode-restricted temporary files. The gateway
+renderer adds only the reviewed exact target partner-key/SDK-user pair; it does not discover
+services, derive a route from telemetry, or change the default generic Compose topology.
+
 Run the isolated real-component suite with:
 
 ```bash

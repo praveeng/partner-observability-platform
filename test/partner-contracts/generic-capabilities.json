@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "capabilities": [
+    "ASYNC_HTTP_202_CALLBACK",
+    "CALLBACK_DUPLICATE",
+    "CALLBACK_ERROR_RESPONSE",
+    "CALLBACK_MULTIPLE_PER_REQUEST",
+    "CALLBACK_PARTNER_REFERENCE_ONLY",
+    "CALLBACK_RETRY",
+    "ENCRYPTED_LOGICAL_PAYLOAD",
+    "LARGE_JSON",
+    "MULTIPART_BINARY_OMISSION",
+    "NESTED_BINARY_OMISSION",
+    "REST_JSON_ERROR",
+    "SYNC_JSON",
+    "WEBFLUX_CALLBACK",
+    "WEBCLIENT_REACTIVE"
+  ],
+  "fixtures": {
+    "mvcApplication": "sure-partner-observability-test-app",
+    "reactiveApplication": "sure-partner-observability-reactive-test-app"
+  },
+  "notes": [
+    "Capabilities describe partner-neutral interaction shapes, not partner business semantics.",
+    "A capability match does not infer direction, correlation meaning, or capture policy; coverage mappings must confirm those choices."
+  ]
+}

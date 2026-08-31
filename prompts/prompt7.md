@@ -1,55 +1,49 @@
-# Run real sure-nbfc-unionbank-ph application-to-platform end-to-end validation
+# Integrate SureWebServices GitHub Actions
 
 ## Mode
 
-LOCAL EXECUTION / VALIDATION. Use only synthetic data and the `local` Spring profile. Do not use AWS, centralized Terraform, real partner endpoints, real credentials, deployment workflows, or production-like secrets. Ask before any material business-service code change.
+APPROVAL-GATED IMPLEMENTATION. Inspect and propose first; modify workflows only after explicit approval. Do not run a deployment, access AWS, change centralized Terraform, run Terraform, publish a release, or expose secrets.
 
-## Objective and mandatory path
+## Objective
 
-In SureWebServices, prove this real local path rather than substituting direct telemetry injection:
+Integrate the pilot and Partner Observability application assets into the existing SureWebServices GitHub Actions model. Set `TARGET_PARTNER_SERVICE=sure-nbfc-unionbank-ph` for the pilot and apply service-specific workflow changes only to that exact target. Resolve it through optional `SUREWEBSERVICES_ROOT`; reject wildcard, multiple, inferred, or absent targets. Reuse enterprise workflows, reusable actions, environments, credentials, change controls, and deployment conventions. Do not enumerate or mass-modify other `sure-nbfc-*` services, and do not invent a parallel CI/CD framework.
 
-```text
-sure-nbfc-unionbank-ph
-  -> sure-partner-observability-spring-boot-starter
-  -> Alloy
-  -> Loki and Prometheus
-  -> server-side authorization/query boundary
-  -> Grafana
-```
+Read SureWebServices, platform, and selected-target `AGENTS.md` files. Inspect root/shared `.github/workflows`, shared/composite actions, selected-target workflow references, environment mappings, Gradle caches/checkouts, ECS deployment workflows, image publishing, runtime configuration rollout, observability asset deployment, and post-deployment checks. Reuse convention sources referenced by shared configuration without treating another partner service as an integration target. If workflows are stored elsewhere in the monorepo, discover them from repository configuration rather than fabricating files.
 
-Read both repositories' `AGENTS.md`, current B001/B002/B003 evidence, local runbooks, Docker Compose, profile configuration, pilot OpenAPI inventory/coverage evidence, and applicable security/payload/starter/Grafana/Loki skills. Reuse the implemented B001 Grafana and B002 application-to-platform infrastructure. Do not weaken or rewrite those gates. Direct synthetic OTLP injection is supporting diagnostics only and cannot satisfy application-originated evidence.
+## Mandatory release boundary
 
-## Environment rules
+The selected target consumes `sure-partner-observability-spring-boot-starter` directly from source through the established Gradle composite build. A clean runner must check out or otherwise include `sure-partner-observability` and only the selected target for the pilot build without an artifact repository or copied JAR. Public SDK imports remain `com.samsung.sure.partner.observability.*`.
 
-Run the pilot with `SPRING_PROFILES_ACTIVE=local` and its local mock partner. LOCAL may use LocalStack, Testcontainers, and Docker where already designed. It must have no live AWS dependency. Do not edit or activate `dev`, `stage`, or `prod`. Spring application configuration remains properties-only. Use the composite source dependency on `sure-partner-observability-spring-boot-starter` and Samsung Sure imports.
+Canonical Spring profiles are exactly `local`, `dev`, `stage`, and `prod`, with `.properties` application configuration only. Map enterprise development deployment to `dev`, staging deployment to `stage`, and production deployment to `prod`. LOCAL tests explicitly use `local`. DEV is AWS plus a mock partner and remains isolated from STAGE even if both use the same market account. STAGE uses partner staging; PROD uses partner production. Profile activation is supplied externally and production is never the packaged default.
 
-## Required journey evidence
+Enterprise Terraform is separate, manually reviewed, and manually executed in the centralized Terraform repository. No SureWebServices workflow may run `terraform init`, `plan`, `apply`, `destroy`, import, or infrastructure creation. Deployment must fail closed if the approved infrastructure change reference and required non-secret outputs/base health are absent.
 
-Drive representative operations selected from the actual pilot OpenAPI and coverage inventory:
+After base infrastructure exists, GHA may follow existing conventions for:
 
-- a real application-originated outbound synchronous request and response;
-- an outbound asynchronous request and its acknowledgement, including HTTP 202 when the real contract uses it;
-- a real local/mock callback HTTP request into `sure-nbfc-unionbank-ph`, not into a test-only bypass;
-- callback receipt, authenticated/validated stages where implemented, processing start, processing success or failure, and callback response/write terminal;
-- an applicable encrypted request/response or callback flow through the generic before-encryption/after-decryption hook, only if the pilot really encrypts payloads.
+- composite source build, unit and integration tests;
+- security, profile, naming, exact-target OpenAPI fixture preparation, OpenAPI-to-observability coverage, and dependency checks;
+- container build, scan, provenance, immutable digest publication, and ECS application/runtime update;
+- application-owned Alloy pipeline, Loki runtime policy, Prometheus rules/configuration, query-gateway configuration, and market manifest rollout;
+- `grafana/dashboards/` and `grafana/alerts/` deployment after base Grafana is healthy;
+- post-deployment health, tenant isolation, configuration digest, and rollback verification;
+- Liquibase only if repository inspection proves a real application database/schema. Current Sure Partner Observability architecture requires no database, so do not add a platform Liquibase step.
 
-Verify through the fixed authorized query path and Grafana:
+Terraform owns base ECS/network/VPC/security groups/ALB/ACM/DNS/WAF/IAM/S3/KMS/EFS/secrets/runtime infrastructure for Grafana, Loki, Alloy, and Prometheus. GHA owns only application/software assets and approved ECS rollout surfaces. Secret values remain in approved runtime stores and must not appear in workflow inputs, outputs, logs, artifacts, caches, or Terraform outputs.
 
-- correct event types and ordering without equating receipt, response, and processing completion;
-- typed transaction search and detail for actual `applicationId`, `loanId`, `correlationId`, `partnerReferenceId`, `callbackReferenceId`, and other real identifiers where present;
-- Prometheus interaction/acknowledgement/callback metrics and Grafana SLI panels;
-- one Loki tenant per synthetic partner and fixed Prometheus partner slot;
-- bidirectional cross-partner denial and same-identifier collision isolation;
-- spoofed `partnerId`, tenant headers, callback-body identity, Grafana variables, and direct backend paths do not cross the authorization boundary.
+## Approval checkpoint
 
-Use unique synthetic sentinels and assert absence at application queue evidence and retained sinks. Credentials, Authorization, tokens, cookies, API keys, OTP, card data, encryption key/IV, and private material must be absent; phone/email/account/national ID/address must be masked; PDF/image/document/binary/Base64 must be omitted before queue admission. Do not print sensitive-shaped fixture values in the report.
+Before editing, present:
 
-## Availability fault matrix
+1. Existing workflow/reusable-action patterns selected and why.
+2. Exact workflow/action/files proposed.
+3. Clean-checkout composite-build path.
+4. Test and artifact dependency graph.
+5. `local`/`dev`/`stage`/`prod` activation mapping.
+6. Infrastructure prerequisites and non-secret outputs consumed.
+7. Dashboard, alert, Prometheus, Alloy/Loki, and post-deployment ownership.
+8. Environment protection, approvals, secret handling, rollback, and risks.
+9. Confirmation that no Terraform command or production deployment will run during implementation.
 
-Independently make Alloy, Loki, Prometheus, and Grafana unavailable using the repository's safe local fault mechanism. For each outage prove the original outbound/callback business response, exception, timing bound, and processing semantics remain unchanged; telemetry may drop. Also exercise queue saturation and sanitizer/publisher failure where supported. No business thread may wait for an observability backend.
+Stop and ask for explicit approval.
 
-## Execution and result
-
-Run focused pilot tests, `test/integration/run-local-grafana.sh`, `test/integration/run-local-end-to-end.sh`, applicable security/profile/OpenAPI gates, and `scripts/verify-all.sh` from the appropriate repository where practical. Preserve exact exit codes and distinguish pre-existing B003/Q015 or environmental blockers from regressions. Do not run or claim full B003 unless its authoritative inputs are resolved and the release policy explicitly requires it; smoke/load evidence is not B003 completion.
-
-Produce a requirement-to-evidence matrix with command, application operation, source event, sink/query, positive assertion, negative/absence assertion, and result. Report B001/B002/B003 status honestly. If validation uncovers a defect, add a failing regression only after asking before any material pilot behavior change. Do not deploy or push. A local evidence commit is allowed only if repository policy and the user explicitly authorize the resulting file changes.
+After approval, implement the minimum changes, validate workflow syntax and repository-standard static checks, and exercise non-deploy build/test paths where safe. Do not trigger deployment workflows. Create one coherent local commit, do not push, and report exact changes, validations, unresolved enterprise inputs, and commit hash.

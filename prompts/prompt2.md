@@ -9,7 +9,7 @@ APPROVED_GENERIC_GAPS:
 
 ## Objective and scope
 
-Work in the enterprise SureWebServices workspace, but modify only `sure-partner-observability` for the explicitly listed generic gap IDs. Do not implement unapproved gaps or service-specific `Sxxx` work. Do not modify `sure-nbfc-unionbank-ph`, Gradle monorepo integration, GitHub Actions, centralized Terraform, or any deployed environment in this prompt.
+Work in the enterprise SureWebServices workspace, but modify only `sure-partner-observability` for the explicitly listed generic gap IDs. Do not implement unapproved gaps or service-specific `Sxxx` work. Do not modify `sure-nbfc-unionbank-ph` or any other `sure-nbfc-*` service, Gradle monorepo integration, GitHub Actions, centralized Terraform, or any deployed environment in this prompt. This generic-platform prompt does not authorize broad service discovery; use only approved gap evidence and current platform source.
 
 Read `sure-partner-observability/AGENTS.md`, `PLANS.md`, `.agent-state/status.json`, applicable architecture/security/payload/telemetry/isolation/deployment documentation, relevant ADRs, and applicable `.codex/skills/` instructions. Inspect current implementation and tests before relying on an earlier assessment.
 
@@ -18,7 +18,7 @@ Read `sure-partner-observability/AGENTS.md`, `PLANS.md`, `.agent-state/status.js
 - Java 17, Spring Boot 2.7.x, Gradle Groovy.
 - Packages must remain under `com.samsung.sure.partner.observability.*` and modules under `sure-partner-observability-*`.
 - Ordinary services consume `sure-partner-observability-spring-boot-starter` through one dependency plus configuration.
-- No Union Bank name, endpoint, DTO, field assumption, or partner-specific framework fork may enter generic SDK Java.
+- No Union Bank or other target-service name, endpoint, DTO, field assumption, or partner-specific framework fork may enter generic SDK or generic test-app Java.
 - Prefer configuration, typed correlation extractors, API/callback registries, framework-neutral extension points, and generic pre-encryption/post-decryption or callback lifecycle hooks.
 - Preserve automatic RestTemplate, WebClient, and OkHttp behavior and optional-classpath activation.
 - Preserve bounded non-blocking queues, drop-on-saturation, exception containment, disabled-mode equivalence, trusted server-side partner identity, one Loki tenant per partner, low-cardinality metrics/log labels, and pre-queue sanitization.

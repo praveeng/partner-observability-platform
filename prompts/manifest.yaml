@@ -1,18 +1,46 @@
-version: 1
+version: 2
 pilotService: sure-nbfc-unionbank-ph
 platformProject: sure-partner-observability
 monorepo: SureWebServices
+targetServicePolicy:
+  canonicalVariable: TARGET_PARTNER_SERVICE
+  pilotValue: sure-nbfc-unionbank-ph
+  workspaceRootVariable: SUREWEBSERVICES_ROOT
+  exactlyOneServicePerRun: true
+  allowWildcardOrList: false
+  allowFirstMatchSelection: false
+  missingTargetBehavior: fail
 profileModel:
   - local
   - dev
   - stage
   - prod
 springConfigurationFormat: properties
+localTestingModes:
+  generic:
+    application: sure-partner-observability-test-app
+    owns:
+      - B001
+      - B002-generic
+      - B003
+      - performance-and-security-extremes
+  targetService:
+    applicationVariable: TARGET_PARTNER_SERVICE
+    springProfile: local
+    owns:
+      - real-openapi-compatibility
+      - real-http-client-instrumentation
+      - real-callback-architecture
+      - real-correlation-and-encryption-hooks
+      - real-application-to-platform-e2e
 prompts:
   prompt1:
     order: 1
     file: prompt1.md
+    purpose: selected target compatibility assessment
     mode: assessment
+    requiresTargetPartnerService: true
+    broadServiceDiscoveryAllowed: false
     requiresHumanApproval: false
     mayModifyFiles: false
     mayCommit: false
@@ -22,8 +50,11 @@ prompts:
   prompt2:
     order: 2
     file: prompt2.md
+    purpose: approved generic Partner Observability gaps
     mode: implementation
-    conditional: "approved generic gaps exist"
+    conditional: approved generic gaps exist
+    requiresTargetPartnerService: false
+    broadServiceDiscoveryAllowed: false
     requiresHumanApproval: true
     requiresHumanApprovalBeforeModification: true
     mayModifyFiles: true
@@ -34,7 +65,10 @@ prompts:
   prompt3:
     order: 3
     file: prompt3.md
+    purpose: selected target service configuration
     mode: implementation
+    requiresTargetPartnerService: true
+    broadServiceDiscoveryAllowed: false
     requiresHumanApproval: true
     requiresHumanApprovalBeforeModification: true
     mayModifyFiles: true
@@ -45,7 +79,10 @@ prompts:
   prompt4:
     order: 4
     file: prompt4.md
+    purpose: selected target Gradle composite starter integration
     mode: implementation
+    requiresTargetPartnerService: true
+    broadServiceDiscoveryAllowed: false
     requiresHumanApproval: true
     requiresHumanApprovalBeforeModification: true
     mayModifyFiles: true
@@ -56,9 +93,12 @@ prompts:
   prompt5:
     order: 5
     file: prompt5.md
-    mode: quality-gate
+    purpose: target OpenAPI fixture enrichment
+    mode: target-service-aware-implementation
+    requiresTargetPartnerService: true
+    broadServiceDiscoveryAllowed: false
     requiresHumanApproval: false
-    approvalRequiredOnAmbiguity: true
+    requiresHumanApprovalBeforeSubstantialGenericJavaChange: true
     mayModifyFiles: true
     mayCommit: true
     mayPush: false
@@ -67,9 +107,12 @@ prompts:
   prompt6:
     order: 6
     file: prompt6.md
-    mode: gha-integration
-    requiresHumanApproval: true
-    requiresHumanApprovalBeforeModification: true
+    purpose: selected target OpenAPI-to-observability coverage gate
+    mode: quality-gate
+    requiresTargetPartnerService: true
+    broadServiceDiscoveryAllowed: false
+    requiresHumanApproval: false
+    approvalRequiredOnAmbiguity: true
     mayModifyFiles: true
     mayCommit: true
     mayPush: false
@@ -78,9 +121,12 @@ prompts:
   prompt7:
     order: 7
     file: prompt7.md
-    mode: local-validation
-    requiresHumanApproval: false
-    approvalRequiredForMaterialServiceChange: true
+    purpose: selected target and platform GHA integration
+    mode: gha-integration
+    requiresTargetPartnerService: true
+    broadServiceDiscoveryAllowed: false
+    requiresHumanApproval: true
+    requiresHumanApprovalBeforeModification: true
     mayModifyFiles: true
     mayCommit: true
     mayPush: false
@@ -89,7 +135,26 @@ prompts:
   prompt8:
     order: 8
     file: prompt8.md
+    purpose: real target-service local E2E
+    mode: local-target-service-validation
+    requiresTargetPartnerService: true
+    springProfile: local
+    broadServiceDiscoveryAllowed: false
+    requiresHumanApproval: false
+    approvalRequiredForMaterialServiceChange: true
+    mayModifyFiles: true
+    mayCommit: true
+    mayPush: false
+    mayDeploy: false
+    mayRunTerraformApply: false
+  prompt9:
+    order: 9
+    file: prompt9.md
+    purpose: centralized Terraform infrastructure integration
+    formerPrompt: 13B
     mode: terraform-integration
+    requiresTargetPartnerService: false
+    broadServiceDiscoveryAllowed: false
     requiresHumanApproval: true
     requiresHumanApprovalBeforeModification: true
     scope:
@@ -102,20 +167,28 @@ prompts:
     mayPush: false
     mayDeploy: false
     mayRunTerraformApply: false
-  prompt9:
-    order: 9
-    file: prompt9.md
+  prompt10:
+    order: 10
+    file: prompt10.md
+    purpose: STAGE and PROD readiness assessment
     mode: assessment
+    requiresTargetPartnerService: true
+    requiresGenericLocalE2E: true
+    requiresTargetServiceLocalE2E: true
+    broadServiceDiscoveryAllowed: false
     requiresHumanApproval: false
     mayModifyFiles: false
     mayCommit: false
     mayPush: false
     mayDeploy: false
     mayRunTerraformApply: false
-  prompt10:
-    order: 10
-    file: prompt10.md
+  prompt11:
+    order: 11
+    file: prompt11.md
+    purpose: independent generic and selected-target security/regression review
     mode: adversarial-review
+    requiresTargetPartnerService: true
+    broadServiceDiscoveryAllowed: false
     requiresHumanApproval: false
     approvalRequiredForMaterialRedesign: true
     mayModifyFiles: true
@@ -123,12 +196,17 @@ prompts:
     mayPush: false
     mayDeploy: false
     mayRunTerraformApply: false
-  prompt11:
-    order: 11
-    file: prompt11.md
+  prompt12:
+    order: 12
+    file: prompt12.md
+    purpose: rollout assessment for remaining sure-nbfc services
     mode: assessment
+    requiresTargetPartnerService: false
+    broadServiceDiscoveryAllowed: true
     requiresHumanApproval: false
     mayModifyFiles: false
+    mayModifyServices: false
+    mayExecuteServices: false
     mayCommit: false
     mayPush: false
     mayDeploy: false

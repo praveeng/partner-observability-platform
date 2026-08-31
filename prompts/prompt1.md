@@ -4,9 +4,19 @@
 
 ASSESSMENT ONLY. Do not modify files, create commits, push, deploy, access AWS, run Terraform, or contact a real partner.
 
+## Explicit pilot target
+
+Set the canonical target to:
+
+```text
+TARGET_PARTNER_SERVICE=sure-nbfc-unionbank-ph
+```
+
+Use `SUREWEBSERVICES_ROOT` when the workspace root is not the current directory or its unambiguous parent. Validate that the exact target directory exists. Inspect only `TARGET_PARTNER_SERVICE` for service-specific analysis. Do not enumerate, inspect, parse, build, start, or test any other `sure-nbfc-*` service; never choose the first matching directory or accept a wildcard/multiple-service value.
+
 ## Objective and workspace
 
-Work in the enterprise SureWebServices workspace. Locate and inspect both `sure-partner-observability` and the pilot service `sure-nbfc-unionbank-ph`. Determine exactly how the pilot can consume `sure-partner-observability-spring-boot-starter` from source and which work is generic platform capability versus service integration.
+Work in the enterprise SureWebServices workspace. Locate and inspect `sure-partner-observability` and only the resolved `TARGET_PARTNER_SERVICE`. Determine exactly how the selected pilot can consume `sure-partner-observability-spring-boot-starter` from source and which work is generic platform capability versus service integration.
 
 Before assessing the pilot, read `sure-partner-observability/AGENTS.md`, `PLANS.md`, `.agent-state/status.json`, the applicable files under `docs/`, and the applicable repository-local skills under `.codex/skills/`. At minimum read the architecture, security invariants, transport security, telemetry contract, payload policy, partner isolation, metrics/SLI, acceptance criteria, deployment model, and enterprise infrastructure contract. Then read the pilot's repository instructions and build/configuration documentation. Repository evidence is authoritative; do not infer implementation from this prompt when source can answer it.
 
@@ -28,7 +38,7 @@ Before assessing the pilot, read `sure-partner-observability/AGENTS.md`, `PLANS.
 
 Inventory the actual repository structure, settings and all `build.gradle` files, application resources, profile files, configuration-property classes, source generation tasks, tests, Docker/local scripts, and `.github/workflows` if present.
 
-Locate and parse every OpenAPI `.yaml` and `.yml` file in `sure-nbfc-unionbank-ph`. OpenAPI is the external-contract source of truth. For every operation identify specification file, operationId, method, templated path, request/response schemas and media types, status codes, security schemes, generated interface/model/client/server artifacts, and handwritten implementation or caller. Do not search only for the word callback: identify webhooks, notifications, status/result delivery, delayed completion, inbound partner endpoints, asynchronous acknowledgements, and polling patterns.
+Locate and parse every OpenAPI `.yaml` and `.yml` file in the exact resolved `TARGET_PARTNER_SERVICE`, and no OpenAPI from an unselected service. OpenAPI is the external-contract source of truth. For every operation identify specification file, operationId, method, templated path, request/response schemas and media types, status codes, security schemes, generated interface/model/client/server artifacts, and handwritten implementation or caller. Do not search only for the word callback: identify webhooks, notifications, status/result delivery, delayed completion, inbound partner endpoints, asynchronous acknowledgements, and polling patterns.
 
 Build separate inventories for:
 

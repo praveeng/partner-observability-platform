@@ -1,130 +1,65 @@
-# Integrate Sure Partner Observability into centralized Terraform infrastructure
+# Run real target-service local application-to-platform end-to-end validation
 
 ## Mode
 
-ASSESSMENT -> HUMAN APPROVAL -> IMPLEMENTATION. This is the canonical ordered replacement for the former “Prompt 13B.” Assessment and explicit approval are mandatory before any Terraform modification.
+LOCAL EXECUTION / VALIDATION. Use only synthetic data and the `local` Spring profile. Do not use AWS, centralized Terraform, real partner endpoints, real credentials, deployment workflows, or production-like secrets. Ask before any material business-service code change.
 
-Never run `terraform apply`, deploy infrastructure, access production credentials, or execute a production change. Run `terraform plan` only when the user separately authorizes the exact safe target after assessment. Terraform execution remains manual and human-controlled.
+## Objective and mandatory path
 
-## Workspace and first reads
-
-Run from an enterprise workspace containing SureWebServices and the separate centralized enterprise Terraform repository. First locate and identify the centralized Terraform repository from workspace evidence or ask the user if it cannot be identified safely. Do not guess its name or module layout.
-
-Before inspecting Terraform, read:
-
-- `sure-partner-observability/AGENTS.md`
-- `sure-partner-observability/PLANS.md`
-- `sure-partner-observability/.agent-state/status.json`
-- applicable `sure-partner-observability/.codex/skills/`
-- the architecture, security invariants, transport security, payload, telemetry, partner isolation, metrics/SLI, deployment, threat, acceptance, and decisions documents
-- every file under `sure-partner-observability/docs/enterprise-infrastructure/`
-
-Then read the centralized repository's governing instructions and current state before proposing changes.
-
-## Fixed ownership and environment scope
-
-Central Terraform owns base AWS infrastructure: ECS clusters/services/tasks as applicable, VPC/network integration, private subnets, security groups, ALB/target groups, HTTPS listeners, ACM, DNS, WAF hooks, IAM, S3/KMS/EFS, Secrets Manager/SSM infrastructure, service discovery, autoscaling bounds, base Grafana/Loki/Alloy/Prometheus/query-gateway runtimes, persistent storage, infrastructure health checks, and bounded operational logging.
-
-Sure Partner Observability owns Java/Spring code, `sure-partner-observability-spring-boot-starter`, telemetry and sanitization contracts, application Alloy pipeline logic, Loki tenant/runtime policy, Prometheus application metrics/rules, Grafana dashboards/alerts/query semantics, integration/security/performance tests, and versioned application configuration artifacts. Dashboards and alerts remain GHA-owned application assets and must not move into Terraform.
-
-Environment scope is non-negotiable:
-
-- LOCAL: no Terraform change; local VM/Docker/LocalStack/Testcontainers/mock topology remains independent.
-- DEV: no Terraform change by default; the existing isolated AWS DEV ECS cluster/VPC and mock partner remain unchanged.
-- STAGE: Partner Observability base-infrastructure integration is allowed after approval for the dedicated AWS STAGE cluster/VPC and real partner staging environment.
-- PROD: Partner Observability base-infrastructure integration is allowed after approval for the production environment, only after STAGE evidence and production controls.
-
-DEV and STAGE may share a PH market AWS account but must use separate ECS clusters, VPCs, resources, endpoints, state, storage, tenants, credentials, and configuration. Do not modify DEV merely because it shares the account.
-
-## Mandatory discovery in the centralized repository
-
-Discover and document:
-
-- repository composition, provider and backend conventions, account/region/market/environment model, state isolation, variable/output patterns, naming/tagging, review/manual execution controls;
-- reusable modules/patterns for ECS, task definitions, services, capacity providers, autoscaling, VPC/subnets/endpoints/NAT/egress, security groups, ALB/NLB/target groups/listeners, ACM, DNS, WAF, IAM, S3, KMS, EFS, Secrets Manager, SSM, CloudWatch, service discovery, health checks, backups, image/config artifacts, and GHA output handoff;
-- current STAGE and PROD composition patterns and any comparable observability/runtime services;
-- current Grafana, Loki, Alloy, Prometheus, label-proxy, or query-gateway patterns;
-- replacement, data-loss, public-exposure, IAM, secret, cost, and cross-environment risks.
-
-Do not prescribe a new module until existing enterprise modules and composition patterns have been mapped against every contract requirement. Prefer generic extensions reusable by 12+ `sure-nbfc-*` services and multiple markets.
-
-## Required infrastructure capability
-
-Support one Partner Observability deployment per market/environment serving one or more partner-facing services and multiple isolated partner identities. A new partner must be onboarded through reviewed configuration/runtime provisioning rather than a new Partner Observability codebase. Enforce one opaque Loki tenant per partner; client-provided identity or tenant headers never select it.
-
-The approved central implementation may need:
-
-- private ECS tasks/services for authenticated Alloy ingress, Loki, Prometheus, Grafana, and the fixed query gateway/Prometheus label proxy/journey resolver, using existing enterprise task patterns;
-- immutable image digests, bounded CPU/memory/storage/counts, component-only health checks, configuration artifact digest interfaces, and rollback;
-- private subnets, no public task IPs, exact SG-to-SG connectivity, private service discovery, controlled egress, and approved VPC endpoints;
-- encrypted Loki S3 storage, least-privilege prefix access, public-access block, TLS-only access, object versioning disabled for telemetry, exact 384-hour retention with two-hour deletion delay, and 18-day lifecycle backstop;
-- encrypted persistent Loki work state, Prometheus TSDB, and Grafana state where the existing architecture requires it;
-- separate execution/task/deployment roles with exact ECR, configuration, log, secret, S3, KMS, EFS, discovery, and runtime permissions;
-- secret/parameter ARNs and task resolution without exposing secret values in Terraform outputs, state-visible configuration, CI logs, or artifacts;
-- private Alloy ingestion from approved service SGs; Alloy-only Loki writes and Prometheus remote writes; fixed-gateway-only Loki/Prometheus queries; no direct Grafana-to-backend bypass;
-- partner Grafana ingress through the approved ALB on HTTPS 443 only, explicit TLS 1.2-or-newer policy, ACM, DNS, WAF/rate-control and partner-IP allowlisting hook, private targets, and no port 80;
-- component infrastructure health/alarms that never become partner-service readiness dependencies;
-- conservative CloudWatch/access-log retention containing only unavoidable operational/infrastructure logs, never partner payload telemetry;
-- non-secret outputs required by GHA: environment/market/cluster/service identifiers, private Alloy endpoint/trust reference, internal discovery endpoints, Grafana HTTPS URL/ALB target identifiers, configuration deployment destination, Loki storage/KMS references, secret/parameter reference ARNs, source SG identifiers, persistent storage IDs, log/health identifiers, and infrastructure version/change reference.
-
-Do not create RDS, another relational database, or Liquibase infrastructure unless current source proves Sure Partner Observability has a real schema requirement. The current platform contract states **NO DATABASE REQUIRED FOR CURRENT ARCHITECTURE**. Grafana component state is not an application business schema.
-
-## Security and availability requirements
-
-- All externally reachable partner/Grafana traffic uses HTTPS/TLS. Reject trust-all TrustManager, permissive HostnameVerifier, certificate/hostname bypass, and HTTPS-to-HTTP fallback.
-- Loki, Prometheus, Alloy, query internals, Actuator, and ECS tasks are not public or directly partner reachable.
-- Partner identity and query scope are server-fixed. Grafana organization/UI variables do not authorize data.
-- Transaction identifiers are structured metadata, not Loki or metric labels.
-- Alloy/Loki/Prometheus/Grafana outages cause telemetry loss only and never block business traffic.
-- Do not duplicate Partner Observability payload telemetry into CloudWatch; use bounded operational logs and cost-conscious retention.
-- Use existing enterprise encryption, image scanning, tagging, backup, maintenance, promotion, and audit conventions.
-
-## Mandatory assessment output before changes
-
-Return all of the following with file/module evidence:
-
-1. Centralized Terraform repository discovered.
-2. Reusable enterprise modules and composition patterns.
-3. Current STAGE account/cluster/VPC/state pattern.
-4. Current PROD account/cluster/VPC/state pattern.
-5. Exact proposed STAGE changes.
-6. Exact proposed PROD changes.
-7. Confirmation LOCAL changes = NONE.
-8. Confirmation DEV changes = NONE.
-9. Exact files proposed.
-10. Existing modules reused.
-11. Generic module extensions or genuinely missing modules proposed.
-12. Destructive/replacement/data-loss/public-exposure/cost risks.
-13. Exact non-secret outputs required by SureWebServices GHA.
-14. Manual infrastructure and application handoff actions.
-15. Human decisions and missing environment inputs.
-16. Requirement-to-module/input/output/security-evidence matrix.
-
-Stop and ask for explicit approval before modifying Terraform.
-
-## Implementation after approval
-
-Implement only the approved minimum STAGE/PROD changes, reusing established enterprise modules. Do not create a parallel Terraform architecture. Do not modify LOCAL or DEV. Preserve remote state isolation, import/migration practices, enterprise naming/tagging, and application-owned asset boundaries.
-
-Run `terraform fmt`, `terraform validate`, and repository-standard lint, security, policy, documentation, unit/static, and cost checks that do not access or mutate AWS unless separately authorized. Do not run `terraform apply`. Run a plan only with explicit authorization for the exact target and inspect it for public exposure, broad IAM, secret values, replacement/data loss, unexpected DEV changes, and cost.
-
-If any proposed or observed change may replace or destroy a VPC, subnet, ECS cluster/service, ALB/target group/listener, S3 bucket/prefix data, EFS, IAM role/policy, DNS record/zone, ACM association, security group, KMS key, secret, or another existing resource, stop before that change. Explain state migration/import/moved-block and staged alternatives, rollback, data preservation, outage, cost, and approvals.
-
-Create a central-repository local commit only after approved changes and non-mutating checks pass. Do not push, deploy, or apply.
-
-## Final report
-
-Report files changed, modules reused/extended, STAGE changes, PROD changes, explicit LOCAL/DEV non-changes, ECS/runtime topology, Grafana, Loki, Alloy, Prometheus, S3/KMS/EFS, IAM/secrets, ALB/ACM/WAF/network, CloudWatch/cost impact, GHA outputs, validation results, replacement and rollback considerations, unresolved inputs, commit hash, and this manual order:
+In SureWebServices set:
 
 ```text
-approved Terraform code
-  -> human infrastructure review
-  -> manual Terraform execution
-  -> base STAGE/PROD infrastructure available
-  -> SureWebServices GHA
-  -> service/runtime configuration
-  -> Grafana dashboards and alerts
-  -> post-deployment validation
+TARGET_PARTNER_SERVICE=sure-nbfc-unionbank-ph
+SPRING_PROFILES_ACTIVE=local
 ```
 
-No Terraform apply and no deployment are authorized by this prompt.
+Resolve the target through optional `SUREWEBSERVICES_ROOT` or the unambiguous workspace parent. Reject unset, missing, wildcard, list, path-traversal, or inferred targets. Inspect, prepare, build, start, and test only that exact service; do not enumerate or touch another `sure-nbfc-*` service.
+
+Prove this real local path rather than substituting direct telemetry injection:
+
+```text
+TARGET_PARTNER_SERVICE (pilot: sure-nbfc-unionbank-ph)
+  -> sure-partner-observability-spring-boot-starter
+  -> local mock partner and real selected-service callback handling
+  -> Alloy
+  -> Loki and Prometheus
+  -> server-side authorization/query boundary
+  -> Grafana
+```
+
+Read both repositories' `AGENTS.md`, current B001/B002/B003 evidence, local runbooks, Docker Compose, profile configuration, selected-target OpenAPI inventory/coverage and generated fixture evidence, and applicable security/payload/starter/Grafana/Loki skills. First run or validate the deterministic OpenAPI fixture-preparation step for the exact target; fail if any selected operation is `NOT_COVERED` or fixtures are stale. Reuse the implemented B001 Grafana and generic B002 application-to-platform infrastructure. Do not weaken or rewrite those gates. Direct synthetic OTLP injection is supporting diagnostics only and cannot satisfy application-originated evidence.
+
+## Environment rules
+
+Run only the selected target with `SPRING_PROFILES_ACTIVE=local` and its existing local/mock partner mechanism. LOCAL may use LocalStack, Testcontainers, and Docker where already designed. It must have no live AWS dependency or real partner traffic. Do not edit or activate `dev`, `stage`, or `prod`. Spring application configuration remains properties-only. Use the composite source dependency on `sure-partner-observability-spring-boot-starter` and Samsung Sure imports.
+
+## Required journey evidence
+
+Drive representative operations selected from the actual pilot OpenAPI and coverage inventory:
+
+- a real application-originated outbound synchronous request and response;
+- an outbound asynchronous request and its acknowledgement, including HTTP 202 when the real contract uses it;
+- a real local/mock callback HTTP request into `TARGET_PARTNER_SERVICE`, not into a test-only bypass;
+- callback receipt, authenticated/validated stages where implemented, processing start, processing success or failure, and callback response/write terminal;
+- an applicable encrypted request/response or callback flow through the generic before-encryption/after-decryption hook, only if the pilot really encrypts payloads.
+
+Verify through the fixed authorized query path and Grafana:
+
+- correct event types and ordering without equating receipt, response, and processing completion;
+- typed transaction search and detail for actual `applicationId`, `loanId`, `correlationId`, `partnerReferenceId`, `callbackReferenceId`, and other real identifiers where present;
+- Prometheus interaction/acknowledgement/callback metrics and Grafana SLI panels;
+- one Loki tenant per synthetic partner and fixed Prometheus partner slot;
+- bidirectional cross-partner denial and same-identifier collision isolation;
+- spoofed `partnerId`, tenant headers, callback-body identity, Grafana variables, and direct backend paths do not cross the authorization boundary.
+
+Use unique synthetic sentinels and assert absence at application queue evidence and retained sinks. Credentials, Authorization, tokens, cookies, API keys, OTP, card data, encryption key/IV, and private material must be absent; phone/email/account/national ID/address must be masked; PDF/image/document/binary/Base64 must be omitted before queue admission. Do not print sensitive-shaped fixture values in the report.
+
+## Availability fault matrix
+
+Independently make Alloy, Loki, Prometheus, and Grafana unavailable using the repository's safe local fault mechanism. For each outage prove the original outbound/callback business response, exception, timing bound, and processing semantics remain unchanged; telemetry may drop. Also exercise queue saturation and sanitizer/publisher failure where supported. No business thread may wait for an observability backend.
+
+## Execution and result
+
+Run focused selected-target tests and the target-service E2E entry point. Separately run or verify the generic `test/integration/run-local-grafana.sh` and `test/integration/run-local-end-to-end.sh` paths, applicable security/profile/OpenAPI gates, and `scripts/verify-all.sh` from the appropriate repository where practical. The real-service layer is additive and must not replace `sure-partner-observability-test-app`, B001, generic B002, or B003. Preserve exact exit codes and distinguish pre-existing B003/Q015 or environmental blockers from regressions. Do not run or claim full B003 unless its authoritative inputs are resolved and the release policy explicitly requires it; smoke/load evidence is not B003 completion.
+
+Produce a requirement-to-evidence matrix with command, application operation, source event, sink/query, positive assertion, negative/absence assertion, and result. Report B001/B002/B003 status honestly. If validation uncovers a defect, add a failing regression only after asking before any material pilot behavior change. Do not deploy or push. A local evidence commit is allowed only if repository policy and the user explicitly authorize the resulting file changes.

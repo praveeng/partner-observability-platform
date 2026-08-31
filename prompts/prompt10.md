@@ -1,51 +1,60 @@
-# Independent security and regression review
+# Validate STAGE and PROD readiness
 
 ## Mode
 
-ADVERSARIAL REVIEW. Review and test the integrated pilot independently. For confirmed defects, first create a failing regression and then make the smallest clearly in-scope fix. Ask before material business redesign, OpenAPI change, generated-code change, infrastructure redesign, or deployment. Do not access AWS, run Terraform apply, deploy, push, or use real partner/customer data.
+ASSESSMENT ONLY. Run after service configuration, Gradle composite integration, OpenAPI coverage, GHA integration, and centralized Terraform code integration, but before any infrastructure execution or deployment. Do not modify files, commit, push, deploy, access AWS, execute Terraform, or contact a real partner.
 
-## Scope and standards
+## Objective
 
-Inspect current SureWebServices, `sure-nbfc-unionbank-ph`, `sure-partner-observability`, GHA integration, and centralized Terraform code/evidence. Read all governing `AGENTS.md` files and applicable security, payload, starter, isolation, architecture, Terraform/ECS, and test-adequacy skills. Use Java 17, Spring Boot 2.7.x, Gradle Groovy, the composite source starter, Samsung Sure packages, and synthetic fixtures.
+In the enterprise workspace, set `TARGET_PARTNER_SERVICE=sure-nbfc-unionbank-ph` for the pilot and independently determine whether that exact target and Sure Partner Observability are ready for human-controlled STAGE and PROD rollout. Resolve it through optional `SUREWEBSERVICES_ROOT`; fail for an unset, invalid, wildcard, inferred, or absent target. Inspect SureWebServices shared configuration, `sure-partner-observability`, only the selected target, and the centralized Terraform repository. Do not inspect unrelated `sure-nbfc-*` services. Read all repository instructions and current evidence; do not treat an earlier report as proof.
 
-The canonical profiles are `local`, `dev`, `stage`, and `prod`, configured through `.properties` only. LOCAL is local/mock; DEV is isolated AWS/mock; STAGE is isolated AWS/real partner staging; PROD is AWS/real partner production. DEV/STAGE sharing an account never permits shared cluster/VPC/resources. Enterprise Terraform is separate/manual, applies only to STAGE/PROD for this integration, and is never run by GHA.
+## Fixed lifecycle model
 
-## Contract and behavior regression
+- `local`: local VM/Docker with LocalStack/Testcontainers where needed and a mock partner; no AWS or enterprise Terraform dependency.
+- `dev`: isolated AWS DEV ECS cluster/VPC and a mock partner; no real partner STAGE/PROD route. DEV remains unchanged by this rollout.
+- `stage`: isolated AWS STAGE ECS cluster/VPC and the real partner staging environment.
+- `prod`: AWS production and the real partner production environment.
 
-Prove the OpenAPI external contract and generated artifacts are unchanged unless a specific approved change exists. Compare operationIds, paths/methods, schemas, security schemes, status codes, callbacks/webhooks, generated source, and business behavior. Prove request serialization, response deserialization, retries/timeouts, errors, callbacks, background processing, idempotency, and encryption/decryption remain semantically unchanged when observability is disabled and enabled.
+DEV and STAGE may share the PH market account, but clusters, VPCs, resources, configuration, tenants, routes, endpoints, and secrets must be distinct. Spring configuration is properties-only through `application.properties`, `application-local.properties`, `application-dev.properties`, `application-stage.properties`, and `application-prod.properties`; activation is external. Active Spring YAML or aliases such as `staging`/`production` are failures.
 
-Prove Gradle composite resolution works from a clean checkout with `sure-partner-observability-spring-boot-starter`, no artifact repository/JAR copy, and only `com.samsung.sure.partner.observability.*` imports. Prove the OpenAPI-to-observability gate detects uncovered new APIs and callbacks.
+## Required review
 
-## Mandatory adversarial matrix
+Confirm LOCAL remains functional and self-contained, and DEV retains AWS/mock-partner semantics. Before issuing `STAGE_READY`, require both (a) the generic `sure-partner-observability-test-app` B001/B002 local application-to-platform E2E and relevant B003 status/evidence, and (b) the selected real target-service local application-to-platform E2E using `SPRING_PROFILES_ACTIVE=local`, target-derived fixtures, local mock partner, real callback path, authorized queries, and no AWS/real partner access. A passing real-service test does not replace generic evidence, and generic evidence does not replace the real-service test. Confirm STAGE and PROD use the same application architecture/artifacts with environment-specific values rather than forks.
 
-Verify with positive and negative/absence assertions:
+For STAGE and PROD inspect and trace:
 
-- no trust-all TrustManager, permissive/Noop HostnameVerifier, certificate/hostname bypass, HTTP downgrade/fallback, or SDK mutation of RestTemplate/WebClient/OkHttp TLS/client settings;
-- real/AWS mock traffic is HTTPS; local HTTP is isolated to LOCAL synthetic fixtures;
-- Authorization, credentials, passwords, cookies, tokens/JWTs, API keys, OTP, card data, encryption keys/IVs/private material are removed completely;
-- phone, email, bank account, national identifier, and address are masked;
-- PDF/image/document/signature/audio/video/binary/Base64 is excluded before queue insertion and absent from wire, Alloy, Loki, metrics, Grafana, and diagnostics;
-- encrypted flows capture only sanitized authorized logical plaintext before encryption/after decryption, never ciphertext or crypto material;
-- partner identity is server-derived and immutable; spoofed partnerId in headers/query/body/MDC/dashboard variables is denied;
-- spoofed/duplicated/case-varied `X-Scope-OrgID`, callback identity, routes, forwarding headers, and source credentials cannot select another tenant;
-- one Loki tenant and fixed Prometheus slot/Grafana organization per partner; partner A cannot read partner B logs/events/callbacks/metrics/metadata;
-- identical `applicationId`, `loanId`, `partnerReferenceId`, and `callbackReferenceId` values across partners remain isolated;
-- callback receipt, authentication/validation, processing start/success/failure, and response/write facts remain distinct; spoof, replay, duplicate, malformed, wrong-partner, async-202, background, and write-failure paths are safe;
-- Alloy, Loki, Prometheus, and Grafana outages do not change business requests or callbacks;
-- sanitizer/extractor/publisher failure, dispatcher failure, queue count/byte/rate saturation, shutdown, and reactive cancellation do not propagate or block business threads;
-- queues/retries/batches/buffers/context/cardinality remain bounded and context is cleared across servlet, executor, Reactor, retry, and callback flows;
-- direct backend/Grafana bypass and partner query manipulation are denied;
-- GHA contains no Terraform execution and handles only approved application assets after base infrastructure;
-- centralized Terraform preserves LOCAL/DEV, private tasks, exact SG paths, least-privilege IAM, encrypted storage, HTTPS ALB/ACM/WAF, secret references, and dashboard/alert GHA ownership.
+- profile activation and configuration binding;
+- service name, market, trusted partner identity, API/callback mappings, actual OpenAPI operation coverage, capture modes, correlation extractors, and callback lifecycle semantics;
+- selected-target fixture preparation/coverage evidence and proof that no unselected service was inspected or tested;
+- partner API/callback endpoints, HTTPS-only enforcement, standard certificate/hostname validation, redirect behavior, callback ALB trust boundary, and absence of trust-all/permissive TLS code;
+- runtime-only partner credentials, source/datasource secrets, certificates, secret references, and absence of committed values;
+- one opaque Loki tenant and bounded Prometheus slot per partner, source authorization, gateway-fixed query scope, Grafana organization/datasource isolation, and same-ID collision denial;
+- private Alloy, Loki, Prometheus, query-gateway, and Grafana target connectivity;
+- Loki S3/KMS/EFS, 384-hour partner-visible retention, two-hour deletion delay, 18-day lifecycle backstop, versioning policy, and Prometheus 16-day retention;
+- central Terraform inputs/outputs, immutable image/config digests, IAM, SGs, ALB/ACM/DNS/WAF, health checks, backups, cost/retention, rollback, and replacement risk;
+- GHA clean-checkout Gradle composite build, tests, OpenAPI coverage, image/runtime rollout, application-owned Alloy/Loki/Prometheus configuration, Grafana dashboards/alerts, and post-deployment gates;
+- B001, B002, and B003 evidence without treating smoke tests as full-duration B003 closure.
 
-## Profiles, release, and performance
+Verify the deployment boundary and order:
 
-Validate all four Spring contexts with safe overrides, no Spring application YAML, external activation, no LocalStack/Testcontainers leakage outside local, no mock partner leakage to stage/prod, and no stage/prod endpoint crossover. Confirm local and DEV behavior remain unchanged and STAGE/PROD readiness evidence is honest.
+```text
+central Terraform code
+  -> human review
+  -> manual Terraform execution
+  -> approved non-secret outputs and base health
+  -> SureWebServices GHA
+  -> service/runtime configuration
+  -> dashboards and alerts
+  -> post-deployment validation
+```
 
-Run appropriate unit, integration, security, OpenAPI, composite build, local E2E, configuration, workflow, Terraform static/validate, and performance-regression comparison checks. Do not run Terraform apply. Do not claim B003 full-performance closure from smoke, shortened, or partial runs. Preserve the full-duration B003 acceptance requirement and report missing inputs/evidence as failure or blocker.
+GHA must not run Terraform. Terraform must not own application Grafana dashboards/alerts or Partner Observability processing policy. Do not require a database/Liquibase unless current source proves a real schema exists; current Partner Observability architecture requires no database.
 
-## Defect workflow and output
+## Output
 
-For a confirmed in-scope defect, retain a failing regression first, implement the smallest safe fix, rerun relevant and aggregate checks, and create a focused local commit if repository policy allows. Do not weaken tests or requirements. Ask before a material service, contract, security, or infrastructure redesign.
+Produce a requirement-to-evidence matrix with `PASS`, `FAIL`, `NOT_APPLICABLE`, or `MISSING_EVIDENCE`, exact file/line or artifact source, environment, owner, and remediation. Then issue exactly:
 
-Return a PASS/FAIL matrix for every item above, exact evidence, regressions/fixes, residual risks, B001/B002/B003 state, STAGE/PROD impact, commands/results, and commit hashes if fixes were made. A missing mandatory boundary is FAIL, not an inferred pass.
+- `STAGE_READY` or `STAGE_NOT_READY`
+- `PROD_READY` or `PROD_NOT_READY`
+
+List exact blockers, owners, prerequisite order, and evidence needed to close each. PROD cannot be ready without successful STAGE evidence and production approvals. Do not change or deploy anything.

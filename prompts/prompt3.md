@@ -1,4 +1,4 @@
-# Configure sure-nbfc-unionbank-ph for Partner Observability
+# Configure TARGET_PARTNER_SERVICE for Partner Observability
 
 ## Mode
 
@@ -6,7 +6,15 @@ APPROVAL-GATED IMPLEMENTATION. Do not deploy, access AWS, contact a real partner
 
 ## Objective
 
-Configure the actual `sure-nbfc-unionbank-ph` Spring Boot service to use the generic Sure Partner Observability contracts. Work in SureWebServices and inspect the current pilot and `sure-partner-observability` state; do not assume an earlier assessment is still current. This prompt owns service configuration and minimal handwritten adapters only. It does not own the Gradle composite-build wiring performed separately.
+Configure exactly one selected Spring Boot service to use the generic Sure Partner Observability contracts. For the pilot set:
+
+```text
+TARGET_PARTNER_SERVICE=sure-nbfc-unionbank-ph
+```
+
+Resolve it beneath optional `SUREWEBSERVICES_ROOT` or the unambiguous SureWebServices workspace parent. Fail if the variable is unset, contains wildcard/list/path-traversal syntax, or the exact directory is absent. Inspect and modify only `TARGET_PARTNER_SERVICE`; ignore every other `sure-nbfc-*` service and never select the first match.
+
+Work in SureWebServices and inspect the current selected target and `sure-partner-observability` state; do not assume an earlier assessment is still current. This prompt owns service configuration and minimal handwritten adapters only. It does not own the Gradle composite-build wiring performed separately.
 
 Read both repositories' `AGENTS.md` files and relevant plans/docs. Parse every pilot OpenAPI YAML/YML and trace each operation to generated and handwritten code. OpenAPI is the external-contract source of truth. Discover callbacks through webhooks, notifications, status/result delivery, delayed completion, and inbound partner operations rather than a callback-word search.
 
@@ -39,7 +47,7 @@ Do not change OpenAPI contracts, generated clients/controllers/models, callback 
 
 Profile rules are mandatory:
 
-- `local`: local mock endpoints and local observability stack only; no AWS or real partner credential.
+- `local`: the selected service uses local mock endpoints and the local observability stack only; no AWS, real partner endpoint, or real partner credential.
 - `dev`: AWS DEV and an HTTPS mock partner; never a partner staging or production endpoint.
 - `stage`: runtime-injected HTTPS partner-staging API/callback settings and STAGE observability references.
 - `prod`: runtime-injected HTTPS partner-production API/callback settings and PROD observability references.

@@ -1,49 +1,54 @@
-# Integrate SureWebServices GitHub Actions
+# Create OpenAPI-to-Observability coverage gate
 
 ## Mode
 
-APPROVAL-GATED IMPLEMENTATION. Inspect and propose first; modify workflows only after explicit approval. Do not run a deployment, access AWS, change centralized Terraform, run Terraform, publish a release, or expose secrets.
+IMPLEMENTATION / QUALITY GATE. This prompt may implement the deterministic coverage gate. Stop for human approval if the real contracts expose ambiguous operation ownership, callback semantics, generated-code boundaries, or security-sensitive field classifications. Do not deploy, access AWS, run Terraform, contact a real partner, or modify generated OpenAPI code.
 
 ## Objective
 
-Integrate the pilot and Partner Observability application assets into the existing SureWebServices GitHub Actions model. Reuse enterprise workflows, reusable actions, environments, credentials, change controls, and deployment conventions. Do not invent a parallel CI/CD framework.
+In SureWebServices, set the pilot target explicitly:
 
-Read SureWebServices and project `AGENTS.md` files. Inspect all `.github/workflows`, shared actions, composite actions, environment mappings, similar Java 17/Spring Boot 2.7 services, Gradle caches/checkouts, ECS deployment workflows, image publishing, runtime configuration rollout, observability asset deployment, and post-deployment checks. If workflows are stored elsewhere in the monorepo, discover them from repository configuration rather than fabricating files.
+```text
+TARGET_PARTNER_SERVICE=sure-nbfc-unionbank-ph
+```
 
-## Mandatory release boundary
+Resolve it through optional `SUREWEBSERVICES_ROOT` or the unambiguous workspace parent and fail for an unset, invalid, wildcard, multiple, or absent target. Create a permanent machine-verifiable gate proving that every external operation in every OpenAPI YAML/YML belonging to only `TARGET_PARTNER_SERVICE` has an explicit Partner Observability decision and a tested implementation/configuration path. The gate must detect newly added outbound APIs, async operations, webhooks, notifications, status/result deliveries, and callbacks even when their names do not contain “callback.” Never inspect or aggregate OpenAPI from another `sure-nbfc-*` service.
 
-The pilot consumes `sure-partner-observability-spring-boot-starter` directly from source through the established Gradle composite build. A clean runner must check out or otherwise include both source projects and build without an artifact repository or copied JAR. Public SDK imports remain `com.samsung.sure.partner.observability.*`.
+Read the applicable `AGENTS.md` files and current architecture, payload, isolation, transport, telemetry, profile, build, and test contracts in `sure-partner-observability`; then inspect the selected target's OpenAPI generation and verification tasks. Locate and validate the deterministic target-derived `contract-inventory.json`, `pattern-manifest.json`, `scenario-manifest.json`, `schema-classification.json`, and `coverage.json` produced by the target fixture preparation process. If they are missing or stale, run the repository's exact-target preparation command for `TARGET_PARTNER_SERVICE` or stop with a clear prerequisite; never substitute a scan of all services. Use Java 17, Spring Boot 2.7.x, Gradle Groovy, the source starter `sure-partner-observability-spring-boot-starter`, and imports under `com.samsung.sure.partner.observability.*`.
 
-Canonical Spring profiles are exactly `local`, `dev`, `stage`, and `prod`, with `.properties` application configuration only. Map enterprise development deployment to `dev`, staging deployment to `stage`, and production deployment to `prod`. LOCAL tests explicitly use `local`. DEV is AWS plus a mock partner and remains isolated from STAGE even if both use the same market account. STAGE uses partner staging; PROD uses partner production. Profile activation is supplied externally and production is never the packaged default.
+## Required design
 
-Enterprise Terraform is separate, manually reviewed, and manually executed in the centralized Terraform repository. No SureWebServices workflow may run `terraform init`, `plan`, `apply`, `destroy`, import, or infrastructure creation. Deployment must fail closed if the approved infrastructure change reference and required non-secret outputs/base health are absent.
+Parse every OpenAPI `.yaml` and `.yml` structurally rather than with regular expressions. Inventory each operation's source file, operationId, method, templated path, direction/ownership, request and response schemas/media types, status codes, security schemes, and generated/handwritten implementation mapping. Determine sync versus async from the real contract and code, including HTTP 202 or delayed-result behavior. Detect callback-like inbound operations through OpenAPI webhooks and service patterns such as notification, result, update, status delivery, webhook, and delayed completion.
 
-After base infrastructure exists, GHA may follow existing conventions for:
+Maintain a reviewed machine-readable operation inventory in the selected target repository, linked to the target-generated fixture manifests without duplicating or losing traceability. Every operation must have exactly one coverage classification:
 
-- composite source build, unit and integration tests;
-- security, profile, naming, OpenAPI-to-observability coverage, and dependency checks;
-- container build, scan, provenance, immutable digest publication, and ECS application/runtime update;
-- application-owned Alloy pipeline, Loki runtime policy, Prometheus rules/configuration, query-gateway configuration, and market manifest rollout;
-- `grafana/dashboards/` and `grafana/alerts/` deployment after base Grafana is healthy;
-- post-deployment health, tenant isolation, configuration digest, and rollback verification;
-- Liquibase only if repository inspection proves a real application database/schema. Current Sure Partner Observability architecture requires no database, so do not add a platform Liquibase step.
+- `OBSERVED_AUTOMATICALLY`
+- `OBSERVED_WITH_CONFIG`
+- `OBSERVED_WITH_GENERIC_HOOK`
+- `EXPLICITLY_EXCLUDED_WITH_JUSTIFICATION`
+- `NOT_COVERED`
 
-Terraform owns base ECS/network/VPC/security groups/ALB/ACM/DNS/WAF/IAM/S3/KMS/EFS/secrets/runtime infrastructure for Grafana, Loki, Alloy, and Prometheus. GHA owns only application/software assets and approved ECS rollout surfaces. Secret values remain in approved runtime stores and must not appear in workflow inputs, outputs, logs, artifacts, caches, or Terraform outputs.
+`NOT_COVERED` must fail. An exclusion must contain a bounded reason, owner, and evidence that it is not a partner-observability operation or that observing it would violate policy; blank or generic exclusions fail. Generated code location alone is not an exclusion.
 
-## Approval checkpoint
+For observed operations record the stable API/callback ID, interaction kind, actual client or server stack, operationId, method/route, configuration mapping, target-derived generic pattern/scenario ID, capture mode per leg, correlation identifiers and exact schema paths, and test evidence. Validate configured paths against the referenced OpenAPI schemas, including arrays and composed schemas. Reject nonexistent paths, ambiguous schemas, generated raw URLs, insecure non-local HTTP origins, duplicate mappings, overlapping callback routes, missing trusted callback adapters, free-form/invented correlation fields, and any operation absent from the target fixture manifests.
 
-Before editing, present:
+The gate must preserve the properties-only four-profile model: `application.properties`, `application-local.properties`, `application-dev.properties`, `application-stage.properties`, and `application-prod.properties`. It must not create Spring application YAML. LOCAL uses local mocks; DEV uses an AWS HTTPS mock partner; STAGE uses real partner staging; PROD uses real production. It must not require network or AWS access.
 
-1. Existing workflow/reusable-action patterns selected and why.
-2. Exact workflow/action/files proposed.
-3. Clean-checkout composite-build path.
-4. Test and artifact dependency graph.
-5. `local`/`dev`/`stage`/`prod` activation mapping.
-6. Infrastructure prerequisites and non-secret outputs consumed.
-7. Dashboard, alert, Prometheus, Alloy/Loki, and post-deployment ownership.
-8. Environment protection, approvals, secret handling, rollback, and risks.
-9. Confirmation that no Terraform command or production deployment will run during implementation.
+## Required test evidence
 
-Stop and ask for explicit approval.
+Use safe local/mock representative execution to prove:
 
-After approval, implement the minimum changes, validate workflow syntax and repository-standard static checks, and exercise non-deploy build/test paths where safe. Do not trigger deployment workflows. Create one coherent local commit, do not push, and report exact changes, validations, unresolved enterprise inputs, and commit hash.
+- every automatic RestTemplate, WebClient, or OkHttp mapping emits the correct request and terminal response/async acknowledgement once;
+- async initiation distinguishes `ASYNC_REQUEST_SENT` and an observed or missing acknowledgement;
+- callbacks emit distinct receipt, authentication/validation where implemented, processing start/terminal, and response/write terminal facts;
+- configured identifiers, including `callbackReferenceId` where present, bridge only within trusted tenant context;
+- encryption uses the generic authorized plaintext hook only when necessary and never captures ciphertext/key/IV;
+- secret removal, PII masking, and Base64/binary/document omission occur before queueing;
+- unsupported/generated/streaming behavior safely reduces to metadata or justified exclusion;
+- a newly added OpenAPI operation or callback with no inventory decision fails the gate;
+- a removed/renamed operation leaves no stale successful mapping;
+- generated OpenAPI source remains unchanged.
+
+Integrate the gate into the pilot's normal Gradle or repository quality checks and the appropriate SureWebServices GHA-consumable command. Emit deterministic machine-readable coverage evidence with schema/version, source spec digest, operation counts by classification, uncovered list, and test command/result. Do not include secrets or payload samples.
+
+Run focused parser/validator tests, mutation fixtures for new API/new callback/bad schema path, representative local application tests, the pilot build, and applicable composite/security/profile gates. Create one coherent local commit only after checks pass. Do not push or deploy. Report coverage counts, exclusions, test evidence, exact gate command, and commit hash.

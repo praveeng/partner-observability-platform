@@ -1,73 +1,53 @@
-# Create rollout plan for remaining sure-nbfc-* services
+# Independent security and regression review
 
 ## Mode
 
-ASSESSMENT ONLY. Run only after the `sure-nbfc-unionbank-ph` pilot has passed its approved local integration, OpenAPI coverage, security/regression, and readiness gates. Do not mass-modify services, commit, push, deploy, access AWS, run Terraform, or contact partners.
+ADVERSARIAL REVIEW. Review and test the integrated pilot independently. For confirmed defects, first create a failing regression and then make the smallest clearly in-scope fix. Ask before material business redesign, OpenAPI change, generated-code change, infrastructure redesign, or deployment. Do not access AWS, run Terraform apply, deploy, push, or use real partner/customer data.
 
-## Objective
+## Scope and standards
 
-In SureWebServices, turn the validated pilot into a reusable rollout plan for every relevant `sure-nbfc-*` partner service and a future population of 20+ partner-facing services. Prefer generic SDK capability, configuration, typed extractors, API/callback mappings, generic encryption hooks, Gradle composite conventions, and shared GHA patterns over service forks or partner-specific SDK Java.
+Set `TARGET_PARTNER_SERVICE=sure-nbfc-unionbank-ph` for the pilot. Resolve that exact service through optional `SUREWEBSERVICES_ROOT` and reject wildcard, list, inferred, or absent targets. Inspect current SureWebServices shared configuration, only the selected target, `sure-partner-observability`, GHA integration, and centralized Terraform code/evidence. Do not enumerate or inspect unrelated `sure-nbfc-*` services. Read all governing `AGENTS.md` files and applicable security, payload, starter, isolation, architecture, Terraform/ECS, and test-adequacy skills. Use Java 17, Spring Boot 2.7.x, Gradle Groovy, the composite source starter, Samsung Sure packages, and synthetic fixtures.
 
-Read the monorepo and project `AGENTS.md` files, the validated pilot evidence, current `sure-partner-observability` architecture/security/payload/profile/deployment contracts, the starter public API, OpenAPI coverage-gate design, GHA integration, and central infrastructure handoff. Discover the actual `sure-nbfc-*` service set from the repository; do not assume names or technology solely from directory prefixes.
+The canonical profiles are `local`, `dev`, `stage`, and `prod`, configured through `.properties` only. LOCAL is local/mock; DEV is isolated AWS/mock; STAGE is isolated AWS/real partner staging; PROD is AWS/real partner production. DEV/STAGE sharing an account never permits shared cluster/VPC/resources. Enterprise Terraform is separate/manual, applies only to STAGE/PROD for this integration, and is never run by GHA.
 
-## Fixed standards
+## Contract and behavior regression
 
-- Partner Java services use Java 17, Spring Boot 2.7.x, Gradle Groovy, and SLF4J/Logback where applicable.
-- Consume `sure-partner-observability-spring-boot-starter` from source through the established Gradle composite build; no artifact repository or manual JAR copying.
-- Public SDK imports use `com.samsung.sure.partner.observability.*`.
-- Runnable Spring applications use exactly `local`, `dev`, `stage`, and `prod` with properties-only application configuration. LOCAL is local/mock; DEV is isolated AWS/mock; STAGE is isolated AWS/partner staging; PROD is AWS/partner production.
-- Real and AWS mock partner traffic is HTTPS without weakened TLS.
-- Observability is bounded, asynchronous, drop-on-saturation, and failure-contained.
-- Identity is server-derived with one Loki tenant per partner; UI/client fields are not authorization.
-- Remove secrets/card/OTP, mask required PII, and omit binary/document/Base64 before queueing.
-- Central Terraform owns STAGE/PROD base infrastructure; GHA owns application/runtime assets after manual Terraform execution. LOCAL and DEV are not changed by that infrastructure contract.
-- Preserve B001, B002, and full-duration B003.
+Prove the OpenAPI external contract and generated artifacts are unchanged unless a specific approved change exists. Compare operationIds, paths/methods, schemas, security schemes, status codes, callbacks/webhooks, generated source, and business behavior. Prove request serialization, response deserialization, retries/timeouts, errors, callbacks, background processing, idempotency, and encryption/decryption remain semantically unchanged when observability is disabled and enabled.
 
-## Per-service assessment
+Prove Gradle composite resolution works from a clean checkout with `sure-partner-observability-spring-boot-starter`, no artifact repository/JAR copy, and only `com.samsung.sure.partner.observability.*` imports. Prove the OpenAPI-to-observability gate detects uncovered new APIs and callbacks.
 
-For each relevant service inspect:
+Review the generic `sure-partner-observability-test-app` layer and the selected real-service layer separately. Prove generic B001/B002/B003, saturation, hostile payload, artificial-failure, and performance responsibilities remain in the generic layer. Separately prove the selected target's real OpenAPI, HTTP clients, callbacks, correlation, encryption hooks, generated fixtures, and local application-to-platform path. Inspect the change set and repository history to prove no unselected `sure-nbfc-*` service was accidentally modified.
 
-- runnable Java/Spring modules, Java/Spring versions, Gradle topology, composite-build compatibility, and current starter use;
-- `application.properties` plus all profile files, aliases/YAML, local Docker/LocalStack/Testcontainers behavior, AWS DEV mock behavior, STAGE/PROD endpoint/secret injection, and profile activation;
-- all OpenAPI YAML/YML, operationIds, methods/paths, schemas, security schemes, generated versus handwritten code, outbound sync/async APIs, HTTP acknowledgements, callbacks/webhooks/notifications/status-result flows, and polling;
-- actual RestTemplate, WebClient, and OkHttp construction/use, serialization, retries/timeouts, TLS and redirect ownership;
-- callback authentication, route mapping, async/background processing, retries/duplicates/idempotency, and response semantics;
-- encryption/decryption boundaries and whether the generic plaintext hook is needed;
-- binary, multipart, document, image, signature, and Base64 fields;
-- actual correlation fields such as application/loan/correlation/request/partner/callback/external transaction IDs without inventing paths;
-- existing logs, payload classification, partner identity source, tests, generated code, GHA workflow, and infrastructure output dependencies.
+## Mandatory adversarial matrix
 
-Classify each service exactly as:
+Verify with positive and negative/absence assertions:
 
-- `A_READY_WITH_STARTER_ONLY`
-- `B_READY_WITH_CONFIGURATION`
-- `C_REQUIRES_GENERIC_PLATFORM_CAPABILITY`
-- `D_REQUIRES_SMALL_SERVICE_HOOK`
-- `E_REQUIRES_HUMAN_REVIEW`
+- no trust-all TrustManager, permissive/Noop HostnameVerifier, certificate/hostname bypass, HTTP downgrade/fallback, or SDK mutation of RestTemplate/WebClient/OkHttp TLS/client settings;
+- real/AWS mock traffic is HTTPS; local HTTP is isolated to LOCAL synthetic fixtures;
+- Authorization, credentials, passwords, cookies, tokens/JWTs, API keys, OTP, card data, encryption keys/IVs/private material are removed completely;
+- phone, email, bank account, national identifier, and address are masked;
+- PDF/image/document/signature/audio/video/binary/Base64 is excluded before queue insertion and absent from wire, Alloy, Loki, metrics, Grafana, and diagnostics;
+- encrypted flows capture only sanitized authorized logical plaintext before encryption/after decryption, never ciphertext or crypto material;
+- partner identity is server-derived and immutable; spoofed partnerId in headers/query/body/MDC/dashboard variables is denied;
+- spoofed/duplicated/case-varied `X-Scope-OrgID`, callback identity, routes, forwarding headers, and source credentials cannot select another tenant;
+- one Loki tenant and fixed Prometheus slot/Grafana organization per partner; partner A cannot read partner B logs/events/callbacks/metrics/metadata;
+- identical `applicationId`, `loanId`, `partnerReferenceId`, and `callbackReferenceId` values across partners remain isolated;
+- callback receipt, authentication/validation, processing start/success/failure, and response/write facts remain distinct; spoof, replay, duplicate, malformed, wrong-partner, async-202, background, and write-failure paths are safe;
+- Alloy, Loki, Prometheus, and Grafana outages do not change business requests or callbacks;
+- sanitizer/extractor/publisher failure, dispatcher failure, queue count/byte/rate saturation, shutdown, and reactive cancellation do not propagate or block business threads;
+- queues/retries/batches/buffers/context/cardinality remain bounded and context is cleared across servlet, executor, Reactor, retry, and callback flows;
+- direct backend/Grafana bypass and partner query manipulation are denied;
+- GHA contains no Terraform execution and handles only approved application assets after base infrastructure;
+- centralized Terraform preserves LOCAL/DEV, private tasks, exact SG paths, least-privilege IAM, encrypted storage, HTTPS ALB/ACM/WAF, secret references, and dashboard/alert GHA ownership.
 
-For `C`, define a generic gap usable by multiple services and explain why it belongs in the platform. For `D`, bound the handwritten hook and show why configuration/automatic interception cannot cover it. Never recommend editing generated OpenAPI code.
+## Profiles, release, and performance
 
-## Required output
+Validate all four Spring contexts with safe overrides, no Spring application YAML, external activation, no LocalStack/Testcontainers leakage outside local, no mock partner leakage to stage/prod, and no stage/prod endpoint crossover. Confirm local and DEV behavior remain unchanged and STAGE/PROD readiness evidence is honest.
 
-Produce:
+Run appropriate unit, integration, security, exact-target OpenAPI fixture/coverage, composite build, generic local E2E, selected-target local E2E, configuration, workflow, Terraform static/validate, and performance-regression comparison checks. Both local E2E layers must use `local`; no real-service local test may access AWS or a real partner. Do not run Terraform apply. Do not claim B003 full-performance closure from smoke, shortened, or partial runs. Preserve the full-duration B003 acceptance requirement and report missing inputs/evidence as failure or blocker.
 
-1. Complete service compatibility matrix with evidence and classification.
-2. Shared RestTemplate patterns.
-3. Shared WebClient patterns.
-4. Shared OkHttp patterns.
-5. Callback/webhook/authentication/lifecycle patterns.
-6. Async acknowledgement and delayed-result patterns.
-7. Encryption/plaintext-hook patterns.
-8. Binary/Base64/document risk patterns.
-9. Common four-profile properties configuration pattern.
-10. Standard Gradle composite-build approach for clean local/GHA checkout.
-11. Shared GHA standardization opportunities without Terraform execution.
-12. Reusable OpenAPI-to-observability inventory/gate pattern.
-13. Generic SDK gaps and affected services.
-14. Small service-specific hooks and owners.
-15. Human/security/partner decisions.
-16. Rollout waves, starting with lowest-risk services and explaining dependencies.
-17. Highest-risk services and containment/rollback plan.
-18. Reusable onboarding checklist covering assessment, approval, configuration, build, coverage, local E2E, infrastructure handoff, readiness, security, and deployment evidence.
+## Defect workflow and output
 
-Stop after the assessment. Do not change any service or platform file.
+For a confirmed in-scope defect, retain a failing regression first, implement the smallest safe fix, rerun relevant and aggregate checks, and create a focused local commit if repository policy allows. Do not weaken tests or requirements. Ask before a material service, contract, security, or infrastructure redesign.
+
+Return a PASS/FAIL matrix for every item above, exact evidence, regressions/fixes, residual risks, B001/B002/B003 state, STAGE/PROD impact, commands/results, and commit hashes if fixes were made. A missing mandatory boundary is FAIL, not an inferred pass.

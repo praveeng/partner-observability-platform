@@ -6,9 +6,9 @@ APPROVAL-GATED IMPLEMENTATION. No artifact publishing, JAR copying, deployment, 
 
 ## Objective
 
-In the SureWebServices enterprise workspace, integrate `sure-nbfc-unionbank-ph` with the source module `sure-partner-observability-spring-boot-starter` through the monorepo's established Gradle composite-build/source-dependency pattern. The result must work from a clean local and GitHub Actions checkout without Artifactory, Nexus, GitHub Packages, or copied binaries.
+In the SureWebServices enterprise workspace, set `TARGET_PARTNER_SERVICE=sure-nbfc-unionbank-ph` for the pilot and integrate only that exact service with the source module `sure-partner-observability-spring-boot-starter` through the monorepo's established Gradle composite-build/source-dependency pattern. Resolve the target through optional `SUREWEBSERVICES_ROOT` or the unambiguous workspace parent. Reject unset, absent, wildcard, list, and path-traversal targets. Do not inspect or modify another `sure-nbfc-*` build merely because it is present. The result must work from a clean local and GitHub Actions checkout without Artifactory, Nexus, GitHub Packages, or copied binaries.
 
-Read the root and project `AGENTS.md` files, all `settings.gradle`/`settings.gradle.kts`, `build.gradle` files, Gradle properties, version catalogs, convention plugins, wrapper settings, CI checkout scripts, and existing composite builds/source substitutions in SureWebServices. Read the starter's current build metadata and consumer documentation. Use the real enterprise convention; do not invent a parallel build framework.
+Read the root, platform, and selected-target `AGENTS.md` files; the applicable root and selected-project `settings.gradle`/`settings.gradle.kts` and `build.gradle` files; Gradle properties, version catalogs, convention plugins, wrapper settings, CI checkout scripts, and existing shared composite-build/source-substitution definitions referenced by those builds. Read the starter's current build metadata and consumer documentation. Use the real enterprise convention; do not inventory or alter unrelated partner services and do not invent a parallel build framework.
 
 ## Fixed constraints
 
